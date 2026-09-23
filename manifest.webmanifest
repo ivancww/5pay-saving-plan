@@ -1,0 +1,10 @@
+{
+  "name": "AVA Saving",
+  "short_name": "AVA Saving",
+  "description": "AVA Saving future-resource conversation",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f8fb",
+  "theme_color": "#1e3a8a",
+  "icons": [{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
