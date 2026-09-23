@@ -1,4 +1,4 @@
-const CACHE = 'ava-saving-phase1-v1';
+const CACHE = 'ava-saving-phase1-v2';
 const ASSETS = ['./', './index.html', './styles.css', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));

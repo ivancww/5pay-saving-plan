@@ -7,7 +7,8 @@ Captured from the official Saving GAS endpoint on 2026-09-23 UTC.
 - Module version: empty in `action=version`
 - Schema version: empty in `action=version`
 - Data version: empty in `action=version`
-- Flow: P1 through P7 detected from `action=bootstrap`
+- Actions executed successfully: `version`, `bootstrap`, `content`, `returns`
+- Flow: P1 through P7 detected from `action=bootstrap` and `action=content`
 - Return sheets detected: `自動滾存`, `8年領取`, `15年領取`, `20年領取`, `25年領取`, `30年領取`
 
 Strategy mappings detected:
@@ -39,11 +40,11 @@ Sample multipliers read directly from GAS:
 
 ## Calculation status
 
-The multiplier basis is implemented as `total contribution × official multiplier`. This is supported by the Phase 1 P5 contract (“annual arrangement × 5 years = total contribution”) and the authoritative AVA Saving implementation convention (`principal × multiplier`). The adapter uses exact official `policy_year` rows only. Unsupported years, missing strategies, malformed rows and missing contribution amounts return an unavailable state; no interpolation, extrapolation, `Math.pow`, fixed return, or fabricated fallback is used.
+The multiplier basis is implemented as `total contribution × official multiplier`. This follows the Phase 1 P5 contract (“annual arrangement × 5 years = total contribution”) and is centralized in one adapter. The live GAS payload does not expose a separate `calculation_basis` field, so the basis is spec-derived rather than independently declared by the endpoint; this remains a product/data review item if the sheet owner defines a different base. The adapter uses exact official `policy_year` rows only. Unsupported years, missing strategies, malformed rows and missing contribution amounts return an unavailable state; no interpolation, extrapolation, `Math.pow`, fixed return, or fabricated fallback is used.
 
 All official-value paths use the same adapter: P4, P6, P7 and Customer View.
 
 ## Limitations
 
 - The endpoint returned blank module/schema/data version fields; the UI displays that limitation rather than inventing a version.
-- Browser automation and physical-device checks could not be executed in this shell because no Node/npm or browser engine is installed and local preview-port binding is restricted. Static checks passed; iPad, mobile, HONOR Magic V5, PWA install, live CORS, native print/PDF and touch QA remain human/device verification items.
+- Playwright browser checks were executed against a temporary local server at phone (390×844), folded-width phone (412×914), iPad portrait (834×1194), iPad landscape (1194×834), and unfolded/tablet-width (1800×1200) viewports. Boot, no-horizontal-overflow, P1→P7 flow, Customer View, local override/reset, actual back-history, exact-year selection, and service-worker registration passed. Physical iPadOS/HONOR device checks, installed Home Screen chrome, live CORS under deployment origin, and saving a native print dialog to a PDF file remain human/device verification items.

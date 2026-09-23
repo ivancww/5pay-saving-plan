@@ -1,4 +1,4 @@
-import { loadOfficialData, loadOverrides, saveOverrides } from './data.js';
+import { applyLocalOverrides, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
 import { createState, goBack, goTo } from './state.js';
 import { exportCustomerView } from './pdf.js';
 import { render } from './views.js';
@@ -8,10 +8,11 @@ const state = createState();
 let official = null; let meta = { source: 'loading' }; let overrides = loadOverrides();
 
 function draw() {
-  render(app, state, official || { flow: [], page_content: [], strategies: [], current_methods: [], return_tables: {}, version: {} }, overrides, meta);
+  const base = official || { flow: [], page_content: [], strategies: [], current_methods: [], return_tables: {}, version: {} };
+  render(app, state, applyLocalOverrides(base, overrides), overrides, meta);
 }
 function nextPage() {
-  const flow = official?.flow || [];
+  const flow = applyLocalOverrides(official || {}, overrides).flow || [];
   const current = flow.findIndex(page => page.page_id === state.pageId);
   const next = flow.slice(current + 1).find(page => page.enabled !== false);
   if (next) goTo(state, next.page_id);
@@ -39,11 +40,45 @@ app.addEventListener('click', event => {
   if (action === 'close-customer') state.customerView = false;
   if (action === 'print') exportCustomerView();
   if (action === 'save-override') {
-    overrides[`${state.pageId}.title`] = document.querySelector('#edit-title').value;
-    overrides[`${state.pageId}.subtitle`] = document.querySelector('#edit-subtitle').value;
+    const page = document.querySelector('#edit-title')?.closest('[data-edit-page]');
+    const pageId = page?.dataset.editPage || state.pageId;
+    overrides.pages ||= {};
+    overrides.pages[pageId] = { ...(overrides.pages[pageId] || {}), title: document.querySelector('#edit-title').value, subtitle: document.querySelector('#edit-subtitle').value };
+    const visible = document.querySelector('#edit-visible');
+    if (visible) overrides.pages[pageId].hidden = !visible.checked;
+    document.querySelectorAll('[data-edit-card]').forEach(field => {
+      overrides.cards ||= {};
+      overrides.cards[field.dataset.editCard] = { ...(overrides.cards[field.dataset.editCard] || {}), [field.dataset.editPart]: field.value };
+    });
+    saveOverrides(overrides); state.mode = 'use';
+    if (overrides.pages[pageId].hidden) {
+      const firstVisible = applyLocalOverrides(official || {}, overrides).flow[0];
+      state.pageId = firstVisible?.page_id || 'P1'; state.history = [];
+    }
+  }
+  if (action === 'move-page') {
+    const flow = applyLocalOverrides(official || {}, overrides).flow;
+    const index = flow.findIndex(page => page.page_id === state.pageId);
+    const targetIndex = index + Number(control.dataset.direction);
+    if (index >= 0 && targetIndex >= 0 && targetIndex < flow.length) {
+      overrides.pages ||= {};
+      const current = flow[index]; const target = flow[targetIndex];
+      overrides.pages[current.page_id] = { ...(overrides.pages[current.page_id] || {}), order: target.order };
+      overrides.pages[target.page_id] = { ...(overrides.pages[target.page_id] || {}), order: current.order };
+      saveOverrides(overrides);
+    }
+  }
+  if (action === 'add-page') {
+    overrides.customPages ||= [];
+    const id = `LOCAL_${Date.now()}`;
+    overrides.customPages.push({ page_id: id, page_type: 'conversation', title: '自訂對話頁', subtitle: '只在此裝置顯示的內容。', order: 1000 + overrides.customPages.length, localOnly: true });
     saveOverrides(overrides); state.mode = 'use';
   }
-  if (action === 'restore-defaults') { delete overrides[`${state.pageId}.title`]; delete overrides[`${state.pageId}.subtitle`]; saveOverrides(overrides); state.mode = 'use'; }
+  if (action === 'delete-page' && state.pageId.startsWith('LOCAL_')) {
+    overrides.customPages = (overrides.customPages || []).filter(page => page.page_id !== state.pageId);
+    saveOverrides(overrides); state.pageId = 'P1'; state.history = []; state.mode = 'use';
+  }
+  if (action === 'restore-defaults') { overrides = {}; saveOverrides(overrides); state.mode = 'use'; state.pageId = 'P1'; state.history = []; }
   draw();
 });
 
