@@ -1,5 +1,7 @@
 export const ENDPOINT = 'https://script.google.com/macros/s/AKfycbw_tBrwEiGfaZSNBgLwv1eNyjG8KEWj0QeHZZPANh5endIuPfwl8HMT6LujWWqSXZaKRg/exec';
+import { normalizeMediaList } from './media.js';
 const CACHE_KEY = 'ava-saving-official-cache-v1';
+export const USER_DATA_SCHEMA = 'ava-saving-user-v1';
 
 export const strategyMap = {
   none: '自動滾存',
@@ -68,7 +70,15 @@ export function saveOverrides(value) { try { localStorage.setItem('ava-saving-us
 /** Merge only presentation-layer overrides. Official content and return rows stay read-only. */
 export function applyLocalOverrides(official, overrides = {}) {
   const pages = overrides.pages || {};
-  const customPages = Array.isArray(overrides.customPages) ? overrides.customPages : [];
+  const customPages = (Array.isArray(overrides.customPages) ? overrides.customPages : []).map((page, index) => ({
+    ...page,
+    page_type: ['content', 'image', 'video'].includes(page.page_type) ? page.page_type : 'content',
+    media: normalizeMediaList(page.media, page.page_type),
+    order: Number.isFinite(Number(page.order)) ? Number(page.order) : 3.5 + index / 100,
+    enabled: page.enabled !== false,
+    createdAt: page.createdAt || new Date().toISOString(),
+    updatedAt: page.updatedAt || page.createdAt || new Date().toISOString()
+  }));
   const flow = [...(official.flow || []), ...customPages].map((page, index) => {
     const local = pages[page.page_id] || {};
     return { ...page, ...local, order: Number.isFinite(Number(local.order)) ? Number(local.order) : (page.order ?? index + 1), enabled: local.hidden !== true && page.enabled !== false };
