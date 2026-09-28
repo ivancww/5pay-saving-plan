@@ -10,7 +10,11 @@ assert "return ENTRY_MODES.unsupported" in integration
 assert "state.mode = 'edit'" in main
 assert "data-action=\"preview\"" in views
 assert "data-action=\"save-preview\"" in views
-assert "https://ivancww.github.io/avaplatform/index.html" in integration
+assert "parentHref" in integration
+assert "referrer" in integration
+assert "avaSurface" in integration
+assert "AVA_PLATFORM_URL" not in integration
+assert "https://ivancww.github.io" not in integration
 assert "entryMode === ENTRY_MODES.standalone" in main
 assert "entryMode === ENTRY_MODES.unsupported" in main
 assert "loadCachedOfficial" in main

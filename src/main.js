@@ -12,7 +12,11 @@ const entryMode = getEntryMode(location.search);
 let official = null; let meta = { source: 'loading' }; let overrides = loadOverrides(); let previewOverrides = null;
 const avaReturnLink = document.querySelector('#return-ava');
 if (avaReturnLink) {
-  avaReturnLink.href = entryMode === ENTRY_MODES.standalone ? '../avaplatform/index.html' : avaReturnHref(entryMode);
+  let parentHref = '';
+  try { if (window.parent !== window) parentHref = window.parent.location.href; } catch { /* cross-context access is unavailable */ }
+  const contextHref = entryMode === ENTRY_MODES.standalone ? '../avaplatform/index.html' : avaReturnHref(entryMode, { parentHref, referrer: document.referrer });
+  avaReturnLink.href = contextHref || './';
+  if (!contextHref) avaReturnLink.title = '未提供 AVA 返回內容；返回 Saving 首頁';
 }
 const editToggle = document.querySelector('#edit-toggle');
 if (editToggle && entryMode === ENTRY_MODES.frontend) editToggle.hidden = true;

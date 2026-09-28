@@ -5,8 +5,6 @@ export const ENTRY_MODES = Object.freeze({
   unsupported: 'unsupported'
 });
 
-export const AVA_PLATFORM_URL = 'https://ivancww.github.io/avaplatform/index.html';
-
 export function getEntryMode(search = '') {
   const value = new URLSearchParams(search).get('avaEntry');
   if (!value) return ENTRY_MODES.standalone;
@@ -14,7 +12,18 @@ export function getEntryMode(search = '') {
   return ENTRY_MODES.unsupported;
 }
 
-export function avaReturnHref(mode) {
-  const surface = mode === ENTRY_MODES.user ? 'user' : mode === ENTRY_MODES.unsupported ? 'frontend' : 'frontend';
-  return `${AVA_PLATFORM_URL}?avaSurface=${surface}`;
+export function avaReturnHref(mode, { parentHref = '', referrer = '' } = {}) {
+  const surface = mode === ENTRY_MODES.user ? 'user' : 'frontend';
+  for (const candidate of [parentHref, referrer]) {
+    try {
+      const url = new URL(candidate);
+      if (!url.pathname.replace(/index\.html$/, '').endsWith('/avaplatform/')) continue;
+      const avaRoot = new URL('./', url);
+      avaRoot.searchParams.set('avaSurface', surface);
+      return avaRoot.href;
+    } catch {
+      // A missing or malformed return context must not become a guessed URL.
+    }
+  }
+  return null;
 }
