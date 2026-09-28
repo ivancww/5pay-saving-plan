@@ -61,6 +61,7 @@ export async function loadOfficialData() {
   }
 }
 
+export function loadCachedOfficial() { return readCache(); }
 function readCache() { try { return JSON.parse(localStorage.getItem(CACHE_KEY) || 'null'); } catch { return null; } }
 function writeCache(value) { try { localStorage.setItem(CACHE_KEY, JSON.stringify(value)); } catch { /* storage is optional */ } }
 

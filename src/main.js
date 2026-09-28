@@ -1,22 +1,58 @@
-import { applyLocalOverrides, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
+import { applyLocalOverrides, loadCachedOfficial, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
 import { createState, goBack, goTo } from './state.js';
 import { exportCustomerView } from './pdf.js';
 import { render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
 import { downloadPortableBackup, validatePortableBackup } from './portable.js';
+import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
 
 const app = document.querySelector('#app');
 const state = createState();
-let official = null; let meta = { source: 'loading' }; let overrides = loadOverrides();
+const entryMode = getEntryMode(location.search);
+let official = null; let meta = { source: 'loading' }; let overrides = loadOverrides(); let previewOverrides = null;
 const avaReturnLink = document.querySelector('#return-ava');
 if (avaReturnLink) {
-  const integrated = ['frontend', 'user', 'admin'].includes(new URLSearchParams(location.search).get('avaEntry'));
-  avaReturnLink.href = integrated ? '../../index.html' : '../avaplatform/index.html';
+  let parentHref = '';
+  try { if (window.parent !== window) parentHref = window.parent.location.href; } catch { /* cross-context access is unavailable */ }
+  const contextHref = entryMode === ENTRY_MODES.standalone ? '../avaplatform/index.html' : avaReturnHref(entryMode, { parentHref, referrer: document.referrer });
+  avaReturnLink.href = contextHref || './';
+  if (!contextHref) avaReturnLink.title = '未提供 AVA 返回內容；返回 Saving 首頁';
 }
+const editToggle = document.querySelector('#edit-toggle');
+if (editToggle && entryMode === ENTRY_MODES.frontend) editToggle.hidden = true;
+if (entryMode === ENTRY_MODES.user) state.mode = 'edit';
+if (entryMode !== ENTRY_MODES.standalone) document.querySelector('link[rel="manifest"]')?.remove();
 
 function draw() {
+  if (entryMode === ENTRY_MODES.unsupported) {
+    app.innerHTML = '<div class="ava-status ava-status--warning" role="alert"><strong>此 AVA 入口未啟用。</strong><p>Saving 目前只支援 Frontstage 和 User/Edit 入口。</p></div>';
+    return;
+  }
   const base = official || { flow: [], page_content: [], strategies: [], current_methods: [], return_tables: {}, version: {} };
-  render(app, state, applyLocalOverrides(base, overrides), overrides, meta);
+  const effectiveOverrides = previewOverrides || overrides;
+  render(app, state, applyLocalOverrides(base, effectiveOverrides), effectiveOverrides, meta);
+}
+function clone(value) { return JSON.parse(JSON.stringify(value)); }
+function collectEditedOverrides(base) {
+  const next = clone(base);
+  const page = document.querySelector('#edit-title')?.closest('[data-edit-page]');
+  const pageId = page?.dataset.editPage || state.pageId;
+  next.pages ||= {};
+  next.pages[pageId] = { ...(next.pages[pageId] || {}), title: document.querySelector('#edit-title').value, subtitle: document.querySelector('#edit-subtitle').value };
+  const visible = document.querySelector('#edit-visible');
+  if (visible) next.pages[pageId].hidden = !visible.checked;
+  if (pageId.startsWith('LOCAL_')) {
+    const custom = (next.customPages || []).find(item => item.page_id === pageId);
+    if (custom) {
+      const { type, media } = readPageMedia(custom);
+      Object.assign(custom, { title: document.querySelector('#edit-title').value, subtitle: document.querySelector('#edit-subtitle').value, content: document.querySelector('#edit-content')?.value || '', page_type: type, media, updatedAt: new Date().toISOString() });
+    }
+  }
+  document.querySelectorAll('[data-edit-card]').forEach(field => {
+    next.cards ||= {};
+    next.cards[field.dataset.editCard] = { ...(next.cards[field.dataset.editCard] || {}), [field.dataset.editPart]: field.value };
+  });
+  return next;
 }
 function nextPage() {
   const flow = applyLocalOverrides(official || {}, overrides).flow || [];
@@ -69,31 +105,12 @@ app.addEventListener('click', event => {
   if (action === 'print') exportCustomerView();
   if (action === 'backup') downloadPortableBackup(overrides);
   if (action === 'reconnect-media') window.alert('雲端媒體服務尚未連接，請先完成 AVA Platform 授權。');
+  if (action === 'preview') { previewOverrides = collectEditedOverrides(overrides); state.mode = 'preview'; draw(); return; }
+  if (action === 'return-edit') { state.mode = 'edit'; draw(); return; }
+  if (action === 'save-preview') { overrides = previewOverrides || overrides; previewOverrides = null; saveOverrides(overrides); state.mode = 'use'; draw(); return; }
   if (action === 'save-override') {
-    const page = document.querySelector('#edit-title')?.closest('[data-edit-page]');
-    const pageId = page?.dataset.editPage || state.pageId;
-    overrides.pages ||= {};
-    overrides.pages[pageId] = { ...(overrides.pages[pageId] || {}), title: document.querySelector('#edit-title').value, subtitle: document.querySelector('#edit-subtitle').value };
-    const visible = document.querySelector('#edit-visible');
-    if (visible) overrides.pages[pageId].hidden = !visible.checked;
-    if (pageId.startsWith('LOCAL_')) {
-      const custom = (overrides.customPages || []).find(item => item.page_id === pageId);
-      if (custom) {
-        const { type, media } = readPageMedia(custom);
-        Object.assign(custom, {
-          title: document.querySelector('#edit-title').value,
-          subtitle: document.querySelector('#edit-subtitle').value,
-          content: document.querySelector('#edit-content')?.value || '',
-          page_type: type,
-          media,
-          updatedAt: new Date().toISOString()
-        });
-      }
-    }
-    document.querySelectorAll('[data-edit-card]').forEach(field => {
-      overrides.cards ||= {};
-      overrides.cards[field.dataset.editCard] = { ...(overrides.cards[field.dataset.editCard] || {}), [field.dataset.editPart]: field.value };
-    });
+    const pageId = document.querySelector('#edit-title')?.closest('[data-edit-page]')?.dataset.editPage || state.pageId;
+    overrides = collectEditedOverrides(overrides);
     saveOverrides(overrides); state.mode = 'use';
     if (overrides.pages[pageId].hidden) {
       const firstVisible = applyLocalOverrides(official || {}, overrides).flow[0];
@@ -151,5 +168,7 @@ document.querySelector('#edit-toggle').addEventListener('click', () => { state.m
 document.querySelector('#reset-session').addEventListener('click', () => location.reload());
 
 draw();
+const cachedOfficial = loadCachedOfficial();
+if (cachedOfficial) { official = cachedOfficial; meta = { source: 'local-cache', stale: true }; draw(); }
 loadOfficialData().then(result => { official = result.official; meta = result; draw(); }).catch(error => { meta = { source: 'error', error }; draw(); });
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if (entryMode === ENTRY_MODES.standalone && 'serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
