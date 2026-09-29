@@ -12,6 +12,7 @@ assert "entryMode === ENTRY_MODES.admin || entryMode === ENTRY_MODES.unsupported
 runtime_source = ''.join(path.read_text() for path in [*Path('src').glob('*.js'), Path('index.html')])
 assert "avaAdminLaunch" not in runtime_source
 assert "verifyAppGrant" not in runtime_source
+assert "exchangeAppLaunch" not in runtime_source
 assert "state.mode = 'edit'" in main
 assert "data-action=\"preview\"" in views
 assert "data-action=\"save-preview\"" in views
