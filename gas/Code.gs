@@ -37,8 +37,8 @@ function doGet(e) {
     if (action === 'bootstrap') return json_({ ok: true, data: readBootstrap_() });
     if (action === 'content') return json_({ ok: true, data: readContent_() });
     if (action === 'returns') return json_({ ok: true, data: readReturnTables_() });
-    if (action === 'return') return json_({ ok: true, data: readOneReturn_(e.parameter.sheet || e.parameter.name) });
-    if (action === 'version') return json_({ ok: true, data: readVersion_() });
+    if (action === 'return') return json_({ ok: true, data: readReturnSheet_(getReturnSheetFromStrategy_(e.parameter.strategy)) });
+    if (action === 'version') return json_({ ok: true, data: getVersionInfo_() });
     return json_({ ok: false, error: 'Unsupported action' });
   } catch (error) { return json_({ ok: false, error: error.message }); }
 }
@@ -80,7 +80,7 @@ function platformRequest_(body) {
 function publishContentRequest_(body) {
   // Authorization and complete validation happen before the first Sheet write.
   verifyAppGrant_(body.appGrant);
-  const validated = validatePublish_(body);
+  const validated = validatePublish_(body.data);
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
     validatePublishTargets_(validated);
@@ -92,7 +92,8 @@ function publishContentRequest_(body) {
 }
 
 function validatePublish_(body) {
-  const keys = Object.keys(body).filter(key => !['action','appGrant'].includes(key));
+  if (!body || typeof body !== 'object' || Array.isArray(body)) fail_('Publish data is required');
+  const keys = Object.keys(body);
   keys.forEach(key => { if (!WRITE_DOMAINS.includes(key)) fail_(`Unknown publish domain: ${key}`); });
   if (!keys.length) fail_('At least one Official domain is required');
   return keys.map(domain => ({ domain, rows: validateRows_(domain, body[domain]) }));
@@ -151,8 +152,12 @@ function writeObjectsToSheet_(domain, rows) {
 function sheet_(name) { const sheet = SpreadsheetApp.getActive().getSheetByName(name); if (!sheet) fail_(`Missing Sheet: ${name}`); return sheet; }
 function rows_(name) { const sheet = sheet_(name), values = sheet.getDataRange().getValues(); if (!values.length) return []; const headers = values.shift().map(String); return values.filter(row => row.some(value => value !== '')).map(row => Object.fromEntries(headers.map((key, index) => [key, row[index]]))); }
 function readContent_() { return { flow: rows_(SHEETS.flow), page_content: rows_(SHEETS.page_content), routing: rows_(SHEETS.routing), current_methods: rows_(SHEETS.current_methods), withdrawal_strategies: rows_(SHEETS.withdrawal_strategies), customer_view: rows_(SHEETS.customer_view) }; }
-function readReturnTables_() { return Object.fromEntries(RETURN_SHEETS.map(name => [name, rows_(name)])); }
-function readOneReturn_(name) { if (!RETURN_SHEETS.includes(String(name || ''))) fail_('Unknown return Sheet'); return rows_(String(name)); }
-function readVersion_() { const values = rows_(SHEETS.system), data = Object.fromEntries(values.map(row => [String(row.key), row.value])); return { module_version: data.module_version || '', schema_version: data.schema_version || '', data_version: data.data_version || '', last_updated: data.last_updated || '' }; }
-function readBootstrap_() { const content = readContent_(); return { ...content, system: {}, return_tables: readReturnTables_(), version: readVersion_() }; }
+function normalizeNumber_(value) { const number = Number(value); return Number.isFinite(number) ? number : null; }
+function normalizePercent_(value) { if (typeof value === 'string' && value.trim().endsWith('%')) return normalizeNumber_(value.trim().slice(0, -1)) / 100; const number = normalizeNumber_(value); return number === null ? null : number > 1 ? number / 100 : number; }
+function readReturnSheet_(sheetName) { return rows_(sheetName).map(row => ({ policy_year: normalizeNumber_(row.policy_year), withdrawal_rate: normalizePercent_(row.withdrawal_rate), multiplier: normalizeNumber_(row.multiplier) })).filter(row => row.policy_year !== null && row.multiplier !== null); }
+function getReturnSheetFromStrategy_(strategy) { const strategyCode = String(strategy || ''), mapping = rows_(SHEETS.withdrawal_strategies).find(row => String(row.strategy_code) === strategyCode); if (!mapping || !RETURN_SHEETS.includes(String(mapping.sheet_name))) fail_('Unknown Saving withdrawal strategy'); return String(mapping.sheet_name); }
+function readReturnTables_() { return Object.fromEntries(RETURN_SHEETS.map(name => [name, readReturnSheet_(name)])); }
+function getSystemData_() { return Object.fromEntries(rows_(SHEETS.system).map(row => [String(row.key), row.value])); }
+function getVersionInfo_() { const system = getSystemData_(); return { module_name: system.module_name || 'Saving', module_version: system.module_version || '', schema_version: system.schema_version || '', data_version: system.data_version || '', last_updated: system.last_updated || '' }; }
+function readBootstrap_() { const content = readContent_(); return { system: getSystemData_(), flow: content.flow, page_content: content.page_content, routing: content.routing, current_methods: content.current_methods, withdrawal_strategies: content.withdrawal_strategies, customer_view: content.customer_view, return_tables: readReturnTables_() }; }
 function updateLastUpdated_() { const sheet = sheet_(SHEETS.system), values = sheet.getDataRange().getValues(), headers = values.shift().map(String), keyIndex = headers.indexOf('key'), valueIndex = headers.indexOf('value'); if (keyIndex < 0 || valueIndex < 0) fail_('Saving_System schema is protected or invalid'); const rowIndex = values.findIndex(row => String(row[keyIndex]) === 'last_updated'); if (rowIndex < 0) fail_('Saving_System last_updated row is required'); sheet.getRange(rowIndex + 2, valueIndex + 1).setValue(new Date()); }

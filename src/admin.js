@@ -16,7 +16,7 @@ export async function publishOfficial(appGrant, data, fetchImpl = globalThis.fet
   if (!appGrant) throw new Error('Admin 授權不存在。');
   const domains = Object.keys(data || {});
   if (!domains.length || domains.some(domain => !ADMIN_DOMAINS.includes(domain))) throw new Error('只可以發佈 Saving Official 設定。');
-  const response = await fetchImpl(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'publish_content', appGrant, ...data }) });
+  const response = await fetchImpl(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'publish_content', appGrant, data }) });
   const payload = await response.json();
   if (!response.ok || payload.ok !== true) throw new Error(payload.error || 'Official 發佈失敗。');
   return payload;
