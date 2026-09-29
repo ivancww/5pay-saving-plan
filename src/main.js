@@ -24,7 +24,7 @@ if (entryMode === ENTRY_MODES.user) state.mode = 'edit';
 if (entryMode !== ENTRY_MODES.standalone) document.querySelector('link[rel="manifest"]')?.remove();
 
 function draw() {
-  if (entryMode === ENTRY_MODES.unsupported) {
+  if (entryMode === ENTRY_MODES.admin || entryMode === ENTRY_MODES.unsupported) {
     app.innerHTML = '<div class="ava-status ava-status--warning" role="alert"><strong>此 AVA 入口未啟用。</strong><p>Saving 目前只支援 Frontstage 和 User/Edit 入口。</p></div>';
     return;
   }

@@ -24,6 +24,20 @@ python3 tests/static_checks.py
 
 See [`DATA_VALIDATION.md`](DATA_VALIDATION.md) for the captured official endpoint evidence and known limitations.
 
+## Admin capability audit
+
+Saving currently has no Admin implementation or Official-write capability. Its
+existing GAS endpoint is used for read-only Official data loading; the app has
+no Saving-owned mutation endpoint, Sheet publishing workflow, or Admin-only
+configuration surface. Accordingly, AVA Platform must keep the canonical
+`5pay` registry capability as `admin: false`.
+
+`?avaEntry=admin` is explicitly recognized and fails closed with no data load,
+grant exchange, or write. This is intentional: do not add a Saving password,
+Google-email allowlist, frontend grant handling, or a fabricated Admin surface
+until Saving has a real Official configuration/write requirement. See
+[`ADMIN_INTEGRATION_AUDIT.md`](ADMIN_INTEGRATION_AUDIT.md).
+
 ## User pages and media
 
 User-created content, Image pages (up to 6 references) and Video pages (1 reference) are stored as structured local overrides. Media binaries are never written to LocalStorage or backup JSON. The current independent preview has no connected Cloud Media Provider, so media references render a safe `媒體暫時無法使用` state until AVA Platform supplies an authorized provider. Portable backup preserves page order, visibility, content and media references without copying binary data; QR compatibility is represented as a platform-owned pointer contract rather than a Saving-specific QR implementation.
