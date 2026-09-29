@@ -26,17 +26,12 @@ See [`DATA_VALIDATION.md`](DATA_VALIDATION.md) for the captured official endpoin
 
 ## Admin capability audit
 
-Saving currently has no deployable Admin implementation or Official-write
-capability in this repository. Its existing GAS endpoint is used for read-only
-Official data loading; the app has no Saving-owned mutation endpoint, Sheet
-publishing workflow, or Admin-only configuration surface. Accordingly, AVA
-Platform must keep the canonical `5pay` registry capability as `admin: false`.
+Saving has an existing `publish_content` Official-write architecture. This PR
+connects it to AVA Platform Unified Admin Authentication and adds a Saving-owned
+Admin surface for the existing Official configuration domains.
 
-`?avaEntry=admin` is explicitly recognized and fails closed with no data load,
-grant exchange, or write. This is intentional: do not add a Saving password,
-Google-email allowlist, frontend grant handling, or a fabricated Admin surface
-until the Saving GAS source, exact Sheet write targets, and deployment path for
-Platform verification are available. See
+`?avaEntry=admin` requires a one-time Platform launch and fails closed without
+it. Return tables and User/local overrides remain outside Admin publishing. See
 [`ADMIN_INTEGRATION_AUDIT.md`](ADMIN_INTEGRATION_AUDIT.md).
 
 ## User pages and media

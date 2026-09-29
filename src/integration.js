@@ -15,7 +15,7 @@ export function getEntryMode(search = '') {
 }
 
 export function avaReturnHref(mode, { parentHref = '', referrer = '' } = {}) {
-  const surface = mode === ENTRY_MODES.user ? 'user' : 'frontend';
+  const surface = mode === ENTRY_MODES.user ? 'user' : mode === ENTRY_MODES.admin ? 'admin' : 'frontend';
   for (const candidate of [parentHref, referrer]) {
     try {
       const url = new URL(candidate);
