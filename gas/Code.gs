@@ -152,9 +152,23 @@ function writeObjectsToSheet_(domain, rows) {
 function sheet_(name) { const sheet = SpreadsheetApp.getActive().getSheetByName(name); if (!sheet) fail_(`Missing Sheet: ${name}`); return sheet; }
 function rows_(name) { const sheet = sheet_(name), values = sheet.getDataRange().getValues(); if (!values.length) return []; const headers = values.shift().map(String); return values.filter(row => row.some(value => value !== '')).map(row => Object.fromEntries(headers.map((key, index) => [key, row[index]]))); }
 function readContent_() { return { flow: rows_(SHEETS.flow), page_content: rows_(SHEETS.page_content), routing: rows_(SHEETS.routing), current_methods: rows_(SHEETS.current_methods), withdrawal_strategies: rows_(SHEETS.withdrawal_strategies), customer_view: rows_(SHEETS.customer_view) }; }
-function normalizeNumber_(value) { const number = Number(value); return Number.isFinite(number) ? number : null; }
-function normalizePercent_(value) { if (typeof value === 'string' && value.trim().endsWith('%')) return normalizeNumber_(value.trim().slice(0, -1)) / 100; const number = normalizeNumber_(value); return number === null ? null : number > 1 ? number / 100 : number; }
-function readReturnSheet_(sheetName) { return rows_(sheetName).map(row => ({ policy_year: normalizeNumber_(row.policy_year), withdrawal_rate: normalizePercent_(row.withdrawal_rate), multiplier: normalizeNumber_(row.multiplier) })).filter(row => row.policy_year !== null && row.multiplier !== null); }
+function normalizeNumber_(value) {
+  if (value === null || value === undefined || value === '') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'string') { const number = Number(value.replace(/,/g, '').trim()); return Number.isFinite(number) ? number : null; }
+  return null;
+}
+function normalizePercent_(value) {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  if (typeof value === 'string' && value.trim().endsWith('%')) { const number = normalizeNumber_(value.trim().slice(0, -1)); return number === null ? 0 : number / 100; }
+  const number = normalizeNumber_(value); return number === null ? 0 : number;
+}
+function readReturnSheet_(sheetName) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName); if (!sheet) fail_(`Missing return Sheet: ${sheetName}`);
+  const values = sheet.getDataRange().getValues(); values.shift();
+  return values.map(row => ({ policy_year: normalizeNumber_(row[0]), withdrawal_rate: normalizePercent_(row[1]), multiplier: normalizeNumber_(row[2]) })).filter(row => row.policy_year !== null);
+}
 function getReturnSheetFromStrategy_(strategy) { const strategyCode = String(strategy || ''), mapping = rows_(SHEETS.withdrawal_strategies).find(row => String(row.strategy_code) === strategyCode); if (!mapping || !RETURN_SHEETS.includes(String(mapping.sheet_name))) fail_('Unknown Saving withdrawal strategy'); return String(mapping.sheet_name); }
 function readReturnTables_() { return Object.fromEntries(RETURN_SHEETS.map(name => [name, readReturnSheet_(name)])); }
 function getSystemData_() { return Object.fromEntries(rows_(SHEETS.system).map(row => [String(row.key), row.value])); }

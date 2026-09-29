@@ -11,9 +11,14 @@ assert "getReturnSheetFromStrategy_(e.parameter.strategy)" in gas
 assert "function getReturnSheetFromStrategy_(strategy)" in gas
 assert "rows_(SHEETS.withdrawal_strategies)" in gas
 assert "function readReturnSheet_(sheetName)" in gas
-assert "policy_year: normalizeNumber_(row.policy_year)" in gas
-assert "withdrawal_rate: normalizePercent_(row.withdrawal_rate)" in gas
-assert "multiplier: normalizeNumber_(row.multiplier)" in gas
+assert "SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName)" in gas
+assert "values.shift()" in gas
+assert "policy_year: normalizeNumber_(row[0])" in gas
+assert "withdrawal_rate: normalizePercent_(row[1])" in gas
+assert "multiplier: normalizeNumber_(row[2])" in gas
+assert "value.replace(/,/g, '')" in gas
+assert "value.trim().endsWith('%')" in gas
+assert "number > 1 ? number / 100" not in gas
 assert "system: getSystemData_()" in gas
 assert "function getVersionInfo_()" in gas
 assert "module_name" in gas and "module_version" in gas and "schema_version" in gas
