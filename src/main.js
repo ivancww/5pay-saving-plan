@@ -5,11 +5,13 @@ import { render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
 import { downloadPortableBackup, validatePortableBackup } from './portable.js';
 import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
+import { exchangeAdminLaunch, publishOfficial, readAdminPayload, renderAdmin } from './admin.js';
 
 const app = document.querySelector('#app');
 const state = createState();
 const entryMode = getEntryMode(location.search);
 let official = null; let meta = { source: 'loading' }; let overrides = loadOverrides(); let previewOverrides = null;
+let adminAuthorization = null;
 const avaReturnLink = document.querySelector('#return-ava');
 if (avaReturnLink) {
   let parentHref = '';
@@ -108,6 +110,7 @@ app.addEventListener('click', event => {
   if (action === 'preview') { previewOverrides = collectEditedOverrides(overrides); state.mode = 'preview'; draw(); return; }
   if (action === 'return-edit') { state.mode = 'edit'; draw(); return; }
   if (action === 'save-preview') { overrides = previewOverrides || overrides; previewOverrides = null; saveOverrides(overrides); state.mode = 'use'; draw(); return; }
+  if (action === 'publish-admin' && entryMode === ENTRY_MODES.admin) { publishAdmin(); return; }
   if (action === 'save-override') {
     const pageId = document.querySelector('#edit-title')?.closest('[data-edit-page]')?.dataset.editPage || state.pageId;
     overrides = collectEditedOverrides(overrides);
@@ -167,8 +170,31 @@ document.querySelector('#customer-view-button').addEventListener('click', () => 
 document.querySelector('#edit-toggle').addEventListener('click', () => { state.mode = state.mode === 'edit' ? 'use' : 'edit'; draw(); });
 document.querySelector('#reset-session').addEventListener('click', () => location.reload());
 
-draw();
-const cachedOfficial = loadCachedOfficial();
-if (cachedOfficial) { official = cachedOfficial; meta = { source: 'local-cache', stale: true }; draw(); }
-loadOfficialData().then(result => { official = result.official; meta = result; draw(); }).catch(error => { meta = { source: 'error', error }; draw(); });
-if (entryMode === ENTRY_MODES.standalone && 'serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+async function publishAdmin() {
+  try {
+    const status = document.querySelector('#admin-publish-status'); if (status) status.textContent = '驗證並發佈中…';
+    await publishOfficial(adminAuthorization.appGrant, readAdminPayload(app));
+    const result = await loadOfficialData(); official = result.official; meta = result;
+    renderAdmin(app, official, { message: 'Official 設定已發佈；User/local overrides 保持不變。' });
+  } catch (error) { renderAdmin(app, official || {}, { error: error.message }); }
+}
+
+async function startAdmin() {
+  const launch = new URLSearchParams(location.search).get('avaAdminLaunch');
+  if (!launch) { renderAdmin(app, {}, { error: '缺少一次性 AVA Admin launch。' }); return; }
+  const cleanUrl = new URL(location.href); cleanUrl.searchParams.delete('avaAdminLaunch'); history.replaceState(null, '', cleanUrl.href);
+  try {
+    adminAuthorization = await exchangeAdminLaunch(launch);
+    const result = await loadOfficialData(); official = result.official; meta = result;
+    renderAdmin(app, official);
+  } catch (error) { adminAuthorization = null; renderAdmin(app, {}, { error: error.message }); }
+}
+
+if (entryMode === ENTRY_MODES.admin) startAdmin();
+else {
+  draw();
+  const cachedOfficial = loadCachedOfficial();
+  if (cachedOfficial) { official = cachedOfficial; meta = { source: 'local-cache', stale: true }; draw(); }
+  loadOfficialData().then(result => { official = result.official; meta = result; draw(); }).catch(error => { meta = { source: 'error', error }; draw(); });
+  if (entryMode === ENTRY_MODES.standalone && 'serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+}

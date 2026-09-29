@@ -24,6 +24,16 @@ python3 tests/static_checks.py
 
 See [`DATA_VALIDATION.md`](DATA_VALIDATION.md) for the captured official endpoint evidence and known limitations.
 
+## Admin capability audit
+
+Saving has an existing `publish_content` Official-write architecture. This PR
+connects it to AVA Platform Unified Admin Authentication and adds a Saving-owned
+Admin surface for the existing Official configuration domains.
+
+`?avaEntry=admin` requires a one-time Platform launch and fails closed without
+it. Return tables and User/local overrides remain outside Admin publishing. See
+[`ADMIN_INTEGRATION_AUDIT.md`](ADMIN_INTEGRATION_AUDIT.md).
+
 ## User pages and media
 
 User-created content, Image pages (up to 6 references) and Video pages (1 reference) are stored as structured local overrides. Media binaries are never written to LocalStorage or backup JSON. The current independent preview has no connected Cloud Media Provider, so media references render a safe `媒體暫時無法使用` state until AVA Platform supplies an authorized provider. Portable backup preserves page order, visibility, content and media references without copying binary data; QR compatibility is represented as a platform-owned pointer contract rather than a Saving-specific QR implementation.

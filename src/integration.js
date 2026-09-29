@@ -2,6 +2,7 @@ export const ENTRY_MODES = Object.freeze({
   standalone: 'standalone',
   frontend: 'frontend',
   user: 'user',
+  admin: 'admin',
   unsupported: 'unsupported'
 });
 
@@ -9,11 +10,12 @@ export function getEntryMode(search = '') {
   const value = new URLSearchParams(search).get('avaEntry');
   if (!value) return ENTRY_MODES.standalone;
   if (value === ENTRY_MODES.frontend || value === ENTRY_MODES.user) return value;
+  if (value === ENTRY_MODES.admin) return ENTRY_MODES.admin;
   return ENTRY_MODES.unsupported;
 }
 
 export function avaReturnHref(mode, { parentHref = '', referrer = '' } = {}) {
-  const surface = mode === ENTRY_MODES.user ? 'user' : 'frontend';
+  const surface = mode === ENTRY_MODES.user ? 'user' : mode === ENTRY_MODES.admin ? 'admin' : 'frontend';
   for (const candidate of [parentHref, referrer]) {
     try {
       const url = new URL(candidate);
