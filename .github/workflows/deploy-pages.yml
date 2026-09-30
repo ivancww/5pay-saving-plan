@@ -28,6 +28,10 @@ jobs:
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
+      - name: Stamp deployment identity
+        run: |
+          sed -i "s/__AVA_DEPLOYMENT_ID__/${GITHUB_SHA}/g" sw.js src/build.js
+
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
         with:

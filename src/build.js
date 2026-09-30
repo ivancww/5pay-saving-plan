@@ -1,2 +1,2 @@
-// Static GitHub Pages build identifier; update with each app-shell release.
-export const BUILD_ID = '2026-09-30-p6-rail-cache-v1';
+// GitHub Pages replaces this token with the deployment commit SHA.
+export const BUILD_ID = '__AVA_DEPLOYMENT_ID__';

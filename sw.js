@@ -1,4 +1,7 @@
-const CACHE = 'ava-saving-phase1-20260930-p6-rail-v1';
+const DEPLOYMENT_ID = '__AVA_DEPLOYMENT_ID__';
+const CACHE_PREFIX = 'ava-saving-phase1-shell-';
+const LEGACY_CACHES = ['ava-saving-phase1-v2', 'ava-saving-phase1-20260930-p6-rail-v1'];
+const CACHE = `${CACHE_PREFIX}${DEPLOYMENT_ID}`;
 const SHELL = ['./', './index.html', './styles.css', './manifest.webmanifest', './icon.svg', './src/main.js', './src/build.js', './src/calculation.js', './src/data.js', './src/state.js', './src/views.js', './src/media.js', './src/pdf.js', './src/portable.js', './src/integration.js', './src/admin.js'];
 
 self.addEventListener('install', event => event.waitUntil(
@@ -7,7 +10,7 @@ self.addEventListener('install', event => event.waitUntil(
 
 self.addEventListener('activate', event => event.waitUntil(
   caches.keys()
-    .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+    .then(keys => Promise.all(keys.filter(key => (LEGACY_CACHES.includes(key) || key.startsWith(CACHE_PREFIX)) && key !== CACHE).map(key => caches.delete(key))))
     .then(() => self.clients.claim())
 ));
 
@@ -28,14 +31,18 @@ async function navigationResponse(request) {
   }
 }
 
+async function sameOriginResponse(request) {
+  try {
+    return await cacheResponse(request, await fetch(request, { cache: 'no-store' }));
+  } catch {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    throw new Error('Saving resource unavailable while offline');
+  }
+}
+
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
-  if (event.request.mode === 'navigate') {
-    event.respondWith(navigationResponse(event.request));
-    return;
-  }
-  event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request).then(response => cacheResponse(event.request, response)))
-      .catch(() => caches.match('./index.html'))
-  );
+  if (new URL(event.request.url).origin !== self.location.origin) return;
+  event.respondWith(event.request.mode === 'navigate' ? navigationResponse(event.request) : sameOriginResponse(event.request));
 });
