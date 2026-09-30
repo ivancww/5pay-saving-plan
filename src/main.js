@@ -1,5 +1,5 @@
 import { applyLocalOverrides, loadCachedOfficial, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
-import { createState, goBack, goTo } from './state.js';
+import { createState, getCustomerAge, goBack, goTo } from './state.js';
 import { exportCustomerView } from './pdf.js';
 import { render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
@@ -8,8 +8,7 @@ import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
 import { exchangeAdminLaunch, publishOfficial, readAdminPayload, renderAdmin } from './admin.js';
 
 const app = document.querySelector('#app');
-const initialAge = Number(new URLSearchParams(location.search).get('customerAge') || new URLSearchParams(location.search).get('age'));
-const state = createState(Number.isFinite(initialAge) && initialAge >= 0 ? { currentAge: initialAge } : {});
+const state = createState();
 const entryMode = getEntryMode(location.search);
 let official = null; let meta = { source: 'loading' }; let overrides = loadOverrides(); let previewOverrides = null;
 let adminAuthorization = null;
@@ -65,6 +64,12 @@ function collectEditedOverrides(base) {
   return next;
 }
 function nextPage() {
+  if (state.pageId === 'P3' && getCustomerAge(state) == null) {
+    state.session.ageError = true;
+    draw();
+    document.querySelector('#customer-age')?.focus();
+    return;
+  }
   const flow = applyLocalOverrides(official || {}, overrides).flow || [];
   const current = flow.findIndex(page => page.page_id === state.pageId);
   const next = flow.slice(current + 1).find(page => page.enabled !== false);
@@ -73,6 +78,7 @@ function nextPage() {
 }
 function updateField(target) {
   if (target.dataset.field) state.session[target.dataset.field] = target.value === '' ? null : Number(target.value);
+  if (target.dataset.field === 'currentAge') state.session.ageError = false;
   if (target.dataset.yearSlider) {
     const years = target.dataset.yearSlider.split(',').map(Number);
     state.session.policyYear = years[Number(target.value)] ?? state.session.policyYear;

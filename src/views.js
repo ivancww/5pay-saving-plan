@@ -51,7 +51,7 @@ function p3(state, official) {
   const method = official.current_methods?.find(item => item.method_key === state.session.currentMethod);
   const path = currentPath({ method: state.session.currentMethod, amount: state.session.annualContribution, assumptions: state.session.assumptions });
   return `<div class="path-card"><div class="card-kicker">${esc(method?.display_name || '而家嘅做法')}</div><h2>${esc(method?.visual_title || '同一筆錢，時間耐咗會點？')}</h2><div class="metric-row"><div class="ava-metric"><span class="ava-label">每年安排金額</span><strong class="ava-metric__value">${money(state.session.annualContribution)}</strong><span class="ava-metric__unit">客戶輸入</span></div><div class="ava-metric"><span class="ava-label">目前方法路徑</span><strong class="ava-metric__value">${path.value == null ? '$ ?' : money(path.value)}</strong><span class="ava-metric__unit">${path.kind === 'assumption' ? '客戶假設，不是官方 Saving 數字' : '只按已知本金展示'}</span></div><div class="path-status path-status--${path.kind}">${esc(path.label)}</div></div></div>
-    <div class="ava-card input-card"><label class="ava-label" for="annual-contribution">如果用同一筆錢，每年大概安排幾多？</label><div class="money-input"><span>HK$</span><input id="annual-contribution" data-field="annualContribution" inputmode="numeric" type="number" min="1" step="1000" value="${state.session.annualContribution || ''}" placeholder="例如 100000"></div><p class="ava-help">呢個係今次對話的客戶輸入，不是官方回報數據。</p>${assumptionFields(state)}</div>
+    <div class="ava-card input-card"><label class="ava-label" for="annual-contribution">如果用同一筆錢，每年大概安排幾多？</label><div class="money-input"><span>HK$</span><input id="annual-contribution" data-field="annualContribution" inputmode="numeric" type="number" min="1" step="1000" value="${state.session.annualContribution || ''}" placeholder="例如 100000"></div><p class="ava-help">呢個係今次對話的客戶輸入，不是官方回報數據。</p><label class="ava-label field-inline" for="customer-age">你而家幾多歲？<input id="customer-age" data-field="currentAge" inputmode="numeric" type="number" min="0" max="120" step="1" value="${state.session.currentAge ?? ''}" placeholder="例如 40" required></label><p class="ava-help">只用於將官方 policy year 翻譯成歲數，不會改變 Saving 官方計算。</p>${state.session.ageError ? '<p class="ava-status ava-status--warning" role="alert">請先輸入目前歲數，時間軸才可以顯示正確歲數。</p>' : ''}${assumptionFields(state)}</div>
     <div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">睇下時間會去到邊 →</button></div>`;
 }
 function assumptionFields(state) {
@@ -70,7 +70,7 @@ function p4(state, official) {
 function p5(state) {
   const total = Number(state.session.annualContribution) * 5;
   const currentAge = getCustomerAge(state);
-  const completionAge = currentAge == null ? null : currentAge + 5;
+  const completionAge = ageAtPolicyYear(state, 5);
   return `<div class="journey"><div><span>目前歲數</span><strong>${currentAge == null ? '—' : `${currentAge}歲`}</strong></div><div class="journey-arrow">↓</div><div><span>每年安排</span><strong>${money(state.session.annualContribution)}</strong><small>持續 5 年</small></div><div class="journey-arrow">↓</div><div><span>完成供款時歲數</span><strong>${completionAge == null ? '—' : `${completionAge}歲`}</strong><small>總投入 ${money(total)}</small></div><div class="journey-arrow">↓</div><div><span>之後俾時間繼續</span><strong>睇時間點</strong></div></div><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">探索時間 →</button></div>`;
 }
 

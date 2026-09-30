@@ -1,13 +1,16 @@
 export function createState({ currentAge = null } = {}) {
-  return { pageId: 'P1', history: [], session: { currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null }, mode: 'use', customerView: false };
+  return { pageId: 'P1', history: [], session: { currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null }, mode: 'use', customerView: false };
 }
 
 export function getCustomerAge(state) {
-  const value = state?.session?.currentAge ?? state?.session?.age ?? state?.session?.customerAge;
+  const value = state?.session?.currentAge;
   const age = Number(value);
   return Number.isFinite(age) && age >= 0 ? age : null;
 }
 
+// Saving's policy year is elapsed time from the customer's current-age baseline.
+// Therefore the presentation age is current age + exact official policy year;
+// there is no inclusive-year -1 adjustment.
 export function ageAtPolicyYear(state, policyYear) {
   const age = getCustomerAge(state);
   const year = Number(policyYear);

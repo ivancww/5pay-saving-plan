@@ -22,6 +22,9 @@ assert 'currentAge' in state
 assert 'ageAtPolicyYear' in state
 assert '目前歲數' in views and '完成供款時歲數' in views
 assert 'timelinePoint(state, year)' in views
+assert 'id="customer-age" data-field="currentAge"' in views
+assert "state.pageId === 'P3' && getCustomerAge(state) == null" in main
+assert ".get('customerAge')" not in main and ".get('age')" not in main
 
 # P6 uses the none/autosave official table; P7 uses only the five withdrawal strategies.
 assert "supportedYears(official, 'none')" in views
