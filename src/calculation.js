@@ -21,7 +21,15 @@ export function calculateOfficial({ annualContribution, policyYear, strategyCode
   const rate = Number(row.withdrawal_rate) || Number(strategy?.withdraw_rate) || 0;
   const startYear = Number(strategy?.start_year) || null;
   const annualUsable = rate > 0 && startYear && year >= startYear ? totalContribution * rate : 0;
-  const cumulativeUsed = annualUsable && startYear ? annualUsable * (year - startYear + 1) : 0;
+  const cumulativeUsed = rows
+    .filter(item => {
+      const itemYear = Number(item.policy_year);
+      return Number.isFinite(itemYear) && startYear && itemYear >= startYear && itemYear <= year;
+    })
+    .reduce((sum, item) => {
+      const itemRate = Number(item.withdrawal_rate) || Number(strategy?.withdraw_rate) || 0;
+      return sum + (itemRate > 0 ? totalContribution * itemRate : 0);
+    }, 0);
   const futureValue = totalContribution * Number(row.multiplier);
   return {
     available: true, policyYear: year, multiplier: Number(row.multiplier), withdrawalRate: rate,
@@ -41,10 +49,12 @@ export function supportedYears(official, strategyCode = 'none') {
   return (official?.return_tables?.[sheet] || []).map(row => Number(row.policy_year)).filter(Number.isFinite);
 }
 
-export function currentPath({ method, amount, assumptions = {}, years = CONTRIBUTION_YEARS }) {
+export function currentPath({ method, amount, assumptions = {}, years = CONTRIBUTION_YEARS, contributionYears = CONTRIBUTION_YEARS, projectionYears = years }) {
   const value = Number(amount);
   if (!Number.isFinite(value) || value <= 0) return { kind: 'unknown', label: '輸入同一筆錢後，可以睇得更具體。' };
-  if (method === 'cash' || method === 'none') return { kind: 'known', value: value * years, label: '按每年安排金額累積，未加入利息假設。' };
+  const contributions = Math.max(0, Math.floor(Number(contributionYears)) || 0);
+  const projection = Math.max(0, Math.floor(Number(projectionYears)) || 0);
+  if (method === 'cash' || method === 'none') return { kind: 'known', value: value * Math.min(contributions, projection), label: '按每年安排金額累積，未加入利息假設。' };
   const rateKey = { investment: 'returnRate', fixed_deposit: 'currentRate', bond: 'maturityRate' }[method];
   if (rateKey) {
     const rawRate = assumptions[rateKey];
@@ -52,7 +62,9 @@ export function currentPath({ method, amount, assumptions = {}, years = CONTRIBU
     const rate = Number(rawRate) / 100;
     if (!Number.isFinite(rate) || rate < -1) return { kind: 'unknown', label: '呢個假設未能讀取，未作推算。' };
     let projected = 0;
-    for (let year = 0; year < years; year += 1) projected = (projected + value) * (1 + rate);
+    for (let year = 0; year < projection; year += 1) {
+      projected = (projected + (year < contributions ? value : 0)) * (1 + rate);
+    }
     return { kind: 'assumption', value: projected, label: `按你輸入的 ${rawRate}% 假設計算。` };
   }
   if (method === 'long_term' && !assumptions.existingValue) return { kind: 'unknown', label: '等客戶提供現有安排資料後再展示。' };
