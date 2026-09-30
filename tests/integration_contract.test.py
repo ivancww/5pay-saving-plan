@@ -25,5 +25,5 @@ assert "entryMode === ENTRY_MODES.standalone" in main
 assert "entryMode === ENTRY_MODES.unsupported" in main
 assert "loadCachedOfficial" in main
 assert 'id="return-ava"' in index
-assert "navigator.serviceWorker.register('./sw.js')" in main
+assert "navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })" in main
 print('independent app entry, edit-preview-save, return, and PWA boundary checks passed')

@@ -51,11 +51,14 @@ assert 'comparison-time-slider' in views
 assert '同一筆每年安排' in views and '同一段時間' in views
 assert "['P3', 'P4', 'P6', 'P7']" in main
 
-# P6: the customer-facing labels are ages only while the slider still stores
-# and looks up exact policy years.
-assert 'function timelinePoint(state, year)' in views
-assert '第 ${year}' not in views
-assert "dataAttribute: 'year-slider'" in views
+# P6: the customer-facing rail shows age and policy year while keeping exact
+# policy years as the calculation key.
+p6 = views.split('function p6', 1)[1].split('function p7', 1)[0]
+assert 'function ageYearRail' in views
+assert 'data-action="select-year"' in views
+assert '<small>第 ${year}年</small>' in views
+assert 'timeline-rail' in p6
+assert 'data-value="${year}"' in views
 
 # P7: stage A is limited to the five supported starts; stage B follows only
 # the selected strategy's exact rows and resets to its first eligible point.
@@ -84,5 +87,7 @@ assert '不提取' not in views
 # Touch/PWA layout contracts remain intact for both slider stages.
 assert 'touch-action:pan-y' in styles
 assert 'min-width:0' in styles
+assert 'overflow-x:auto' in styles
+assert 'flex:0 0 96px' in styles
 
 print('customer flow revision round 2 regression contracts passed')
