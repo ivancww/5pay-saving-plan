@@ -89,12 +89,21 @@ function rangeTimeline({ id, values, selected, dataAttribute, labels }) {
   return `<div class="time-bar"><input id="${id}" class="time-slider" type="range" min="0" max="${values.length - 1}" step="1" value="${selectedIndex}" data-${dataAttribute}="${labels}" aria-label="時間點"><div class="timeline-points">${values.map((value, index) => `<span class="timeline-point-marker ${index === selectedIndex ? 'is-selected' : ''}"></span>`).join('')}</div></div>`;
 }
 
+function ageYearRail({ id, values, selected, state }) {
+  if (!values.length) return '<p class="ava-status ava-status--warning">未有可用時間點。</p>';
+  return `<div id="${id}" class="timeline-rail" role="listbox" aria-label="年齡及 policy year">${values.map(year => {
+    const age = ageAtPolicyYear(state, year);
+    const isSelected = year === selected;
+    return `<button class="timeline-rail__item ${isSelected ? 'is-selected' : ''}" type="button" role="option" aria-selected="${isSelected}" data-action="select-year" data-value="${year}"><strong>${age == null ? '—' : `${age}歲`}</strong><small>第 ${year}年</small></button>`;
+  }).join('')}</div>`;
+}
+
 function p6(state, official) {
   const years = supportedYears(official, 'none');
   const selectedYear = years.includes(state.session.policyYear) ? state.session.policyYear : years[0];
   const result = calculateOfficial({ annualContribution: state.session.annualContribution, policyYear: selectedYear, strategyCode: 'none', official });
-  const timeline = rangeTimeline({ id: 'accumulation-time-slider', values: years, selected: selectedYear, dataAttribute: 'year-slider', labels: years.join(',') });
-  return `<div class="anchor-metric"><span>總投入（5年）</span><strong>${money(result.totalContribution)}</strong></div><div class="time-bar-card"><div class="time-bar-heading"><span>向左右探索年齡</span><span>可即時拖動</span></div>${timeline}<div class="timeline-labels">${years.map(year => timelinePoint(state, year)).join('')}</div></div><div class="result-card"><span class="card-kicker">${ageAtPolicyYear(state, selectedYear) == null ? '—' : `${ageAtPolicyYear(state, selectedYear)}歲`}</span><strong>${result.available ? money(result.futureValue) : '—'}</strong><span>${result.available ? '按已選時間點計算' : esc(result.message)}</span></div><div class="actions"><button class="ava-button ava-button--secondary" data-action="next" type="button">探索使用方式 →</button></div>`;
+  const timeline = ageYearRail({ id: 'accumulation-time-rail', values: years, selected: selectedYear, state });
+  return `<div class="anchor-metric"><span>總投入（5年）</span><strong>${money(result.totalContribution)}</strong></div><div class="time-bar-card timeline-rail-card"><div class="time-bar-heading"><span>向左右探索年齡</span><span>左右滑動查看更多</span></div>${timeline}</div><div class="result-card"><span class="card-kicker">${ageAtPolicyYear(state, selectedYear) == null ? '—' : `${ageAtPolicyYear(state, selectedYear)}歲`}</span><strong>${result.available ? money(result.futureValue) : '—'}</strong><span>${result.available ? '按已選時間點計算' : esc(result.message)}</span></div><div class="actions"><button class="ava-button ava-button--secondary" data-action="next" type="button">探索使用方式 →</button></div>`;
 }
 
 function p7(state, official) {

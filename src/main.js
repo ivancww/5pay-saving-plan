@@ -6,8 +6,11 @@ import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
 import { downloadPortableBackup, validatePortableBackup } from './portable.js';
 import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
 import { exchangeAdminLaunch, publishOfficial, readAdminPayload, renderAdmin } from './admin.js';
+import { BUILD_ID } from './build.js';
 
 const app = document.querySelector('#app');
+window.__AVA_SAVING_BUILD__ = BUILD_ID;
+console.info('[5PAY Saving] build %s', BUILD_ID);
 const state = createState();
 const entryMode = getEntryMode(location.search);
 let official = null; let meta = { source: 'loading' }; let overrides = loadOverrides(); let previewOverrides = null;
@@ -237,5 +240,15 @@ else {
   const cachedOfficial = loadCachedOfficial();
   if (cachedOfficial) { official = cachedOfficial; meta = { source: 'local-cache', stale: true }; draw(); }
   loadOfficialData().then(result => { official = result.official; meta = result; draw(); }).catch(error => { meta = { source: 'error', error }; draw(); });
-  if (entryMode === ENTRY_MODES.standalone && 'serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  if (entryMode === ENTRY_MODES.standalone && 'serviceWorker' in navigator) {
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+      .then(registration => registration.update())
+      .catch(() => {});
+  }
 }
