@@ -8,7 +8,8 @@ import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
 import { exchangeAdminLaunch, publishOfficial, readAdminPayload, renderAdmin } from './admin.js';
 
 const app = document.querySelector('#app');
-const state = createState();
+const initialAge = Number(new URLSearchParams(location.search).get('customerAge') || new URLSearchParams(location.search).get('age'));
+const state = createState(Number.isFinite(initialAge) && initialAge >= 0 ? { currentAge: initialAge } : {});
 const entryMode = getEntryMode(location.search);
 let official = null; let meta = { source: 'loading' }; let overrides = loadOverrides(); let previewOverrides = null;
 let adminAuthorization = null;
@@ -25,7 +26,7 @@ if (editToggle && entryMode === ENTRY_MODES.frontend) editToggle.hidden = true;
 if (entryMode === ENTRY_MODES.user) state.mode = 'edit';
 if (entryMode !== ENTRY_MODES.standalone) document.querySelector('link[rel="manifest"]')?.remove();
 
-function draw() {
+function draw(focus = null) {
   if (entryMode === ENTRY_MODES.unsupported) {
     app.innerHTML = '<div class="ava-status ava-status--warning" role="alert"><strong>此 AVA 入口未啟用。</strong><p>Saving 目前只支援 Frontstage 和 User/Edit 入口。</p></div>';
     return;
@@ -33,6 +34,13 @@ function draw() {
   const base = official || { flow: [], page_content: [], strategies: [], current_methods: [], return_tables: {}, version: {} };
   const effectiveOverrides = previewOverrides || overrides;
   render(app, state, applyLocalOverrides(base, effectiveOverrides), effectiveOverrides, meta);
+  if (focus?.id) {
+    const nextTarget = document.getElementById(focus.id);
+    if (nextTarget) {
+      nextTarget.focus({ preventScroll: true });
+      if (focus.start != null && typeof nextTarget.setSelectionRange === 'function') nextTarget.setSelectionRange(focus.start, focus.end ?? focus.start);
+    }
+  }
 }
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 function collectEditedOverrides(base) {
@@ -65,6 +73,21 @@ function nextPage() {
 }
 function updateField(target) {
   if (target.dataset.field) state.session[target.dataset.field] = target.value === '' ? null : Number(target.value);
+  if (target.dataset.yearSlider) {
+    const years = target.dataset.yearSlider.split(',').map(Number);
+    state.session.policyYear = years[Number(target.value)] ?? state.session.policyYear;
+  }
+  if (target.dataset.withdrawalSlider) {
+    const options = target.dataset.withdrawalSlider.split('|').map(value => {
+      const [strategyCode, policyYear] = value.split(':');
+      return { strategyCode, policyYear: Number(policyYear) };
+    });
+    const selected = options[Number(target.value)];
+    if (selected) {
+      state.session.withdrawalStrategyCode = selected.strategyCode;
+      state.session.withdrawalPolicyYear = selected.policyYear;
+    }
+  }
   if (target.dataset.assumption) {
     const key = { 'customer-return-rate':'returnRate', 'current-rate':'currentRate', 'maturity-rate':'maturityRate', 'existing-value':'existingValue' }[target.dataset.assumption];
     state.session.assumptions[key] = target.value === '' ? null : Number(target.value);
@@ -92,7 +115,14 @@ async function restoreBackup(file) {
   } catch { window.alert('備份檔案無法讀取。'); }
 }
 
-app.addEventListener('input', event => { updateField(event.target); });
+app.addEventListener('input', event => {
+  const target = event.target;
+  const liveField = target.matches('[data-field], [data-assumption], [data-year-slider], [data-withdrawal-slider]');
+  updateField(target);
+  if (!liveField || !['P3', 'P6', 'P7'].includes(state.pageId)) return;
+  const focus = { id: target.id, start: target.selectionStart, end: target.selectionEnd };
+  draw(focus);
+});
 app.addEventListener('click', event => {
   const control = event.target.closest('[data-action]'); if (!control) return;
   const action = control.dataset.action;
