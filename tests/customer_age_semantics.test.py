@@ -22,8 +22,9 @@ assert presentation_age(40, 20) == 60
 # P5, P6, and P7 all route age display through the same helper, avoiding
 # separate -1 or inclusive-year conventions.
 assert 'const completionAge = ageAtPolicyYear(state, 5);' in views
-assert 'timelinePoint(state, year)' in views
-assert 'timelinePoint(state, item.policyYear' in views
+assert 'function ageYearRail' in views
+assert 'ageYearRail({ id: \'withdrawal-start-rail\'' in views
+assert 'ageYearRail({ id: \'withdrawal-explore-rail\'' in views
 assert views.count('ageAtPolicyYear(state,') >= 5
 assert 'current age + exact official policy year' in state
 

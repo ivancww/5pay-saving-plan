@@ -7,8 +7,10 @@ import { downloadPortableBackup, validatePortableBackup } from './portable.js';
 import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
 import { exchangeAdminLaunch, publishOfficial, readAdminPayload, renderAdmin } from './admin.js';
 import { BUILD_ID } from './build.js';
+import { currentPath } from './calculation.js';
 
 const app = document.querySelector('#app');
+const formatMoney = value => value == null ? '—' : `HK$ ${Math.round(value).toLocaleString('en-US')}`;
 window.__AVA_SAVING_BUILD__ = BUILD_ID;
 console.info('[5PAY Saving] build %s', BUILD_ID);
 const state = createState();
@@ -82,29 +84,24 @@ function nextPage() {
 function updateField(target) {
   if (target.dataset.field) state.session[target.dataset.field] = target.value === '' ? null : Number(target.value);
   if (target.dataset.field === 'currentAge') state.session.ageError = false;
-  if (target.dataset.yearSlider) {
-    const years = target.dataset.yearSlider.split(',').map(Number);
-    state.session.policyYear = years[Number(target.value)] ?? state.session.policyYear;
-  }
-  if (target.dataset.withdrawalSlider) {
-    const options = target.dataset.withdrawalSlider.split('|').map(value => {
-      const [strategyCode, policyYear] = value.split(':');
-      return { strategyCode, policyYear: Number(policyYear) };
-    });
-    const selected = options[Number(target.value)];
-    if (selected) {
-      state.session.withdrawalStrategyCode = selected.strategyCode;
-      state.session.withdrawalPolicyYear = selected.policyYear;
-    }
-  }
-  if (target.dataset.withdrawalPointSlider) {
-    const years = target.dataset.withdrawalPointSlider.split(',').map(Number);
-    const selectedYear = years[Number(target.value)];
-    if (Number.isFinite(selectedYear)) state.session.withdrawalPolicyYear = selectedYear;
-  }
   if (target.dataset.assumption) {
     const key = { 'customer-return-rate':'returnRate', 'current-rate':'currentRate', 'maturity-rate':'maturityRate', 'existing-value':'existingValue' }[target.dataset.assumption];
     state.session.assumptions[key] = target.value === '' ? null : Number(target.value);
+  }
+}
+
+function updateP3Live() {
+  const path = currentPath({ method: state.session.currentMethod, amount: state.session.annualContribution, assumptions: state.session.assumptions });
+  const annualValue = document.querySelector('#p3-annual-contribution-value');
+  const pathValue = document.querySelector('#p3-current-path-value');
+  const pathUnit = document.querySelector('#p3-current-path-unit');
+  const pathStatus = document.querySelector('#p3-current-path-status');
+  if (annualValue) annualValue.textContent = formatMoney(state.session.annualContribution);
+  if (pathValue) pathValue.textContent = path.value == null ? '—' : formatMoney(path.value);
+  if (pathUnit) pathUnit.textContent = path.kind === 'known' ? '按每年安排累積' : '按你輸入的假設';
+  if (pathStatus) {
+    pathStatus.className = `path-status path-status--${path.kind}`;
+    pathStatus.textContent = path.label;
   }
 }
 
@@ -131,11 +128,11 @@ async function restoreBackup(file) {
 
 app.addEventListener('input', event => {
   const target = event.target;
-  const liveField = target.matches('[data-field], [data-assumption], [data-year-slider], [data-withdrawal-slider], [data-withdrawal-point-slider]');
+  const liveField = target.matches('[data-field], [data-assumption]');
+  const p3Editing = state.pageId === 'P3' && liveField;
   updateField(target);
-  if (!liveField || !['P3', 'P4', 'P6', 'P7'].includes(state.pageId)) return;
-  const focus = { id: target.id, start: target.selectionStart, end: target.selectionEnd };
-  draw(focus);
+  if (p3Editing) { updateP3Live(); return; }
+  if (!liveField) return;
 });
 app.addEventListener('click', event => {
   const control = event.target.closest('[data-action]'); if (!control) return;
@@ -145,6 +142,11 @@ app.addEventListener('click', event => {
   if (action === 'next') nextPage();
   if (action === 'back') goBack(state);
   if (action === 'select-year') state.session.policyYear = Number(control.dataset.value);
+  if (action === 'select-withdrawal-start') {
+    state.session.withdrawalStrategyCode = control.dataset.strategyCode;
+    state.session.withdrawalPolicyYear = Number(control.dataset.value);
+  }
+  if (action === 'select-withdrawal-year') state.session.withdrawalPolicyYear = Number(control.dataset.value);
   if (action === 'select-strategy') state.session.strategyCode = control.dataset.value;
   if (action === 'customer-view') state.customerView = true;
   if (action === 'close-customer') state.customerView = false;
