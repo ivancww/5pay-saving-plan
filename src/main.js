@@ -94,6 +94,11 @@ function updateField(target) {
       state.session.withdrawalPolicyYear = selected.policyYear;
     }
   }
+  if (target.dataset.withdrawalPointSlider) {
+    const years = target.dataset.withdrawalPointSlider.split(',').map(Number);
+    const selectedYear = years[Number(target.value)];
+    if (Number.isFinite(selectedYear)) state.session.withdrawalPolicyYear = selectedYear;
+  }
   if (target.dataset.assumption) {
     const key = { 'customer-return-rate':'returnRate', 'current-rate':'currentRate', 'maturity-rate':'maturityRate', 'existing-value':'existingValue' }[target.dataset.assumption];
     state.session.assumptions[key] = target.value === '' ? null : Number(target.value);
@@ -123,9 +128,9 @@ async function restoreBackup(file) {
 
 app.addEventListener('input', event => {
   const target = event.target;
-  const liveField = target.matches('[data-field], [data-assumption], [data-year-slider], [data-withdrawal-slider]');
+  const liveField = target.matches('[data-field], [data-assumption], [data-year-slider], [data-withdrawal-slider], [data-withdrawal-point-slider]');
   updateField(target);
-  if (!liveField || !['P3', 'P6', 'P7'].includes(state.pageId)) return;
+  if (!liveField || !['P3', 'P4', 'P6', 'P7'].includes(state.pageId)) return;
   const focus = { id: target.id, start: target.selectionStart, end: target.selectionEnd };
   draw(focus);
 });
