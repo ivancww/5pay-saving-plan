@@ -47,18 +47,27 @@ assert 'projectionYears: selectedYear' in views
 assert "supportedYears(official, 'none')" in views
 assert "rows.find(item => Number(item.policy_year) === year)" in calculation
 assert 'interpolatedMultiplier' not in calculation
-assert 'comparison-time-slider' in views
+assert 'comparison-time-rail' in views
 assert '同一筆每年安排' in views and '同一段時間' in views
-assert "['P3', 'P4', 'P6', 'P7']" in main
+assert 'if (p3Editing) { updateP3Live(); return; }' in main
+input_handler = main.split("app.addEventListener('input'", 1)[1].split("app.addEventListener('click'", 1)[0]
+assert 'draw(' not in input_handler
+assert 'updateP3Live' in input_handler
+assert 'navigator.userAgent' not in main
 
 # P6: the customer-facing rail shows age and policy year while keeping exact
 # policy years as the calculation key.
 p6 = views.split('function p6', 1)[1].split('function p7', 1)[0]
 assert 'function ageYearRail' in views
-assert 'data-action="select-year"' in views
-assert '<small>第 ${year}年</small>' in views
+assert "action = 'select-year'" in views
+assert 'data-action="${action}"' in views
+assert '<small>第 ${item.year}年</small>' in views
 assert 'timeline-rail' in p6
-assert 'data-value="${year}"' in views
+assert 'data-value="${item.value ?? item.year}"' in views
+for page in ('p4', 'p6', 'p7'):
+    section = views.split(f'function {page}', 1)[1]
+    assert 'ageYearRail' in section
+assert views.count('ageYearRail({') == 5
 
 # P7: stage A is limited to the five supported starts; stage B follows only
 # the selected strategy's exact rows and resets to its first eligible point.
@@ -71,10 +80,12 @@ for code, year in {
 }.items():
     assert f"['{code}', {year}]" in views
 assert "supportedYears(official, selected.strategy_code).filter(year => year >= startYear)" in views
-assert "dataAttribute: 'withdrawal-point-slider'" in views
-assert 'data-withdrawal-point-slider' in main
-assert 'state.session.withdrawalPolicyYear = selected.policyYear' in main
-assert 'state.session.withdrawalPolicyYear = selectedYear' in main
+assert "action: 'select-withdrawal-year'" in views
+assert "action: 'select-withdrawal-start'" in views
+assert 'select-withdrawal-year' in main
+assert "action === 'select-withdrawal-start'" in main
+assert 'state.session.withdrawalPolicyYear = Number(control.dataset.value)' in main
+assert "action === 'select-withdrawal-year'" in main
 assert 'remainingValue: futureValue' in calculation
 assert 'cumulativeUsed' in views
 assert '.filter(item => {' in calculation
@@ -85,7 +96,7 @@ assert exact_cumulative(500000, [(8, 0.04), (10, 0.05)], 8, 10) == 45000
 assert '不提取' not in views
 
 # Touch/PWA layout contracts remain intact for both slider stages.
-assert 'touch-action:pan-y' in styles
+assert 'touch-action:pan-x pan-y' in styles
 assert 'min-width:0' in styles
 assert 'overflow-x:auto' in styles
 assert 'flex:0 0 96px' in styles

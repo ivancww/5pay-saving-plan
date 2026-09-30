@@ -15,10 +15,11 @@ assert 'flex:0 0 96px' in styles
 assert 'scroll-snap-type:x proximity' in styles
 assert 'touch-action:pan-x' in styles
 assert 'overflow-x:auto' in styles
-assert 'data-action="select-year"' in views
-assert 'data-value="${year}"' in views
+assert "action = 'select-year'" in views
+assert 'data-action="${action}"' in views
+assert 'data-value="${item.value ?? item.year}"' in views
 assert '<strong>${age == null ?' in views
-assert '<small>第 ${year}年</small>' in views
+assert '<small>第 ${item.year}年</small>' in views
 assert "supportedYears(official, 'none')" in p6
 assert 'calculateOfficial({ annualContribution: state.session.annualContribution, policyYear: selectedYear' in p6
 assert 'html,body{overflow-x:hidden}' in styles

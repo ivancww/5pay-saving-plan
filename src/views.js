@@ -50,7 +50,7 @@ function mediaUnavailable() { return `<div class="ava-media-fallback" role="stat
 function p3(state, official) {
   const method = official.current_methods?.find(item => item.method_key === state.session.currentMethod);
   const path = currentPath({ method: state.session.currentMethod, amount: state.session.annualContribution, assumptions: state.session.assumptions });
-  return `<div class="path-card"><div class="card-kicker">${esc(method?.display_name || '而家嘅做法')}</div><h2>${esc(method?.visual_title || '同一筆錢，時間耐咗會點？')}</h2><div class="metric-row"><div class="ava-metric"><span class="ava-label">每年安排金額</span><strong class="ava-metric__value">${money(state.session.annualContribution)}</strong><span class="ava-metric__unit">你輸入的金額</span></div><div class="ava-metric"><span class="ava-label">5年後現有方法預計有幾多</span><strong class="ava-metric__value">${path.value == null ? '—' : money(path.value)}</strong><span class="ava-metric__unit">${path.kind === 'known' ? '按每年安排累積' : '按你輸入的假設'}</span></div><div class="path-status path-status--${path.kind}">${esc(path.label)}</div></div></div>
+  return `<div class="path-card"><div class="card-kicker">${esc(method?.display_name || '而家嘅做法')}</div><h2>${esc(method?.visual_title || '同一筆錢，時間耐咗會點？')}</h2><div class="metric-row"><div class="ava-metric"><span class="ava-label">每年安排金額</span><strong id="p3-annual-contribution-value" class="ava-metric__value">${money(state.session.annualContribution)}</strong><span class="ava-metric__unit">你輸入的金額</span></div><div class="ava-metric"><span class="ava-label">5年後現有方法預計有幾多</span><strong id="p3-current-path-value" class="ava-metric__value">${path.value == null ? '—' : money(path.value)}</strong><span id="p3-current-path-unit" class="ava-metric__unit">${path.kind === 'known' ? '按每年安排累積' : '按你輸入的假設'}</span></div><div id="p3-current-path-status" class="path-status path-status--${path.kind}">${esc(path.label)}</div></div></div>
     <div class="ava-card input-card"><label class="ava-label" for="annual-contribution">如果用同一筆錢，每年大概安排幾多？</label><div class="money-input"><span>HK$</span><input id="annual-contribution" data-field="annualContribution" inputmode="numeric" type="number" min="1" step="1000" value="${state.session.annualContribution || ''}" placeholder="例如 100000"></div><label class="ava-label field-inline" for="customer-age">你而家幾多歲？<input id="customer-age" data-field="currentAge" inputmode="numeric" type="number" min="0" max="120" step="1" value="${state.session.currentAge ?? ''}" placeholder="例如 40" required></label><p class="ava-help">只用於將時間點翻譯成歲數。</p>${state.session.ageError ? '<p class="ava-status ava-status--warning" role="alert">請先輸入目前歲數，時間軸才可以顯示正確歲數。</p>' : ''}${assumptionFields(state)}</div>
     <div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">加入時間後會係點 →</button></div>`;
 }
@@ -68,8 +68,8 @@ function p4(state, official) {
   const selectedYear = years.includes(state.session.policyYear) ? state.session.policyYear : years[0];
   const saving = calculateOfficial({ annualContribution: state.session.annualContribution, policyYear: selectedYear, strategyCode: 'none', official });
   const current = currentPath({ method: state.session.currentMethod, amount: state.session.annualContribution, assumptions: state.session.assumptions, projectionYears: selectedYear });
-  const timeline = rangeTimeline({ id: 'comparison-time-slider', values: years, selected: selectedYear, dataAttribute: 'year-slider', labels: years.join(',') });
-  return `<div class="comparison-intro">同一筆每年安排<br><span>＋ 同一段時間</span><br><strong>↓ 兩種方法最後有幾多</strong></div>${timeline}<div class="comparison-stack"><div class="resource-card resource-card--current"><span class="card-kicker">現有方法</span><strong>${current.value == null ? '—' : money(current.value)}</strong><span>${esc(official.current_methods?.find(x => x.method_key === state.session.currentMethod)?.display_name || '而家嘅做法')} · ${current.value == null ? '請先輸入所需假設' : `到 ${selectedYear} 年`}</span></div><div class="plus">對比</div><div class="resource-card resource-card--new"><span class="card-kicker">另一種 Saving 安排</span><strong>${saving.available ? money(saving.futureValue) : '—'}</strong><span>${saving.available ? `到 ${selectedYear} 年` : esc(saving.message)}</span></div></div><p class="calculation-note">時間軸只會使用有完整資料的時間點。</p><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">了解點樣運作 →</button></div>`;
+  const timeline = ageYearRail({ id: 'comparison-time-rail', items: years.map(year => ({ year })), selected: selectedYear, state });
+  return `<div class="comparison-intro">同一筆每年安排<br><span>＋ 同一段時間</span><br><strong>↓ 兩種方法最後有幾多</strong></div><div class="time-bar-card timeline-rail-card"><div class="time-bar-heading"><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div><div class="comparison-stack"><div class="resource-card resource-card--current"><span class="card-kicker">現有方法</span><strong>${current.value == null ? '—' : money(current.value)}</strong><span>${esc(official.current_methods?.find(x => x.method_key === state.session.currentMethod)?.display_name || '而家嘅做法')} · ${current.value == null ? '請先輸入所需假設' : `到 ${selectedYear} 年`}</span></div><div class="plus">對比</div><div class="resource-card resource-card--new"><span class="card-kicker">另一種 Saving 安排</span><strong>${saving.available ? money(saving.futureValue) : '—'}</strong><span>${saving.available ? `到 ${selectedYear} 年` : esc(saving.message)}</span></div></div><p class="calculation-note">時間軸只會使用有完整資料的時間點。</p><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">了解點樣運作 →</button></div>`;
 }
 function p5(state) {
   const total = Number(state.session.annualContribution) * 5;
@@ -78,23 +78,13 @@ function p5(state) {
   return `<div class="journey"><div><span>目前歲數</span><strong>${currentAge == null ? '—' : `${currentAge}歲`}</strong></div><div class="journey-arrow">↓</div><div><span>每年安排</span><strong>${money(state.session.annualContribution)}</strong><small>持續 5 年</small></div><div class="journey-arrow">↓</div><div><span>完成供款時歲數</span><strong>${completionAge == null ? '—' : `${completionAge}歲`}</strong><small>總投入 ${money(total)}</small></div><div class="journey-arrow">↓</div><div><span>之後俾時間繼續</span><strong>睇時間點</strong></div></div><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">探索時間 →</button></div>`;
 }
 
-function timelinePoint(state, year) {
-  const age = ageAtPolicyYear(state, year);
-  return `<span class="timeline-point"><strong>${age == null ? '—' : `${age}歲`}</strong></span>`;
-}
-
-function rangeTimeline({ id, values, selected, dataAttribute, labels }) {
-  if (!values.length) return '<p class="ava-status ava-status--warning">未有可用時間點。</p>';
-  const selectedIndex = Math.max(0, values.indexOf(selected));
-  return `<div class="time-bar"><input id="${id}" class="time-slider" type="range" min="0" max="${values.length - 1}" step="1" value="${selectedIndex}" data-${dataAttribute}="${labels}" aria-label="時間點"><div class="timeline-points">${values.map((value, index) => `<span class="timeline-point-marker ${index === selectedIndex ? 'is-selected' : ''}"></span>`).join('')}</div></div>`;
-}
-
-function ageYearRail({ id, values, selected, state }) {
-  if (!values.length) return '<p class="ava-status ava-status--warning">未有可用時間點。</p>';
-  return `<div id="${id}" class="timeline-rail" role="listbox" aria-label="年齡及 policy year">${values.map(year => {
-    const age = ageAtPolicyYear(state, year);
-    const isSelected = year === selected;
-    return `<button class="timeline-rail__item ${isSelected ? 'is-selected' : ''}" type="button" role="option" aria-selected="${isSelected}" data-action="select-year" data-value="${year}"><strong>${age == null ? '—' : `${age}歲`}</strong><small>第 ${year}年</small></button>`;
+function ageYearRail({ id, items, selected, state, action = 'select-year' }) {
+  if (!items.length) return '<p class="ava-status ava-status--warning">未有可用時間點。</p>';
+  return `<div id="${id}" class="timeline-rail" role="listbox" aria-label="年齡及 policy year">${items.map(item => {
+    const age = ageAtPolicyYear(state, item.year);
+    const isSelected = item.year === selected;
+    const strategy = item.strategyCode ? ` data-strategy-code="${esc(item.strategyCode)}"` : '';
+    return `<button class="timeline-rail__item ${isSelected ? 'is-selected' : ''}" type="button" role="option" aria-selected="${isSelected}" data-action="${action}" data-value="${item.value ?? item.year}"${strategy}><strong>${age == null ? '—' : `${age}歲`}</strong><small>第 ${item.year}年</small></button>`;
   }).join('')}</div>`;
 }
 
@@ -102,7 +92,7 @@ function p6(state, official) {
   const years = supportedYears(official, 'none');
   const selectedYear = years.includes(state.session.policyYear) ? state.session.policyYear : years[0];
   const result = calculateOfficial({ annualContribution: state.session.annualContribution, policyYear: selectedYear, strategyCode: 'none', official });
-  const timeline = ageYearRail({ id: 'accumulation-time-rail', values: years, selected: selectedYear, state });
+  const timeline = ageYearRail({ id: 'accumulation-time-rail', items: years.map(year => ({ year })), selected: selectedYear, state });
   return `<div class="anchor-metric"><span>總投入（5年）</span><strong>${money(result.totalContribution)}</strong></div><div class="time-bar-card timeline-rail-card"><div class="time-bar-heading"><span>向左右探索年齡</span><span>左右滑動查看更多</span></div>${timeline}</div><div class="result-card"><span class="card-kicker">${ageAtPolicyYear(state, selectedYear) == null ? '—' : `${ageAtPolicyYear(state, selectedYear)}歲`}</span><strong>${result.available ? money(result.futureValue) : '—'}</strong><span>${result.available ? '按已選時間點計算' : esc(result.message)}</span></div><div class="actions"><button class="ava-button ava-button--secondary" data-action="next" type="button">探索使用方式 →</button></div>`;
 }
 
@@ -119,11 +109,9 @@ function p7(state, official) {
   const postYears = selected ? supportedYears(official, selected.strategy_code).filter(year => year >= startYear) : [];
   const selectedPostYear = postYears.includes(state.session.withdrawalPolicyYear) ? state.session.withdrawalPolicyYear : postYears[0];
   const result = selected ? calculateOfficial({ annualContribution: state.session.annualContribution, policyYear: selectedPostYear, strategyCode: selected.strategy_code, official }) : { available: false, message: '未有使用策略。' };
-  const startLabels = points.map(item => `${item.strategy_code}:${item.policyYear}`).join('|');
-  const postLabels = postYears.join(',');
-  const startTimeline = rangeTimeline({ id: 'withdrawal-start-slider', values: points.map(item => item.policyYear), selected: selected?.policyYear, dataAttribute: 'withdrawal-slider', labels: startLabels });
-  const postTimeline = rangeTimeline({ id: 'withdrawal-explore-slider', values: postYears, selected: selectedPostYear, dataAttribute: 'withdrawal-point-slider', labels: postLabels });
-  return `<div class="timeline-stage"><h2>幾時開始用？</h2><div class="time-bar-card">${startTimeline}<div class="timeline-labels">${points.map(item => timelinePoint(state, item.policyYear)).join('')}</div></div></div><div class="timeline-stage"><h2>開始之後，時間行落去會點？</h2><div class="time-bar-card">${postTimeline}<div class="timeline-labels">${postYears.map(year => timelinePoint(state, year)).join('')}</div></div></div><div class="result-card"><span class="card-kicker">${selected ? `由 ${ageAtPolicyYear(state, startYear) == null ? '—' : `${ageAtPolicyYear(state, startYear)}歲`} 開始 · ${ageAtPolicyYear(state, selectedPostYear) == null ? '—' : `${ageAtPolicyYear(state, selectedPostYear)}歲`} 當時` : '未選擇安排'}</span><strong>${result.available ? money(result.remainingValue) : '—'}</strong><span>${result.available ? esc(selected.display_name) : esc(result.message)}</span></div><div class="withdrawal-result">${result.available ? `<div><span>每年可使用</span><strong>${money(result.annualUsable)}</strong></div><div><span>累積已使用</span><strong>${money(result.cumulativeUsed)}</strong></div><div><span>當時戶口價值</span><strong>${money(result.remainingValue)}</strong></div>` : `<p>${esc(result.message || '未有使用資料。')}</p>`}</div><div class="actions"><button class="ava-button ava-button--primary" data-action="customer-view" type="button">一 click 睇客戶頁 →</button></div>`;
+  const startTimeline = ageYearRail({ id: 'withdrawal-start-rail', items: points.map(item => ({ year: item.policyYear, value: item.policyYear, strategyCode: item.strategy_code })), selected: selected?.policyYear, state, action: 'select-withdrawal-start' });
+  const postTimeline = ageYearRail({ id: 'withdrawal-explore-rail', items: postYears.map(year => ({ year })), selected: selectedPostYear, state, action: 'select-withdrawal-year' });
+  return `<div class="timeline-stage"><h2>幾時開始用？</h2><div class="time-bar-card timeline-rail-card">${startTimeline}</div></div><div class="timeline-stage"><h2>開始之後，時間行落去會點？</h2><div class="time-bar-card timeline-rail-card">${postTimeline}</div></div><div class="result-card"><span class="card-kicker">${selected ? `由 ${ageAtPolicyYear(state, startYear) == null ? '—' : `${ageAtPolicyYear(state, startYear)}歲`} 開始 · ${ageAtPolicyYear(state, selectedPostYear) == null ? '—' : `${ageAtPolicyYear(state, selectedPostYear)}歲`} 當時` : '未選擇安排'}</span><strong>${result.available ? money(result.remainingValue) : '—'}</strong><span>${result.available ? esc(selected.display_name) : esc(result.message)}</span></div><div class="withdrawal-result">${result.available ? `<div><span>每年可使用</span><strong>${money(result.annualUsable)}</strong></div><div><span>累積已使用</span><strong>${money(result.cumulativeUsed)}</strong></div><div><span>當時戶口價值</span><strong>${money(result.remainingValue)}</strong></div>` : `<p>${esc(result.message || '未有使用資料。')}</p>`}</div><div class="actions"><button class="ava-button ava-button--primary" data-action="customer-view" type="button">一 click 睇客戶頁 →</button></div>`;
 }
 
 function customerView(state, official, meta) {
