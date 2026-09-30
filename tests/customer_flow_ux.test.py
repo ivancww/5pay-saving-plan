@@ -12,7 +12,7 @@ assert 'front-topline' not in render_template
 assert 'flow-footer' not in render_template
 
 # P3 and both time bars are input-driven and redraw immediately.
-assert "target.matches('[data-field], [data-assumption], [data-year-slider], [data-withdrawal-slider]')" in main
+assert "target.matches('[data-field], [data-assumption], [data-year-slider], [data-withdrawal-slider], [data-withdrawal-point-slider]')" in main
 assert 'draw(focus)' in main
 assert 'currentPath({ method' in views
 assert "dataAttribute: 'year-slider'" in views and "dataAttribute: 'withdrawal-slider'" in views
