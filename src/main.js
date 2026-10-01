@@ -8,6 +8,7 @@ import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
 import { exchangeAdminLaunch, publishOfficial, readAdminPayload, renderAdmin } from './admin.js';
 import { BUILD_ID } from './build.js';
 import { currentPath } from './calculation.js';
+import { INVESTMENT_TOOLS, SCENARIO_GOALS, investmentPath, scenarioRoute, toggleChoice } from './scenario-flow.js';
 
 const app = document.querySelector('#app');
 const formatMoney = value => value == null ? '—' : `HK$ ${Math.round(value).toLocaleString('en-US')}`;
@@ -135,7 +136,7 @@ async function restoreBackup(file) {
     const result = validatePortableBackup(JSON.parse(await file.text()));
     if (!result.valid) { window.alert(result.message); return; }
     overrides = result.data;
-    saveOverrides(overrides); state.pageId = 'P1'; state.history = []; state.mode = 'use'; draw();
+    saveOverrides(overrides); state.pageId = 'START'; state.history = []; state.mode = 'use'; draw();
   } catch { window.alert('備份檔案無法讀取。'); }
 }
 
@@ -150,6 +151,33 @@ app.addEventListener('input', event => {
 app.addEventListener('click', event => {
   const control = event.target.closest('[data-action]'); if (!control) return;
   const action = control.dataset.action;
+  if (action === 'select-scenario') {
+    const choice = control.dataset.value;
+    const destination = scenarioRoute(official, choice);
+    if (state.pageId === 'START' && destination) {
+      state.session.scenario = choice;
+      state.session.currentMethod = null;
+      state.session.investmentTools = [];
+      state.session.scenarioGoals = [];
+      state.session.marketResponse = null;
+      state.session.maturityResponse = null;
+      state.session.mixedFocus = null;
+      goTo(state, destination);
+    }
+  }
+  if (action === 'toggle-investment-tool' && state.pageId === 'S2_TOOLS') state.session.investmentTools = toggleChoice(state.session.investmentTools, control.dataset.value, INVESTMENT_TOOLS);
+  if (action === 'continue-investment-tools' && state.pageId === 'S2_TOOLS') {
+    const path = investmentPath(state.session.investmentTools);
+    if (path) goTo(state, scenarioRoute(official, path === 'S2_MIXED' ? 'scenario2_market' : `scenario2_${path.slice(3).toLowerCase()}`));
+  }
+  if (action === 'select-market-response' && state.pageId === 'S2_MARKET' && ['hold', 'reduce', 'wait'].includes(control.dataset.value)) state.session.marketResponse = control.dataset.value;
+  if (action === 'select-maturity-response' && state.pageId === 'S2_MATURITY' && ['renew', 'compare', 'switch', 'later'].includes(control.dataset.value)) state.session.maturityResponse = control.dataset.value;
+  if (action === 'select-mixed-focus' && state.pageId === 'S2_MIXED' && ['market', 'maturity'].includes(control.dataset.value)) state.session.mixedFocus = control.dataset.value;
+  if (action === 'toggle-goal' && state.pageId === 'S3_GOALS') state.session.scenarioGoals = toggleChoice(state.session.scenarioGoals, control.dataset.value, SCENARIO_GOALS);
+  if (action === 'continue-goals' && state.pageId === 'S3_GOALS' && state.session.scenarioGoals.length) goTo(state, scenarioRoute(official, 'scenario3_goals'));
+  if (action === 'continue-market-to-maturity' && state.pageId === 'S2_MARKET' && state.session.marketResponse) goTo(state, scenarioRoute(official, 'scenario2_maturity'));
+  if (action === 'continue-maturity-to-mixed' && state.pageId === 'S2_MATURITY' && state.session.maturityResponse) goTo(state, scenarioRoute(official, 'scenario2_mixed'));
+  if (action === 'continue-to-saving' && ((state.pageId === 'S2_MARKET' && state.session.marketResponse && !state.session.investmentTools.some(key => key === 'fixed_deposit' || key === 'bond')) || (state.pageId === 'S2_MATURITY' && state.session.maturityResponse && !state.session.investmentTools.some(key => key === 'stock' || key === 'etf')) || state.pageId === 'S2_MIXED' || state.pageId === 'S3_TRADEOFF')) goTo(state, scenarioRoute(official, 'scenario_to_saving'));
   if (action === 'select-method') { state.session.currentMethod = control.dataset.value; goTo(state, 'P2'); }
   if (action === 'select-purpose') { state.session.purpose = control.dataset.value; goTo(state, 'P3'); }
   if (action === 'next') nextPage();
@@ -177,7 +205,7 @@ app.addEventListener('click', event => {
     saveOverrides(overrides); state.mode = 'use';
     if (overrides.pages[pageId].hidden) {
       const firstVisible = applyLocalOverrides(official || {}, overrides).flow[0];
-      state.pageId = firstVisible?.page_id || 'P1'; state.history = [];
+      state.pageId = firstVisible?.page_id || 'START'; state.history = [];
     }
   }
   if (action === 'move-page') {
@@ -216,9 +244,9 @@ app.addEventListener('click', event => {
   }
   if (action === 'delete-page' && state.pageId.startsWith('LOCAL_')) {
     overrides.customPages = (overrides.customPages || []).filter(page => page.page_id !== state.pageId);
-    saveOverrides(overrides); state.pageId = 'P1'; state.history = []; state.mode = 'use';
+    saveOverrides(overrides); state.pageId = 'START'; state.history = []; state.mode = 'use';
   }
-  if (action === 'restore-defaults') { overrides = {}; saveOverrides(overrides); state.mode = 'use'; state.pageId = 'P1'; state.history = []; }
+  if (action === 'restore-defaults') { overrides = {}; saveOverrides(overrides); state.mode = 'use'; state.pageId = 'START'; state.history = []; }
   // A start selection already resets the dependent policy year, even on reselect.
   draw(null, action === 'select-withdrawal-start' ? [Number(control.dataset.phaseId || 1) === 1 ? 'withdrawal-explore-rail' : `withdrawal-explore-rail-${control.dataset.phaseId}`] : []);
 });

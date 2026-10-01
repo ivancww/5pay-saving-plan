@@ -1,11 +1,12 @@
 import { activeSavingPhases, resolvePhaseWithdrawal, phaseStrategyChoices } from './calculation.js';
 
 export function createState({ currentAge = null } = {}) {
-  return { pageId: 'P1', history: [], session: { currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
+  return { pageId: 'START', history: [], session: { scenario: null, investmentTools: [], marketResponse: null, maturityResponse: null, mixedFocus: null, scenarioGoals: [], currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
 }
 
 export function getCustomerAge(state) {
   const value = state?.session?.currentAge;
+  if (value == null || value === '') return null;
   const age = Number(value);
   return Number.isFinite(age) && age >= 0 ? age : null;
 }
