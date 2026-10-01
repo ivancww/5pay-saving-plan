@@ -1,4 +1,4 @@
-import { activeSavingPhases, calculateSavingPortfolio, currentPath, supportedYears, withdrawalPoints, withdrawalPortfolio } from './calculation.js';
+import { activeSavingPhases, calculateSavingPortfolio, currentPath, supportedYears, phaseStrategyChoices, withdrawalPortfolio } from './calculation.js';
 import { ageAtPolicyYear, getCustomerAge } from './state.js';
 import { MEDIA_TYPES, mediaCanRender, mediaFallbackLabel, normalizeMediaList } from './media.js';
 
@@ -82,15 +82,15 @@ function p5(state) {
   return `<div class="phase-journey">${cards}</div>${phases.length < 3 ? `<div class="actions phase-add"><button class="ava-button ava-button--secondary" data-action="add-saving-phase" type="button">${phases.length === 1 ? '＋ 繼續下一個 5 年' : '＋ 再加入下一個 5 年'}</button></div>` : ''}<p class="calculation-note">每一期都係一份獨立的 5 年 Saving 安排。<br>目前歲數 ${currentAge == null ? '—' : `${currentAge}歲`} · 完成供款時歲數 ${completionAge == null ? '—' : `${completionAge}歲`}</p><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">探索時間 →</button></div>`;
 }
 
-function ageYearRail({ id, items, selected, state, action = 'select-year', context = '' }) {
+function ageYearRail({ id, items, selected, state, action = 'select-year', context = '', selectedStrategy = null }) {
   if (!items.length) return '<p class="ava-status ava-status--warning">未有可用時間點。</p>';
   // Selection is deliberately excluded. Changed page/age/options/strategy is a new control.
   const scrollContext = JSON.stringify([state.pageId, getCustomerAge(state), action, context, items.map(item => [item.value ?? item.year, item.strategyCode || ''])]);
   return `<div id="${id}" class="timeline-rail" data-scroll-context="${esc(scrollContext)}" role="listbox" aria-label="年齡及 policy year">${items.map(item => {
     const age = ageAtPolicyYear(state, item.year);
-    const isSelected = item.year === selected;
+    const isSelected = item.strategyCode ? item.strategyCode === selectedStrategy : item.year === selected;
     const strategy = item.strategyCode ? ` data-strategy-code="${esc(item.strategyCode)}"` : '';
-    return `<button class="timeline-rail__item ${isSelected ? 'is-selected' : ''}" type="button" role="option" aria-selected="${isSelected}" data-action="${action}" data-value="${item.value ?? item.year}"${strategy}${item.phaseId ? ` data-phase-id="${item.phaseId}"` : ''}><strong>${age == null ? '—' : `${age}歲`}</strong><small>第 ${item.localYear ?? item.year}年${item.strategyCode ? '開始' : ''}</small></button>`;
+    return `<button class="timeline-rail__item ${isSelected ? 'is-selected' : ''}" type="button" role="option" aria-selected="${isSelected}" data-action="${action}" data-value="${item.value ?? item.year}"${strategy}${item.phaseId ? ` data-phase-id="${item.phaseId}"` : ''}><strong>${item.strategyCode === 'none' ? '自動滾存' : age == null ? '—' : `${age}歲`}</strong><small>${item.strategyCode === 'none' ? '不提取' : `第 ${item.localYear ?? item.year}年${item.strategyCode ? '開始' : ''}`}</small></button>`;
   }).join('')}</div>`;
 }
 
@@ -103,16 +103,16 @@ function p6(state, official) {
 }
 
 function p7(state, official) {
-  const points = withdrawalPoints(official);
+  const points = phaseStrategyChoices(official);
   const { phases, result } = withdrawalPortfolio(state.session, official);
   const sections = phases.map(phase => {
     const id = phase.id === 1 ? 'withdrawal-start-rail' : `withdrawal-start-rail-${phase.id}`;
-    const timeline = ageYearRail({ id, items: points.map(item => ({ year: phase.offset + item.policyYear, localYear: item.policyYear, value: item.policyYear, strategyCode: item.strategy_code, phaseId: phase.id })), selected: phase.offset + phase.startYear, state, action: 'select-withdrawal-start' });
+    const timeline = ageYearRail({ id, items: points.map(item => ({ year: item.strategy_code === 'none' ? null : phase.offset + item.policyYear, localYear: item.policyYear, value: item.strategy_code === 'none' ? 'none' : item.policyYear, strategyCode: item.strategy_code, phaseId: phase.id })), selected: phase.offset + phase.startYear, state, action: 'select-withdrawal-start', selectedStrategy: phase.strategyCode });
     const exploreId = phase.id === 1 ? 'withdrawal-explore-rail' : `withdrawal-explore-rail-${phase.id}`;
     const postTimeline = ageYearRail({ id: exploreId, items: phase.years.map(year => ({ year: phase.offset + year, localYear: year, value: year, phaseId: phase.id })), selected: phase.overallPolicyYear, state, action: 'select-withdrawal-year', context: phase.strategyCode });
     return `<section class="withdrawal-phase" data-withdrawal-phase="${phase.id}"><h2>${phase.label} — 幾時開始使用？</h2><div class="time-bar-card timeline-rail-card">${timeline}</div><h3>開始之後，時間行落去會點？</h3><div class="time-bar-card timeline-rail-card">${postTimeline}</div>${withdrawalMetrics(phase.result, false)}${phase.result.available ? '' : `<p class="ava-status ava-status--warning" role="status">${esc(phase.result.message)}</p>`}</section>`;
   }).join('');
-  return `${sections}<section class="withdrawal-summary"><h2>整體效果</h2><p class="calculation-note">按以上各期目前選擇合計</p>${combinedWithdrawalMetrics(result)}${result.available ? '' : `<p class="ava-status ava-status--warning" role="status">${esc(result.message)}</p>`}</section><div class="actions"><button class="ava-button ava-button--primary" data-action="customer-view" type="button">一 click 睇客戶頁 →</button></div>`;
+  return `${sections}${phases.length > 1 ? `<section class="withdrawal-summary"><h2>整體效果</h2><p class="calculation-note">按以上各期目前選擇合計</p>${combinedWithdrawalMetrics(result)}${result.available ? '' : `<p class="ava-status ava-status--warning" role="status">${esc(result.message)}</p>`}</section>` : ''}<div class="actions"><button class="ava-button ava-button--primary" data-action="customer-view" type="button">一 click 睇客戶頁 →</button></div>`;
 }
 
 function withdrawalMetrics(result, combined = true) {
@@ -126,8 +126,17 @@ function customerView(state, official, meta) {
   const { phases, result } = withdrawalPortfolio(state.session, official);
   const method = official.current_methods?.find(x => x.method_key === state.session.currentMethod)?.display_name || '現有安排';
   const generatedAt = new Date().toLocaleDateString('zh-HK', { year: 'numeric', month: 'long', day: 'numeric' });
-  const arrangement = phases.map(phase => `${phase.label}：${phase.startYear == null ? '暫未有可用安排' : `第 ${phase.startYear} 年開始 · 探索第 ${phase.selectedYear} 年（${ageAtPolicyYear(state, phase.overallPolicyYear) == null ? '—' : `${ageAtPolicyYear(state, phase.overallPolicyYear)}歲`}）`}` + (phase.result.available ? ` · 每年 ${money(phase.result.annualUsable)}／累積已使用 ${money(phase.result.cumulativeUsed)}／戶口 ${money(phase.result.remainingValue)}` : ' · 暫未有可顯示結果')).map(esc).join('<br>');
-  return `<div class="customer-view" data-ava-mode="presentation"><div class="presentation-label">Customer Presentation · ${meta.stale ? '離線快取資料' : 'AVA Saving'}</div><h1>現有方法 ＋ 新增安排<br><span>＝ 新嘅整體資源畫面</span></h1><p class="presentation-lead">原有 ${esc(method)} 可以繼續，同時多一筆可以預先規劃嘅未來資源。</p><div class="customer-grid"><div class="customer-block"><span>你而家嘅做法</span><strong>${esc(method)}</strong><small>保留現有選擇，不作未有資料的推算。</small></div><div class="customer-block customer-block--accent"><span>新增 Saving 安排 · ${phases.length} 期</span><strong>${result.available ? money(result.remainingValue) : '—'}</strong><small>${result.available ? '按各期目前選擇合計' : esc(result.message)}</small></div><div class="customer-block"><span>各期供款總額</span><strong>${money(result.totalContribution)}</strong><small>每期每年 ${money(state.session.annualContribution)} · 各自供款 5 年</small></div><div class="customer-block"><span>各期使用安排</span><strong>${phases.length} 期 Saving</strong><small>${arrangement}</small></div></div><h2>整體效果</h2><p class="calculation-note">按以上各期目前選擇合計</p>${combinedWithdrawalMetrics(result)}<p class="disclosure">以上 Saving 數字按各期現有官方資料計算；客戶輸入的現有方法及任何假設會清楚分開展示。資料版本：${esc(official.version?.data_version || '未提供')}；生成日期：${generatedAt}。</p><div class="actions presentation-actions"><button class="ava-button ava-button--primary" data-action="print" type="button">匯出客戶頁 PDF</button><button class="ava-button ava-button--secondary" data-action="close-customer" type="button">返回對話</button></div></div>`;
+  const contribution = Number(state.session.annualContribution) * 5;
+  const contributions = phases.map(phase => `<div class="customer-phase-row" data-contribution-phase="${phase.id}"><b>${phase.label}</b><small>每年 ${money(state.session.annualContribution)} · 供款 5 年<br>供款總額 ${money(contribution)}</small></div>`).join('');
+  const arrangement = phases.map(phase => {
+    const choice = phase.autoAccumulation ? '自動滾存' : phase.startYear == null ? '暫未有可用安排' : `第 ${phase.startYear} 年開始`;
+    const age = ageAtPolicyYear(state, phase.overallPolicyYear);
+    const metrics = phase.result.available ? `${phase.autoAccumulation ? '沒有提取' : `每年 ${money(phase.result.annualUsable)}`} · 累積已使用 ${money(phase.result.cumulativeUsed)}<br>戶口 ${money(phase.result.remainingValue)}` : '暫未有可顯示結果';
+    return `<div class="customer-phase-row" data-customer-withdrawal-phase="${phase.id}"><b>${phase.label}：${choice}</b><small>探索第 ${phase.selectedYear ?? '—'} 年（${age == null ? '—' : `${age}歲`}）<br>${metrics}</small></div>`;
+  }).join('');
+  const summary = phases.length > 1 ? `<h2>整體效果</h2><p class="calculation-note">按以上各期目前選擇合計</p>${combinedWithdrawalMetrics(result)}` : '';
+
+  return `<div class="customer-view" data-ava-mode="presentation"><div class="presentation-label">Customer Presentation · ${meta.stale ? '離線快取資料' : 'AVA Saving'}</div><h1>現有方法 ＋ 新增安排<br><span>＝ 新嘅整體資源畫面</span></h1><p class="presentation-lead">原有 ${esc(method)} 可以繼續，同時多一筆可以預先規劃嘅未來資源。</p><div class="customer-grid"><div class="customer-block"><span>你而家嘅做法</span><strong>${esc(method)}</strong><small>保留現有選擇，不作未有資料的推算。</small></div><div class="customer-block customer-block--accent"><span>新增 Saving 安排 · ${phases.length} 期</span><strong>${result.available ? money(result.remainingValue) : '—'}</strong><small>${result.available ? phases.length > 1 ? '按各期目前選擇合計' : '按第一期目前選擇' : esc(result.message)}</small></div><div class="customer-block customer-block--phases"><span>各期供款安排</span>${contributions}${phases.length > 1 ? `<div class="customer-contribution-total"><span>合計供款</span><strong>${money(result.totalContribution)}</strong></div>` : ''}</div><div class="customer-block customer-block--phases"><span>各期使用安排</span>${arrangement}</div></div>${summary}<p class="disclosure">以上 Saving 數字按各期現有官方資料計算；客戶輸入的現有方法及任何假設會清楚分開展示。資料版本：${esc(official.version?.data_version || '未提供')}；生成日期：${generatedAt}。</p><div class="actions presentation-actions"><button class="ava-button ava-button--primary" data-action="print" type="button">匯出客戶頁 PDF</button><button class="ava-button ava-button--secondary" data-action="close-customer" type="button">返回對話</button></div></div>`;
 }
 
 function unavailable(message) { return `<div class="ava-status ava-status--warning">${esc(message)}</div>`; }

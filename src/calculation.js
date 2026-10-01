@@ -102,6 +102,12 @@ export function withdrawalPoints(official) {
   }).filter(Boolean);
 }
 
+// Auto accumulation is a canonical Official table choice, not a withdrawal strategy.
+export function phaseStrategyChoices(official) {
+  const years = supportedYears(official, 'none');
+  return [{ strategy_code: 'none', policyYear: years[0] ?? null, display_name: '自動滾存' }, ...withdrawalPoints(official)];
+}
+
 // Accumulation is a progressive total of exact, currently known phase values.
 export function calculateSavingPortfolio({ session, overallPolicyYear, official }) {
   const year = Number(overallPolicyYear);
@@ -129,14 +135,15 @@ export function calculateSavingPortfolio({ session, overallPolicyYear, official 
 export function resolvePhaseWithdrawal(phase, session, official) {
   const points = withdrawalPoints(official);
   const strategy = points.find(item => item.strategy_code === phase.strategyCode) || points[0];
-  const strategyCode = strategy?.strategy_code;
-  const startYear = strategy?.policyYear;
-  const years = strategy ? supportedYears(official, strategyCode).filter(year => year >= startYear) : [];
+  const autoAccumulation = phase.strategyCode === 'none';
+  const strategyCode = autoAccumulation ? 'none' : strategy?.strategy_code;
+  const startYear = autoAccumulation ? null : strategy?.policyYear;
+  const years = autoAccumulation ? supportedYears(official, 'none') : strategy ? supportedYears(official, strategyCode).filter(year => year >= startYear) : [];
   // A supplied unsupported selection is unavailable, never replaced by a nearest row.
   const selectedYear = phase.withdrawalPolicyYear == null ? years[0] : Number(phase.withdrawalPolicyYear);
   const result = years.includes(selectedYear) ? calculateOfficial({ annualContribution: session.annualContribution,
     policyYear: selectedYear, strategyCode, official }) : { available: false, message: '這一期暫未有可顯示結果。' };
-  return { ...phase, strategyCode, startYear, years, selectedYear, localPolicyYear: selectedYear,
+  return { ...phase, strategyCode, autoAccumulation, startYear, years, selectedYear, localPolicyYear: selectedYear,
     overallPolicyYear: phase.offset + selectedYear, result: result.available ? result : { ...result, message: '這一期暫未有可顯示結果。' } };
 }
 
