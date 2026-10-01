@@ -1,0 +1,1079 @@
+{
+  "provenance": {
+    "endpoint": "https://script.google.com/macros/s/AKfycbw_tBrwEiGfaZSNBgLwv1eNyjG8KEWj0QeHZZPANh5endIuPfwl8HMT6LujWWqSXZaKRg/exec",
+    "read_only_actions": [
+      "bootstrap",
+      "returns",
+      "version"
+    ],
+    "captured_utc": {
+      "bootstrap": "2026-10-01T03:21:24.590345+00:00",
+      "returns": "2026-10-01T03:21:51.178213+00:00",
+      "version": "2026-10-01T03:22:13.327786+00:00"
+    },
+    "normalized_response_sha256": {
+      "bootstrap": "6a86285ae1361149cd01bb4f2dc949f0cd3b98e3a97932ccf975390bc7f86b10",
+      "returns": "5f28cbbf3cf2c46103b6f8f1e92d7078948f20e5974c60922c761cafff7783b0",
+      "version": "7a7872e343a4c4ecc6aa24eca7077c8021bb4a80d95904775ac479d7d676e0f2"
+    },
+    "note": "Genuine read-only GAS responses. This is a research snapshot, never a production return-data source. SHA256 hashes refer to locally JSON-formatted complete responses, not raw HTTP bytes."
+  },
+  "bootstrap_keys": [
+    "system",
+    "flow",
+    "page_content",
+    "routing",
+    "current_methods",
+    "withdrawal_strategies",
+    "customer_view",
+    "return_tables"
+  ],
+  "bootstrap_return_tables_match_returns": true,
+  "withdrawal_strategies": [
+    {
+      "strategy_code": "none",
+      "display_name": "不提取",
+      "start_year": "",
+      "withdraw_rate": 0,
+      "sheet_name": "自動滾存",
+      "enabled": true,
+      "sort_order": 1
+    },
+    {
+      "strategy_code": "withdraw7_from8",
+      "display_name": "第8年開始",
+      "start_year": 8,
+      "withdraw_rate": 0.07,
+      "sheet_name": "8年領取",
+      "enabled": true,
+      "sort_order": 2
+    },
+    {
+      "strategy_code": "withdraw12_from15",
+      "display_name": "第15年開始",
+      "start_year": 15,
+      "withdraw_rate": 0.12,
+      "sheet_name": "15年領取",
+      "enabled": true,
+      "sort_order": 3
+    },
+    {
+      "strategy_code": "withdraw18_from20",
+      "display_name": "第20年開始",
+      "start_year": 20,
+      "withdraw_rate": 0.18,
+      "sheet_name": "20年領取",
+      "enabled": true,
+      "sort_order": 4
+    },
+    {
+      "strategy_code": "withdraw23_from25",
+      "display_name": "第25年開始",
+      "start_year": 25,
+      "withdraw_rate": 0.23,
+      "sheet_name": "25年領取",
+      "enabled": true,
+      "sort_order": 5
+    },
+    {
+      "strategy_code": "withdraw29_from30",
+      "display_name": "第30年開始",
+      "start_year": 30,
+      "withdraw_rate": 0.29,
+      "sheet_name": "30年領取",
+      "enabled": true,
+      "sort_order": 6
+    }
+  ],
+  "return_tables": {
+    "自動滾存": [
+      {
+        "policy_year": 8,
+        "withdrawal_rate": 0,
+        "multiplier": 1.16
+      },
+      {
+        "policy_year": 9,
+        "withdrawal_rate": 0,
+        "multiplier": 1.24
+      },
+      {
+        "policy_year": 10,
+        "withdrawal_rate": 0,
+        "multiplier": 1.32
+      },
+      {
+        "policy_year": 11,
+        "withdrawal_rate": 0,
+        "multiplier": 1.41
+      },
+      {
+        "policy_year": 12,
+        "withdrawal_rate": 0,
+        "multiplier": 1.51
+      },
+      {
+        "policy_year": 13,
+        "withdrawal_rate": 0,
+        "multiplier": 1.62
+      },
+      {
+        "policy_year": 14,
+        "withdrawal_rate": 0,
+        "multiplier": 1.74
+      },
+      {
+        "policy_year": 15,
+        "withdrawal_rate": 0,
+        "multiplier": 1.86
+      },
+      {
+        "policy_year": 16,
+        "withdrawal_rate": 0,
+        "multiplier": 2
+      },
+      {
+        "policy_year": 17,
+        "withdrawal_rate": 0,
+        "multiplier": 2.15
+      },
+      {
+        "policy_year": 18,
+        "withdrawal_rate": 0,
+        "multiplier": 2.34
+      },
+      {
+        "policy_year": 19,
+        "withdrawal_rate": 0,
+        "multiplier": 2.52
+      },
+      {
+        "policy_year": 20,
+        "withdrawal_rate": 0,
+        "multiplier": 2.71
+      },
+      {
+        "policy_year": 21,
+        "withdrawal_rate": 0,
+        "multiplier": 2.96
+      },
+      {
+        "policy_year": 22,
+        "withdrawal_rate": 0,
+        "multiplier": 3.23
+      },
+      {
+        "policy_year": 23,
+        "withdrawal_rate": 0,
+        "multiplier": 3.53
+      },
+      {
+        "policy_year": 24,
+        "withdrawal_rate": 0,
+        "multiplier": 3.81
+      },
+      {
+        "policy_year": 25,
+        "withdrawal_rate": 0,
+        "multiplier": 4.11
+      },
+      {
+        "policy_year": 30,
+        "withdrawal_rate": 0,
+        "multiplier": 5.85
+      },
+      {
+        "policy_year": 35,
+        "withdrawal_rate": 0,
+        "multiplier": 8.02
+      },
+      {
+        "policy_year": 40,
+        "withdrawal_rate": 0,
+        "multiplier": 10.99
+      },
+      {
+        "policy_year": 45,
+        "withdrawal_rate": 0,
+        "multiplier": 15.06
+      },
+      {
+        "policy_year": 50,
+        "withdrawal_rate": 0,
+        "multiplier": 20.63
+      },
+      {
+        "policy_year": 55,
+        "withdrawal_rate": 0,
+        "multiplier": 28.27
+      },
+      {
+        "policy_year": 60,
+        "withdrawal_rate": 0,
+        "multiplier": 38.73
+      },
+      {
+        "policy_year": 65,
+        "withdrawal_rate": 0,
+        "multiplier": 53.06
+      },
+      {
+        "policy_year": 70,
+        "withdrawal_rate": 0,
+        "multiplier": 72.69
+      },
+      {
+        "policy_year": 75,
+        "withdrawal_rate": 0,
+        "multiplier": 99.57
+      },
+      {
+        "policy_year": 80,
+        "withdrawal_rate": 0,
+        "multiplier": 136.4
+      },
+      {
+        "policy_year": 85,
+        "withdrawal_rate": 0,
+        "multiplier": 186.85
+      },
+      {
+        "policy_year": 90,
+        "withdrawal_rate": 0,
+        "multiplier": 255.95
+      },
+      {
+        "policy_year": 95,
+        "withdrawal_rate": 0,
+        "multiplier": 350.62
+      },
+      {
+        "policy_year": 100,
+        "withdrawal_rate": 0,
+        "multiplier": 480.3
+      }
+    ],
+    "8年領取": [
+      {
+        "policy_year": 8,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.078284600389864
+      },
+      {
+        "policy_year": 9,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.084639376218324
+      },
+      {
+        "policy_year": 10,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.078518518518518
+      },
+      {
+        "policy_year": 11,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.089668615984406
+      },
+      {
+        "policy_year": 12,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.099610136452242
+      },
+      {
+        "policy_year": 13,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.10990253411306
+      },
+      {
+        "policy_year": 14,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.123430799220273
+      },
+      {
+        "policy_year": 15,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.136686159844055
+      },
+      {
+        "policy_year": 16,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.1564522417154
+      },
+      {
+        "policy_year": 17,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.177855750487329
+      },
+      {
+        "policy_year": 18,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.215555555555556
+      },
+      {
+        "policy_year": 19,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.241559454191033
+      },
+      {
+        "policy_year": 20,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.263625730994152
+      },
+      {
+        "policy_year": 21,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.311968810916179
+      },
+      {
+        "policy_year": 22,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.360545808966862
+      },
+      {
+        "policy_year": 23,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.415945419103314
+      },
+      {
+        "policy_year": 24,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.458206627680312
+      },
+      {
+        "policy_year": 25,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.504210526315789
+      },
+      {
+        "policy_year": 30,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.750604288499025
+      },
+      {
+        "policy_year": 35,
+        "withdrawal_rate": 0.07,
+        "multiplier": 1.983859649122807
+      },
+      {
+        "policy_year": 40,
+        "withdrawal_rate": 0.07,
+        "multiplier": 2.306744639376218
+      },
+      {
+        "policy_year": 45,
+        "withdrawal_rate": 0.07,
+        "multiplier": 2.781052631578947
+      },
+      {
+        "policy_year": 50,
+        "withdrawal_rate": 0.07,
+        "multiplier": 3.440662768031189
+      },
+      {
+        "policy_year": 55,
+        "withdrawal_rate": 0.07,
+        "multiplier": 4.326900584795322
+      },
+      {
+        "policy_year": 60,
+        "withdrawal_rate": 0.07,
+        "multiplier": 5.541949317738792
+      },
+      {
+        "policy_year": 65,
+        "withdrawal_rate": 0.07,
+        "multiplier": 7.207368421052632
+      },
+      {
+        "policy_year": 70,
+        "withdrawal_rate": 0.07,
+        "multiplier": 9.48916179337232
+      },
+      {
+        "policy_year": 75,
+        "withdrawal_rate": 0.07,
+        "multiplier": 12.61614035087719
+      },
+      {
+        "policy_year": 80,
+        "withdrawal_rate": 0.07,
+        "multiplier": 16.90124756335283
+      },
+      {
+        "policy_year": 85,
+        "withdrawal_rate": 0.07,
+        "multiplier": 22.77239766081872
+      },
+      {
+        "policy_year": 90,
+        "withdrawal_rate": 0.07,
+        "multiplier": 30.81637426900585
+      },
+      {
+        "policy_year": 95,
+        "withdrawal_rate": 0.07,
+        "multiplier": 41.83785575048733
+      },
+      {
+        "policy_year": 100,
+        "withdrawal_rate": 0.07,
+        "multiplier": 56.9374269005848
+      }
+    ],
+    "15年領取": [
+      {
+        "policy_year": 8,
+        "withdrawal_rate": 0,
+        "multiplier": 1.16
+      },
+      {
+        "policy_year": 9,
+        "withdrawal_rate": 0,
+        "multiplier": 1.24
+      },
+      {
+        "policy_year": 10,
+        "withdrawal_rate": 0,
+        "multiplier": 1.32
+      },
+      {
+        "policy_year": 11,
+        "withdrawal_rate": 0,
+        "multiplier": 1.41
+      },
+      {
+        "policy_year": 12,
+        "withdrawal_rate": 0,
+        "multiplier": 1.51
+      },
+      {
+        "policy_year": 13,
+        "withdrawal_rate": 0,
+        "multiplier": 1.62
+      },
+      {
+        "policy_year": 14,
+        "withdrawal_rate": 0,
+        "multiplier": 1.74
+      },
+      {
+        "policy_year": 15,
+        "withdrawal_rate": 0.12,
+        "multiplier": 1.714541910331384
+      },
+      {
+        "policy_year": 16,
+        "withdrawal_rate": 0.12,
+        "multiplier": 1.727602339181286
+      },
+      {
+        "policy_year": 17,
+        "withdrawal_rate": 0.12,
+        "multiplier": 1.744171539961014
+      },
+      {
+        "policy_year": 18,
+        "withdrawal_rate": 0.12,
+        "multiplier": 1.783703703703704
+      },
+      {
+        "policy_year": 19,
+        "withdrawal_rate": 0.12,
+        "multiplier": 1.804600389863548
+      },
+      {
+        "policy_year": 20,
+        "withdrawal_rate": 0.12,
+        "multiplier": 1.818440545808967
+      },
+      {
+        "policy_year": 21,
+        "withdrawal_rate": 0.12,
+        "multiplier": 1.868810916179337
+      },
+      {
+        "policy_year": 22,
+        "withdrawal_rate": 0.12,
+        "multiplier": 1.917699805068226
+      },
+      {
+        "policy_year": 23,
+        "withdrawal_rate": 0.12,
+        "multiplier": 1.974502923976608
+      },
+      {
+        "policy_year": 24,
+        "withdrawal_rate": 0.12,
+        "multiplier": 2.011033138401559
+      },
+      {
+        "policy_year": 25,
+        "withdrawal_rate": 0.12,
+        "multiplier": 2.051072124756335
+      },
+      {
+        "policy_year": 30,
+        "withdrawal_rate": 0.12,
+        "multiplier": 2.244717348927875
+      },
+      {
+        "policy_year": 35,
+        "withdrawal_rate": 0.12,
+        "multiplier": 2.37224171539961
+      },
+      {
+        "policy_year": 40,
+        "withdrawal_rate": 0.12,
+        "multiplier": 2.552046783625731
+      },
+      {
+        "policy_year": 45,
+        "withdrawal_rate": 0.12,
+        "multiplier": 2.833918128654971
+      },
+      {
+        "policy_year": 50,
+        "withdrawal_rate": 0.12,
+        "multiplier": 3.228031189083821
+      },
+      {
+        "policy_year": 55,
+        "withdrawal_rate": 0.12,
+        "multiplier": 3.749980506822612
+      },
+      {
+        "policy_year": 60,
+        "withdrawal_rate": 0.12,
+        "multiplier": 4.464990253411306
+      },
+      {
+        "policy_year": 65,
+        "withdrawal_rate": 0.12,
+        "multiplier": 5.444444444444445
+      },
+      {
+        "policy_year": 70,
+        "withdrawal_rate": 0.12,
+        "multiplier": 6.785847953216375
+      },
+      {
+        "policy_year": 75,
+        "withdrawal_rate": 0.12,
+        "multiplier": 8.623703703703704
+      },
+      {
+        "policy_year": 80,
+        "withdrawal_rate": 0.12,
+        "multiplier": 11.14187134502924
+      },
+      {
+        "policy_year": 85,
+        "withdrawal_rate": 0.12,
+        "multiplier": 14.59189083820663
+      },
+      {
+        "policy_year": 90,
+        "withdrawal_rate": 0.12,
+        "multiplier": 19.31863547758284
+      },
+      {
+        "policy_year": 95,
+        "withdrawal_rate": 0.12,
+        "multiplier": 25.79528265107212
+      },
+      {
+        "policy_year": 100,
+        "withdrawal_rate": 0.12,
+        "multiplier": 34.66849902534113
+      }
+    ],
+    "20年領取": [
+      {
+        "policy_year": 8,
+        "withdrawal_rate": 0,
+        "multiplier": 1.16
+      },
+      {
+        "policy_year": 9,
+        "withdrawal_rate": 0,
+        "multiplier": 1.24
+      },
+      {
+        "policy_year": 10,
+        "withdrawal_rate": 0,
+        "multiplier": 1.32
+      },
+      {
+        "policy_year": 11,
+        "withdrawal_rate": 0,
+        "multiplier": 1.41
+      },
+      {
+        "policy_year": 12,
+        "withdrawal_rate": 0,
+        "multiplier": 1.51
+      },
+      {
+        "policy_year": 13,
+        "withdrawal_rate": 0,
+        "multiplier": 1.62
+      },
+      {
+        "policy_year": 14,
+        "withdrawal_rate": 0,
+        "multiplier": 1.74
+      },
+      {
+        "policy_year": 15,
+        "withdrawal_rate": 0,
+        "multiplier": 1.86
+      },
+      {
+        "policy_year": 16,
+        "withdrawal_rate": 0,
+        "multiplier": 2
+      },
+      {
+        "policy_year": 17,
+        "withdrawal_rate": 0,
+        "multiplier": 2.15
+      },
+      {
+        "policy_year": 18,
+        "withdrawal_rate": 0,
+        "multiplier": 2.34
+      },
+      {
+        "policy_year": 19,
+        "withdrawal_rate": 0,
+        "multiplier": 2.52
+      },
+      {
+        "policy_year": 20,
+        "withdrawal_rate": 0.18,
+        "multiplier": 2.527
+      },
+      {
+        "policy_year": 25,
+        "withdrawal_rate": 0.18,
+        "multiplier": 2.772
+      },
+      {
+        "policy_year": 30,
+        "withdrawal_rate": 0.18,
+        "multiplier": 2.93
+      },
+      {
+        "policy_year": 35,
+        "withdrawal_rate": 0.18,
+        "multiplier": 2.964
+      },
+      {
+        "policy_year": 40,
+        "withdrawal_rate": 0.18,
+        "multiplier": 3.017
+      },
+      {
+        "policy_year": 45,
+        "withdrawal_rate": 0.18,
+        "multiplier": 3.133
+      },
+      {
+        "policy_year": 50,
+        "withdrawal_rate": 0.18,
+        "multiplier": 3.298
+      },
+      {
+        "policy_year": 55,
+        "withdrawal_rate": 0.18,
+        "multiplier": 3.504
+      },
+      {
+        "policy_year": 60,
+        "withdrawal_rate": 0.18,
+        "multiplier": 3.786
+      },
+      {
+        "policy_year": 65,
+        "withdrawal_rate": 0.18,
+        "multiplier": 4.171
+      },
+      {
+        "policy_year": 70,
+        "withdrawal_rate": 0.18,
+        "multiplier": 4.696
+      },
+      {
+        "policy_year": 75,
+        "withdrawal_rate": 0.18,
+        "multiplier": 5.416
+      },
+      {
+        "policy_year": 80,
+        "withdrawal_rate": 0.18,
+        "multiplier": 6.402
+      },
+      {
+        "policy_year": 85,
+        "withdrawal_rate": 0.18,
+        "multiplier": 7.752
+      },
+      {
+        "policy_year": 90,
+        "withdrawal_rate": 0.18,
+        "multiplier": 9.6
+      },
+      {
+        "policy_year": 95,
+        "withdrawal_rate": 0.18,
+        "multiplier": 12.134
+      },
+      {
+        "policy_year": 100,
+        "withdrawal_rate": 0.18,
+        "multiplier": 15.604
+      }
+    ],
+    "25年領取": [
+      {
+        "policy_year": 8,
+        "withdrawal_rate": 0,
+        "multiplier": 1.16
+      },
+      {
+        "policy_year": 9,
+        "withdrawal_rate": 0,
+        "multiplier": 1.24
+      },
+      {
+        "policy_year": 10,
+        "withdrawal_rate": 0,
+        "multiplier": 1.32
+      },
+      {
+        "policy_year": 11,
+        "withdrawal_rate": 0,
+        "multiplier": 1.41
+      },
+      {
+        "policy_year": 12,
+        "withdrawal_rate": 0,
+        "multiplier": 1.51
+      },
+      {
+        "policy_year": 13,
+        "withdrawal_rate": 0,
+        "multiplier": 1.62
+      },
+      {
+        "policy_year": 14,
+        "withdrawal_rate": 0,
+        "multiplier": 1.74
+      },
+      {
+        "policy_year": 15,
+        "withdrawal_rate": 0,
+        "multiplier": 1.86
+      },
+      {
+        "policy_year": 16,
+        "withdrawal_rate": 0,
+        "multiplier": 2
+      },
+      {
+        "policy_year": 17,
+        "withdrawal_rate": 0,
+        "multiplier": 2.15
+      },
+      {
+        "policy_year": 18,
+        "withdrawal_rate": 0,
+        "multiplier": 2.34
+      },
+      {
+        "policy_year": 19,
+        "withdrawal_rate": 0,
+        "multiplier": 2.52
+      },
+      {
+        "policy_year": 20,
+        "withdrawal_rate": 0,
+        "multiplier": 2.71
+      },
+      {
+        "policy_year": 21,
+        "withdrawal_rate": 0,
+        "multiplier": 2.96
+      },
+      {
+        "policy_year": 22,
+        "withdrawal_rate": 0,
+        "multiplier": 3.23
+      },
+      {
+        "policy_year": 23,
+        "withdrawal_rate": 0,
+        "multiplier": 3.53
+      },
+      {
+        "policy_year": 24,
+        "withdrawal_rate": 0,
+        "multiplier": 3.81
+      },
+      {
+        "policy_year": 25,
+        "withdrawal_rate": 0.23,
+        "multiplier": 3.882
+      },
+      {
+        "policy_year": 30,
+        "withdrawal_rate": 0.23,
+        "multiplier": 4.23
+      },
+      {
+        "policy_year": 35,
+        "withdrawal_rate": 0.23,
+        "multiplier": 4.454
+      },
+      {
+        "policy_year": 40,
+        "withdrawal_rate": 0.23,
+        "multiplier": 4.766
+      },
+      {
+        "policy_year": 45,
+        "withdrawal_rate": 0.23,
+        "multiplier": 5.258
+      },
+      {
+        "policy_year": 50,
+        "withdrawal_rate": 0.23,
+        "multiplier": 5.947
+      },
+      {
+        "policy_year": 55,
+        "withdrawal_rate": 0.23,
+        "multiplier": 6.858
+      },
+      {
+        "policy_year": 60,
+        "withdrawal_rate": 0.23,
+        "multiplier": 8.106
+      },
+      {
+        "policy_year": 65,
+        "withdrawal_rate": 0.23,
+        "multiplier": 9.806
+      },
+      {
+        "policy_year": 70,
+        "withdrawal_rate": 0.23,
+        "multiplier": 12.126
+      },
+      {
+        "policy_year": 75,
+        "withdrawal_rate": 0.23,
+        "multiplier": 15.304
+      },
+      {
+        "policy_year": 80,
+        "withdrawal_rate": 0.23,
+        "multiplier": 19.659
+      },
+      {
+        "policy_year": 85,
+        "withdrawal_rate": 0.23,
+        "multiplier": 25.625
+      },
+      {
+        "policy_year": 90,
+        "withdrawal_rate": 0.23,
+        "multiplier": 33.799
+      },
+      {
+        "policy_year": 95,
+        "withdrawal_rate": 0.23,
+        "multiplier": 44.997
+      },
+      {
+        "policy_year": 100,
+        "withdrawal_rate": 0.23,
+        "multiplier": 60.341
+      }
+    ],
+    "30年領取": [
+      {
+        "policy_year": 8,
+        "withdrawal_rate": 0,
+        "multiplier": 1.16
+      },
+      {
+        "policy_year": 9,
+        "withdrawal_rate": 0,
+        "multiplier": 1.24
+      },
+      {
+        "policy_year": 10,
+        "withdrawal_rate": 0,
+        "multiplier": 1.32
+      },
+      {
+        "policy_year": 11,
+        "withdrawal_rate": 0,
+        "multiplier": 1.41
+      },
+      {
+        "policy_year": 12,
+        "withdrawal_rate": 0,
+        "multiplier": 1.51
+      },
+      {
+        "policy_year": 13,
+        "withdrawal_rate": 0,
+        "multiplier": 1.62
+      },
+      {
+        "policy_year": 14,
+        "withdrawal_rate": 0,
+        "multiplier": 1.74
+      },
+      {
+        "policy_year": 15,
+        "withdrawal_rate": 0,
+        "multiplier": 1.86
+      },
+      {
+        "policy_year": 16,
+        "withdrawal_rate": 0,
+        "multiplier": 2
+      },
+      {
+        "policy_year": 17,
+        "withdrawal_rate": 0,
+        "multiplier": 2.15
+      },
+      {
+        "policy_year": 18,
+        "withdrawal_rate": 0,
+        "multiplier": 2.34
+      },
+      {
+        "policy_year": 19,
+        "withdrawal_rate": 0,
+        "multiplier": 2.52
+      },
+      {
+        "policy_year": 20,
+        "withdrawal_rate": 0,
+        "multiplier": 2.71
+      },
+      {
+        "policy_year": 21,
+        "withdrawal_rate": 0,
+        "multiplier": 2.96
+      },
+      {
+        "policy_year": 22,
+        "withdrawal_rate": 0,
+        "multiplier": 3.23
+      },
+      {
+        "policy_year": 23,
+        "withdrawal_rate": 0,
+        "multiplier": 3.53
+      },
+      {
+        "policy_year": 24,
+        "withdrawal_rate": 0,
+        "multiplier": 3.81
+      },
+      {
+        "policy_year": 25,
+        "withdrawal_rate": 0,
+        "multiplier": 4.11
+      },
+      {
+        "policy_year": 30,
+        "withdrawal_rate": 0.29,
+        "multiplier": 5.565
+      },
+      {
+        "policy_year": 35,
+        "withdrawal_rate": 0.29,
+        "multiplier": 5.973
+      },
+      {
+        "policy_year": 40,
+        "withdrawal_rate": 0.29,
+        "multiplier": 6.532
+      },
+      {
+        "policy_year": 45,
+        "withdrawal_rate": 0.29,
+        "multiplier": 7.299
+      },
+      {
+        "policy_year": 50,
+        "withdrawal_rate": 0.29,
+        "multiplier": 8.349
+      },
+      {
+        "policy_year": 55,
+        "withdrawal_rate": 0.29,
+        "multiplier": 9.788
+      },
+      {
+        "policy_year": 60,
+        "withdrawal_rate": 0.29,
+        "multiplier": 11.759
+      },
+      {
+        "policy_year": 65,
+        "withdrawal_rate": 0.29,
+        "multiplier": 14.459
+      },
+      {
+        "policy_year": 70,
+        "withdrawal_rate": 0.29,
+        "multiplier": 18.159
+      },
+      {
+        "policy_year": 75,
+        "withdrawal_rate": 0.29,
+        "multiplier": 23.229
+      },
+      {
+        "policy_year": 80,
+        "withdrawal_rate": 0.29,
+        "multiplier": 30.174
+      },
+      {
+        "policy_year": 85,
+        "withdrawal_rate": 0.29,
+        "multiplier": 39.69
+      },
+      {
+        "policy_year": 90,
+        "withdrawal_rate": 0.29,
+        "multiplier": 52.728
+      },
+      {
+        "policy_year": 95,
+        "withdrawal_rate": 0.29,
+        "multiplier": 70.591
+      },
+      {
+        "policy_year": 100,
+        "withdrawal_rate": 0.29,
+        "multiplier": 95.0647
+      }
+    ]
+  },
+  "version": {
+    "module_name": "Saving",
+    "module_version": "",
+    "schema_version": "",
+    "data_version": "",
+    "last_updated": ""
+  }
+}
