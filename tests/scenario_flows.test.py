@@ -66,11 +66,33 @@ for(const [tool,expected] of [['stock','S2_MARKET'],['etf','S2_MARKET'],['fixed_
 for(const selected of [['stock','fixed_deposit'],['etf','bond'],['stock','etf','fixed_deposit']]){
   s2.session.investmentTools=selected;
   assert.equal(investmentPath(selected),'S2_MIXED');
-  const page=html(s2,'S2_MIXED');
+  s2.session.marketResponse=null;s2.session.maturityResponse=null;
+  let page=html(s2,'S2_MARKET');
+  assert.doesNotMatch(page,/data-action="continue-market-to-maturity"/);
+  assert.doesNotMatch(page,/data-action="continue-to-saving"/);
+  s2.session.marketResponse='hold';
+  page=html(s2,'S2_MARKET');
+  assert.match(page,/data-action="continue-market-to-maturity"/);
+  s2.session.maturityResponse=null;
+  page=html(s2,'S2_MATURITY');
+  assert.equal(count(page,/data-action="select-maturity-response"/g),4);
+  assert.doesNotMatch(page,/data-action="continue-maturity-to-mixed"/);
+  s2.session.maturityResponse='compare';
+  page=html(s2,'S2_MATURITY');
+  assert.match(page,/data-action="continue-maturity-to-mixed"/);
+  page=html(s2,'S2_MIXED');
   assert.equal(count(page,/data-action="select-mixed-focus"/g),2);
   for(const key of selected) assert.match(page,new RegExp(INVESTMENT_TOOLS.find(item=>item[0]===key)[1]));
   assert.match(page,/data-action="continue-to-saving"/);
 }
+const mixedBack=createState();
+mixedBack.session.scenario='scenario2';mixedBack.session.investmentTools=['stock','fixed_deposit'];mixedBack.session.marketResponse='hold';mixedBack.session.maturityResponse='compare';
+mixedBack.pageId='S2_TOOLS';goTo(mixedBack,'S2_MARKET');goTo(mixedBack,'S2_MATURITY');goTo(mixedBack,'S2_MIXED');
+assert.equal(goBack(mixedBack),'S2_MATURITY');assert.match(html(mixedBack,'S2_MATURITY'),/data-value="compare"[^>]+aria-pressed="true"/);
+assert.equal(goBack(mixedBack),'S2_MARKET');assert.match(html(mixedBack,'S2_MARKET'),/data-value="hold"[^>]+aria-pressed="true"/);
+assert.equal(goBack(mixedBack),'S2_TOOLS');mixedBack.session.investmentTools=['stock'];
+assert.equal(investmentPath(mixedBack.session.investmentTools),'S2_MARKET');
+assert.match(html(mixedBack,'S2_MARKET'),/data-action="continue-to-saving"/);
 assert.deepEqual(toggleChoice(['stock'],'stock',INVESTMENT_TOOLS),[]);
 assert.deepEqual(toggleChoice([],'cash',INVESTMENT_TOOLS),[]);
 
