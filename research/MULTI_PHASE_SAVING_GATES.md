@@ -4,7 +4,7 @@
 
 **Gate 2 RESOLVED BY AUTHORITATIVE PRODUCT DECISION (2026-10-01).** Each active phase independently selects its own withdrawal strategy; strategy year is local to that phase; each phase uses the unchanged verified single-block primitive; customer results aggregate afterward. The product decision comes from the user, not invented insurer/iPOS evidence.
 
-**Gate 1 remains a genuine data limitation, handled through explicit availability.** Missing local years 1–7 (and other absent exact rows) are never estimated, valued at zero, or replaced by paid contributions. Any started unavailable phase blocks the complete portfolio financial values. A not-started phase is excluded from that time's value.
+**Gate 1 remains a genuine data limitation, handled through explicit availability.** Missing local years 1–7 (and other absent exact rows) are never estimated, valued at zero, or replaced by paid contributions. P4/P6 show a progressive known-value total: a later started phase without an exact row does not hide earlier exact values. Availability metadata and included-phase counts distinguish unavailable values from zero. P7 instead combines independently selected active phase scenarios; an unavailable selected scenario blocks the complete withdrawal summary.
 
 PR #11 now implements the coherent customer framework across P4/P5/P6/P7/Customer View. The original genuine snapshot is retained byte-for-byte. Code/runtime tests are complete; browser QA is pending because the Chromium Headless Shell download returned invalid archives. No physical-device certification is claimed.
 
@@ -63,7 +63,7 @@ This confirms and refreshes the 2026-09-23 capture in `DATA_VALIDATION.md`. Endp
 
 ## Gate 1 — early local years
 
-The requested contribution windows and mapping are clear: offsets 0, 5, 10; local year = overall year minus offset. An optional phase is not started when the overall year has not exceeded its offset. Once started, missing value data cannot be excluded from a purported complete portfolio total.
+The requested contribution windows and mapping are clear: offsets 0, 5, 10; local year = overall year minus offset. An optional phase is not started when the overall year has not exceeded its offset. Once started, missing value data stays unavailable. In accumulation it is excluded from the explicitly labelled current known-value total; it never becomes zero.
 
 | Overall year | Phase 1 | Phase 2 | Phase 3 |
 | ---: | --- | --- | --- |
@@ -79,7 +79,7 @@ Phase 2 maps to missing local years during overall years 6–12. Phase 3 does so
 
 For accumulation, restricting the **existing** overall rail to complete exact-row intersections would leave years 13–25, then 30–100 in 5-year steps for two phases; years 18–25, then 30–100 in 5-year steps for three phases. These are data-coverage observations only. No such rail restriction was implemented, and it does not resolve withdrawal semantics.
 
-**Decision:** no early-year financial fallback exists. The user has explicitly authorized showing a customer-safe unavailable state at affected overall years. The account-value aggregate is available only when all started active phases have exact rows. No zero, paid-contribution substitution, interpolation, extrapolation, nearest row or invented 10/15-year multiplier is used.
+**Corrected authoritative decision:** no early-year financial fallback exists. P4/P6 display the sum of active phases with exact values, with customer wording identifying the number of included phases. At overall year 8 with all three active, only Phase 1 is value-available; at year 13 Phases 1+2; at year 18 all three. If no phase value is available, show unavailable. Contributions are independently knowable and do not replace unknown values. No zero, paid-contribution substitution, interpolation, extrapolation, nearest row or invented 10/15-year multiplier is used.
 
 ## Gate 2 — resolved independent withdrawal design
 
@@ -88,7 +88,8 @@ The original audit correctly found that genuine single-arrangement strategy meta
 - Each phase independently chooses local year 8 / 15 / 20 / 25 / 30.
 - Its overall withdrawal start is its own offset plus its own selected start year.
 - Phase 1, 2 and 3 may choose different strategies; selectors do not change phase activation.
-- At one overall exploration year, each started phase maps independently to its local year and exact selected strategy row.
+- Each active phase independently selects its own local exploration year from its strategy's exact supported rows at or after its start. Customer age uses current age + phase offset + selected local year.
+- Final 整體效果 combines the currently selected independent scenarios, which may be at different customer ages. It is not a common-age projection.
 
 For example, Phase 1 choosing 15, Phase 2 choosing 8 and Phase 3 choosing 20 produces overall withdrawal starts 15 / 13 / 30. This is now supported product behavior, not a claim derived from previously absent insurer evidence.
 
@@ -98,11 +99,11 @@ Verified single-block rules remain unchanged:
 - `cumulativeUsed` sums existing rows from that phase's strategy start through its selected local year. No withdrawal rows are created for sparse years.
 - `remainingValue` is exact multiplier times that phase's five-year contribution basis. CumulativeUsed is not deducted again.
 
-The combined three financial metrics are withheld together if any started phase lacks a required row. This avoids presenting either a partial account-value sum or partial withdrawal metrics as the complete arrangement.
+For P7, the combined three financial metrics are withheld if any selected active phase result is unavailable. No unavailable selection silently becomes zero. This differs intentionally from P4/P6 progressive accumulation.
 
 ## Implemented model and customer journey
 
-`src/calculation.js` keeps the original `calculateOfficial()` and `currentPath()` primitives unchanged, then adds reusable phase definitions, legacy-safe active-phase resolution, one portfolio aggregator and one P7/Customer View resolver. This uses an existing cached module, so no Service Worker shell dependency or update architecture change is needed.
+`src/calculation.js` keeps the original `calculateOfficial()` and `currentPath()` primitives unchanged, then adds reusable phase definitions, legacy-safe active-phase resolution, a progressive accumulation resolver, an independent phase withdrawal resolver, and a withdrawal summary aggregator shared by P7/Customer View. This uses an existing cached module, so no Service Worker shell dependency or update architecture change is needed.
 
 | Phase | Contribution window | Offset | Default |
 | --- | --- | ---: | --- |
@@ -110,7 +111,9 @@ The combined three financial metrics are withheld together if any started phase 
 | 第二期 | Overall 6–10 | 5 | Hidden/excluded until explicitly added |
 | 第三期 | Overall 11–15 | 10 | Hidden/excluded; requires 第二期 |
 
-`session.savingPhases` stores the contiguous active phases and their independent strategy codes. `session.withdrawalOverallYear` stores the one exploration year. State helpers in `src/state.js` add only the next phase, cap at three, remove Phase 3, or cascade removal from Phase 2 to Phase 3. Removed strategies are not retained for later reactivation. Legacy `withdrawalStrategyCode` and `withdrawalPolicyYear` map safely to Phase 1/overall time without enabling another phase. An unselected phase uses the first available genuine start choice, preserving the old single-phase default; P7 and Customer View resolve that default identically.
+`session.savingPhases` stores contiguous active phases, each with its own `strategyCode` and local `withdrawalPolicyYear`. Each phase defaults independently to its first available genuine start/year until selected. Changing a strategy resets only that phase's dependent local year; changing its exploration year leaves all other phases untouched. No authoritative shared `withdrawalOverallYear` remains.
+
+State helpers add only the next phase, cap at three, remove Phase 3, or cascade removal from Phase 2. Remaining phases keep both selections; removed phases have no retained hidden influence. Legacy `withdrawalStrategyCode` / `withdrawalPolicyYear` seed Phase 1 without activating optional phases. An older phase entry without a year can seed Phase 1 from the legacy local-year field. Once a new phase-local year exists, neither old local state nor obsolete shared overall state overrides it. Supplied unsupported local selections remain unavailable; no nearest-year replacement occurs.
 
 Paid contributions count only elapsed contribution years, capped at five for each started phase. This separately known input total is labelled as paid contributions; it never stands in for missing account value. The planned five-year contribution basis still applies independently inside the verified primitive.
 
@@ -118,24 +121,25 @@ Paid contributions count only elapsed contribution years, capped at five for eac
 | --- | --- |
 | P4 | Initially Phase 1. On revisit, uses the active phases established in P5. Current Method still has its original five-year contribution horizon; multi-phase comparison wording explicitly distinguishes that horizon from the chosen Saving phases. No duplicate selector. |
 | P5 | Compact progressive phase cards, correct 1–5 / 6–10 / 11–15 windows and equal annual/five-year inputs. Add-next controls; removal cascades. Technical terms are absent from customer copy. |
-| P6 | Inherits phase state. One 累積 Saving 價值 plus paid contributions to the selected time. Exact or explicitly unavailable complete total. |
-| P7 | One independent start rail per active phase; one overall exploration rail; three combined metrics. The duplicated large hero/value card is removed without a placeholder gap. |
-| Customer View | Same resolver, active phases, independent strategies, selected overall year, combined metrics and availability as P7, including default selections before an explicit click. Existing report composition and PDF action retained. |
+| P6 | Inherits phase state. One progressive 累積 Saving 價值, included-value phase count, and paid contributions to the selected overall time. Later unavailable values do not hide earlier exact values. |
+| P7 | Each active phase has an independent start rail, local exploration rail, and three compact metrics; a final summary combines the current independent scenarios. The duplicated large hero/value card is removed without a placeholder gap. |
+| Customer View | Same independent scenarios and summary as P7, with each phase's start, exploration year, actual age and compact result context. No common-age claim; defaults and availability match P7. Existing report composition and PDF action retained. |
 
-P7's overall year choices are the sorted union of each active strategy's exact row years shifted by its phase offset, starting at the earliest active withdrawal start. No interpolated year choices are created. Some points have data for only part of the arrangement: those points remain explorable but show unavailable complete totals. Beyond a particular phase's last exact year, its absence also blocks the total; no extrapolation is performed.
+P7 uses only exact supported local rows at or after each phase's chosen start. The old shared overall exploration architecture is removed. Each customer-age label includes that phase's offset; the secondary year label remains local to that explicitly named phase.
 
-Stable strategy rail IDs are `withdrawal-start-rail`, `withdrawal-start-rail-2`, and `withdrawal-start-rail-3`; the single exploration ID remains `withdrawal-explore-rail`. PR #10's synchronous snapshot/restore lifecycle is unchanged. Changing or reselecting a phase start resets the overall exploration year to that phase's overall start and resets only the dependent exploration rail. Since that point may follow another phase's earlier start, the explicit reset synchronously aligns the chosen overall card using its measured position. Normal age/year selections only restore browsing position; no scrollIntoView, timeout or smooth-scroll behavior is added. All unchanged strategy rails preserve their own position. Selection is excluded from their identity context; the overall rail's context includes the active independent strategies and exact overall choices.
+Stable IDs are `withdrawal-start-rail` / `withdrawal-explore-rail` for Phase 1, with `-2` and `-3` suffixes for Phases 2/3. PR #10's synchronous stable-ID/context snapshot and restoration remains intact. Strategy selection resets only the same phase's exploration year and rail. All unrelated rails preserve position. Normal exploration clicks restore all unchanged rail positions. No UA, timeout, scrollIntoView or forced smooth scroll is used.
 
-## Validation
+## Validation of corrected behavior
 
-- Full suite: **14 Python test files pass**, including Node runtime product and real-render tests.
-- New `tests/multi_phase_runtime.test.py`: default/legacy state, activation/removal/cascade, P5 progressive reveal/windows, P4 return navigation and unchanged Current Method horizon, one/two/three-phase P6 values, exact mapping, partial contributions, missing-row blocking, independent 15/8/20 strategies, shifted starts, sparse cumulative withdrawals, no double deduction, inactive/not-started exclusion, removed P7 hero, one overall rail, and matching Customer View.
-- Expanded `tests/timeline_scroll.test.py`: P4/P6 plus all three P7 strategy rails independently preserve positions, overall rail resets only on start selection, unrelated strategies retain position, no cross-page leaks and P3 input handling remains intact.
-- Genuine audit test still exercises all 194 captured rows and missing early/sparse/out-of-range rows. Snapshot is unchanged.
-- Synthetic unit fixtures are labelled test mechanics; no synthetic value enters Official or production data.
-- Existing source-level regressions updated only where the old single-phase contract was explicitly superseded; financial, GAS/Admin, portable data and automatic-update tests still pass.
-- `git diff --check`: passed.
-- Diff review: `calculateOfficial()`, `currentPath()`, `src/data.js`, Admin/Auth, GAS, genuine archive, Service Worker and deployment/update workflow unchanged.
+- Full suite: **14 Python test files pass**, including static checks and Node runtime/render regressions.
+- Genuine archive runtime cases, all three phases active: overall 8 displays Phase 1; 13 displays Phases 1+2; 18 displays Phases 1+2+3. Values equal calls to the unchanged single-block primitive; missing early values remain undefined, with explicit started/available metadata and included-phase counts. P4/P6 rendered amounts match.
+- Independent P7 runtime choices: strategy/local exploration 15/40, 8/25, 20/30; six rails, three separate metric groups, and one final summary. Summary equals the three exact primitive results. Sparse cumulative rows are summed row-by-row; remainingValue has no second deduction.
+- Strategy and exploration updates preserve other phases' selections; optional phases remain absent until activation. Removal cascades and preserves surviving selections. Legacy state and obsolete shared-time isolation are tested.
+- All six P7 rails execute the actual synchronous draw/render lifecycle: capture before replacement, restore afterward, and reset only the selected phase's dependent rail. P4/P6, page/context isolation and P3 live typing regressions remain covered.
+- Customer View matches summary metrics, contains each selected phase's start/time/age/result, and shares unavailable behavior.
+- Genuine evidence tests exercise all 194 captured rows and early/sparse/out-of-range gaps; original snapshot unchanged.
+- Synthetic fixtures test mechanics only and never enter product data.
+- `git diff --check`: passed. Original single-block and Current Method primitives, genuine snapshot, Official loader, GAS/Admin/Auth, Service Worker and deployment/update workflow unchanged.
 
 ## Browser and remaining verification
 
@@ -143,4 +147,10 @@ Chromium/Headless Shell is not installed in the execution environment. Attempted
 
 Static structure retains `touch-action:pan-x pan-y`, bounded rail overflow, shared ageYearRail, minimum-width-zero result tracks, wrapping phase controls and existing AVA responsive boundaries. This is structural inspection, not a browser or physical-device PASS.
 
-Gate 1 remains an ongoing data coverage limitation, not an unfinished guessed calculation: affected customer values explicitly remain unavailable until genuine rows exist. Current-flow phase state is not persisted across reload, matching the existing customer-session lifecycle. User Overrides are not modified or repurposed for product state. Do not merge automatically.
+Gate 1 remains an ongoing data coverage limitation, not an unfinished guessed calculation: missing individual values remain unavailable. P4/P6 show explicitly labelled known-value totals progressively; P7 requires every selected active scenario for its complete summary. Current-flow phase state is not persisted across reload, matching the existing customer-session lifecycle. User Overrides are not modified or repurposed for product state. Do not merge automatically.
+
+## Previous correction workflow and subsequent recovery
+
+GitHub reports PR #11 was already merged at 2026-10-01 04:30:37 UTC, merge commit `aa6f7de72b59092a76dc1da3fea8dcfc8385b424`. A read-only fetch independently confirms that commit is current `origin/main`. The existing research branch remains at reviewed remote HEAD `9e8ab4196ce9b9f10e81b9ed3649961b6d1870d6`. Corrections and passing tests were completed locally on the existing branch. No new branch/PR, remote code write, or merge was performed during this correction. Updating the same merged PR as a reviewable code change is blocked; a revised workflow requires the user's instruction.
+
+The subsequent user instruction authorizes a new correction PR. Recovery found the complete implementation in local commit `d096ea001aa69bd5c86b7e2a750596481871406d` on `research/multi-phase-saving-evidence-gates`, with a clean working tree and no pushed correction. Latest fetched main is `aa6f7de72b59092a76dc1da3fea8dcfc8385b424`, containing merged PR #11. The exact correction was cherry-picked onto `fix/multi-phase-progressive-autonomy` based on that main; a tree comparison confirmed identical recovered contents before this documentation-only update. No implementation was restarted, and the original research branch/commit remains preserved. All 14 test files and diff whitespace checks were rerun successfully. One correction PR is authorized; no merge is authorized. Browser limitations above remain unchanged.
