@@ -1,5 +1,6 @@
 export const ENDPOINT = 'https://script.google.com/macros/s/AKfycbw_tBrwEiGfaZSNBgLwv1eNyjG8KEWj0QeHZZPANh5endIuPfwl8HMT6LujWWqSXZaKRg/exec';
 import { normalizeMediaList } from './media.js';
+import { SCENARIO_CONTENT, SCENARIO_FLOW } from './scenario-flow.js';
 const CACHE_KEY = 'ava-saving-official-cache-v1';
 export const USER_DATA_SCHEMA = 'ava-saving-user-v1';
 
@@ -80,11 +81,15 @@ export function applyLocalOverrides(official, overrides = {}) {
     createdAt: page.createdAt || new Date().toISOString(),
     updatedAt: page.updatedAt || page.createdAt || new Date().toISOString()
   }));
-  const flow = [...(official.flow || []), ...customPages].map((page, index) => {
+  const officialIds = new Set((official.flow || []).map(page => page.page_id));
+  const scenarioDefaults = SCENARIO_FLOW.filter(page => !officialIds.has(page.page_id));
+  const flow = [...(official.flow || []), ...scenarioDefaults, ...customPages].map((page, index) => {
     const local = pages[page.page_id] || {};
     return { ...page, ...local, order: Number.isFinite(Number(local.order)) ? Number(local.order) : (page.order ?? index + 1), enabled: local.hidden !== true && page.enabled !== false };
   }).filter(page => page.enabled !== false).sort((a, b) => a.order - b.order);
-  const pageContent = (official.page_content || []).map(item => {
+  const officialContentIds = new Set((official.page_content || []).map(item => item.content_id));
+  const scenarioContentDefaults = SCENARIO_CONTENT.filter(item => !officialContentIds.has(item.content_id));
+  const pageContent = [...(official.page_content || []), ...scenarioContentDefaults].map(item => {
     const local = overrides.cards?.[item.content_id] || {};
     return { ...item, ...local, enabled: local.hidden !== true && item.enabled !== false };
   }).filter(item => item.enabled !== false);
