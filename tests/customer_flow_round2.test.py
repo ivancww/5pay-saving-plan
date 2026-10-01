@@ -61,7 +61,7 @@ p6 = views.split('function p6', 1)[1].split('function p7', 1)[0]
 assert 'function ageYearRail' in views
 assert "action = 'select-year'" in views
 assert 'data-action="${action}"' in views
-assert '<small>第 ${item.localYear ?? item.year}年' in views
+assert '`第 ${item.localYear ?? item.year}年' in views
 assert 'timeline-rail' in p6
 assert 'data-value="${item.value ?? item.year}"' in views
 for page in ('p4', 'p6', 'p7'):
@@ -97,7 +97,7 @@ assert 'itemYear >= startYear && itemYear <= year' in calculation
 assert 'reduce((sum, item)' in calculation
 assert exact_cumulative(500000, [(8, 0.04), (9, 0.03), (10, 0.05)], 8, 10) == 60000
 assert exact_cumulative(500000, [(8, 0.04), (10, 0.05)], 8, 10) == 45000
-assert '不提取' not in views
+assert "item.strategyCode === 'none' ? '不提取'" in views
 
 # Touch/PWA layout contracts remain intact for both slider stages.
 assert 'touch-action:pan-x pan-y' in styles

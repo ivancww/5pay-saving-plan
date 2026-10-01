@@ -40,7 +40,7 @@ for code, year in {
     assert f"['{code}', {year}]" in Path('src/calculation.js').read_text()
 assert '自動滾存' in data
 assert 'strategy-grid' not in views.split('function p7', 1)[1].split('function customerView', 1)[0]
-assert '不提取' not in views
+assert "item.strategyCode === 'none' ? '不提取'" in views
 
 # Shared age/year rail provides first/middle/last touch/pointer points without page overflow.
 assert 'timeline-rail' in views

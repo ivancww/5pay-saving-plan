@@ -1,4 +1,4 @@
-import { activeSavingPhases, resolvePhaseWithdrawal, withdrawalPoints } from './calculation.js';
+import { activeSavingPhases, resolvePhaseWithdrawal, phaseStrategyChoices } from './calculation.js';
 
 export function createState({ currentAge = null } = {}) {
   return { pageId: 'P1', history: [], session: { currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
@@ -42,7 +42,7 @@ export function removeSavingPhase(session, id) {
 export function selectPhaseWithdrawal(session, phaseId, strategyCode, official) {
   const phases = activeSavingPhases(session);
   const phase = phases.find(item => item.id === phaseId);
-  const point = withdrawalPoints(official).find(item => item.strategy_code === strategyCode);
+  const point = phaseStrategyChoices(official).find(item => item.strategy_code === strategyCode);
   if (!phase || !point) return;
   phase.strategyCode = strategyCode;
   phase.withdrawalPolicyYear = point.policyYear;

@@ -97,7 +97,7 @@ const ids = [start,explore,start2,explore2,start3,explore3];
 assert.equal(rails.length,6);
 const yearHandler = main.split("if (action === 'select-withdrawal-year') ")[1].split('\n')[0];
 sandbox.selectPhaseWithdrawalYear = selectPhaseWithdrawalYear;
-for (const [id, code] of [[2,'withdraw12_from15'], [3,'withdraw18_from20'], [1,'withdraw7_from8']]) {
+for (const [id, code] of [[2,'withdraw12_from15'], [3,'withdraw18_from20'], [1,'withdraw7_from8'], [2,'none'], [3,'none'], [1,'none']]) {
   ids.forEach((name,index)=>rail(name).scrollLeft=100+index*71);
   const before=structuredClone(state.session.savingPhases);
   sandbox.control = {dataset:{phaseId:String(id),strategyCode:code}};

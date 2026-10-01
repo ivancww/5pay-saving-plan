@@ -18,8 +18,8 @@ assert 'overflow-x:auto' in styles
 assert "action = 'select-year'" in views
 assert 'data-action="${action}"' in views
 assert 'data-value="${item.value ?? item.year}"' in views
-assert '<strong>${age == null ?' in views
-assert '<small>第 ${item.localYear ?? item.year}年' in views
+assert "'自動滾存' : age == null ?" in views
+assert '`第 ${item.localYear ?? item.year}年' in views
 assert "supportedYears(official, 'none')" in p6
 assert 'calculateSavingPortfolio({ session: state.session, overallPolicyYear: selectedYear, official })' in p6
 assert 'html,body{overflow-x:hidden}' in styles
