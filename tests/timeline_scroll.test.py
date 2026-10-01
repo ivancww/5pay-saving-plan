@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { render } from './src/views.js';
-import { createState } from './src/state.js';
+import { createState, selectPhaseWithdrawal, activateSavingPhase } from './src/state.js';
 
 const main = readFileSync('src/main.js', 'utf8');
 const signature = 'function draw(focus = null, resetRails = [])';
@@ -37,7 +37,7 @@ const official = {
   strategies: points.map(([strategy_code,start_year]) => ({strategy_code,start_year,display_name:strategy_code})),
   return_tables: Object.fromEntries(['none', ...points.map(p => p[0])].map(code => [code, years.map(policy_year => ({policy_year,multiplier:policy_year/10}))]))
 };
-let rails = [], html = '', reads = [], writes = 0;
+let rails = [], html = '', reads = [], writes = 0, resetOffset = 0;
 const app = {
   querySelectorAll: selector => { assert.equal(selector, '.timeline-rail[id]'); return rails; },
   set innerHTML(value) {
@@ -47,12 +47,12 @@ const app = {
     html = value;
     rails = [...value.matchAll(/<div id="([^"]+)" class="timeline-rail" data-scroll-context="([^"]+)"/g)].map(([,id,context]) => {
       let left = 0;
-      return {id,dataset:{scrollContext:decode(context)},get scrollLeft(){reads.push(id);return left;},set scrollLeft(value){left=value;},position:()=>left};
+      return {id,dataset:{scrollContext:decode(context)},firstElementChild:{offsetLeft:0},querySelector:()=>({offsetLeft:resetOffset}),get scrollLeft(){reads.push(id);return left;},set scrollLeft(value){left=value;},position:()=>left};
     });
     reads = [];
   }
 };
-const sandbox = {app,state,official,overrides:{},previewOverrides:null,meta:{},render,applyLocalOverrides:base=>base,entryMode:'standalone',ENTRY_MODES:{unsupported:'unsupported'},document:{getElementById:()=>null}};
+const sandbox = {app,state,official,overrides:{},previewOverrides:null,meta:{},render,applyLocalOverrides:base=>base,entryMode:'standalone',ENTRY_MODES:{unsupported:'unsupported'},document:{getElementById:()=>null},selectPhaseWithdrawal};
 vm.createContext(sandbox);
 vm.runInContext(drawSource, sandbox);
 const redraw = () => { reads = []; sandbox.draw(); };
@@ -71,25 +71,42 @@ for (const [page,id] of [['P4','comparison-time-rail'],['P6','accumulation-time-
 state.pageId = 'P7'; redraw();
 const start = 'withdrawal-start-rail', explore = 'withdrawal-explore-rail';
 rail(start).scrollLeft = 201; rail(explore).scrollLeft = 517;
-state.session.withdrawalPolicyYear = 40; redraw();
+state.session.withdrawalOverallYear = 40; redraw();
 assert.equal(rail(start).position(),201); assert.equal(rail(explore).position(),517);
 assert.match(html,/is-selected[^>]*data-action="select-withdrawal-year" data-value="40"/);
 // Execute the unchanged start-selection handler with real control values.
 const startHandler = main.split("if (action === 'select-withdrawal-start') {")[1].split('\n  }')[0];
 sandbox.control = {dataset:{strategyCode:'withdraw29_from30',value:'30'}};
 vm.runInContext(startHandler,sandbox); redraw();
-assert.equal(state.session.withdrawalPolicyYear,30);
+assert.equal(state.session.withdrawalOverallYear,30);
 assert.equal(rail(start).position(),201); assert.equal(rail(explore).position(),0);
 assert.match(html,/is-selected[^>]*data-action="select-withdrawal-year" data-value="30"/);
-rail(explore).scrollLeft = 106; state.session.withdrawalPolicyYear = 40; redraw();
+rail(explore).scrollLeft = 106; state.session.withdrawalOverallYear = 40; redraw();
 assert.equal(rail(start).position(),201); assert.equal(rail(explore).position(),106);
 // Reselecting the same start still resets the dependent year in the existing handler.
 vm.runInContext(startHandler,sandbox);
 const clickRedraw = main.match(/draw\(null, action === 'select-withdrawal-start'[^;]+;/)[0];
 sandbox.action = 'select-withdrawal-start'; reads = [];
 vm.runInContext(clickRedraw,sandbox);
-assert.equal(state.session.withdrawalPolicyYear,30);
+assert.equal(state.session.withdrawalOverallYear,30);
 assert.equal(rail(start).position(),201); assert.equal(rail(explore).position(),0);
+activateSavingPhase(state.session); activateSavingPhase(state.session); redraw();
+const start2 = 'withdrawal-start-rail-2', start3 = 'withdrawal-start-rail-3';
+rail(start).scrollLeft = 201; rail(start2).scrollLeft = 102; rail(start3).scrollLeft = 203;
+for (const [id, code] of [[2,'withdraw12_from15'], [3,'withdraw18_from20'], [1,'withdraw7_from8']]) {
+  sandbox.control = {dataset:{phaseId:String(id),strategyCode:code}};
+  vm.runInContext(startHandler,sandbox); reads = []; vm.runInContext(clickRedraw,sandbox);
+  assert.equal(rail(start).position(),201); assert.equal(rail(start2).position(),102); assert.equal(rail(start3).position(),203);
+  assert.equal(rail(explore).position(),0);
+}
+// A deliberate dependent reset can select a later overall point: align it once,
+// while leaving all strategy rails at the user's positions.
+resetOffset = 212;
+sandbox.control = {dataset:{phaseId:'3',strategyCode:'withdraw18_from20'}};
+vm.runInContext(startHandler,sandbox); reads = []; vm.runInContext(clickRedraw,sandbox);
+assert.equal(rail(explore).position(),212);
+assert.equal(rail(start).position(),201); assert.equal(rail(start2).position(),102); assert.equal(rail(start3).position(),203);
+resetOffset = 0;
 // Revisiting pages cannot recover a stale position from a previous visit.
 state.pageId = 'P4'; redraw(); assert.equal(rail('comparison-time-rail').position(),0);
 state.pageId = 'P7'; redraw(); assert.equal(rail(start).position(),0);

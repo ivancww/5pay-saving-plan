@@ -5,7 +5,7 @@ script = r'''
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {normalize} from './src/data.js';
-import {calculateOfficial, supportedYears} from './src/calculation.js';
+import {activeSavingPhases, calculateOfficial, supportedYears} from './src/calculation.js';
 import {createState} from './src/state.js';
 const evidence = JSON.parse(readFileSync('research/evidence/official-return-audit-2026-10-01.json','utf8'));
 const official = normalize({data:{return_tables:evidence.return_tables,withdrawal_strategies:evidence.withdrawal_strategies}});
@@ -50,8 +50,7 @@ assert.deepEqual([8,15,20,25,30].map(year=>status(year,5)),['missing','exact','e
 assert.deepEqual([8,15,20,25,30].map(year=>status(year,10)),['not-started','missing','exact','exact','exact']);
 // An unchanged session cannot secretly activate an optional phase.
 const state = createState();
-assert.equal(Object.hasOwn(state.session,'phaseCount'),false);
-assert.equal(Object.hasOwn(state.session,'activePhases'),false);
+assert.deepEqual(activeSavingPhases(state.session).map(phase=>phase.id),[1]);
 console.log('Genuine evidence gate checks passed: 194 exact rows, early/sparse missing rows, requested offsets and unchanged single-block withdrawal mechanics');
 '''
 subprocess.run(['node', '--input-type=module', '-e', script], check=True)

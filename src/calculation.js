@@ -70,3 +70,76 @@ export function currentPath({ method, amount, assumptions = {}, years = CONTRIBU
   if (method === 'long_term' && !assumptions.existingValue) return { kind: 'unknown', label: '等客戶提供現有安排資料後再展示。' };
   return { kind: 'assumption', value: Number(assumptions.existingValue || value), label: '按你提供的現有安排資料展示。' };
 }
+
+// Independent copies of the same verified five-year arrangement, never new products.
+export const SAVING_PHASES = Object.freeze([
+  Object.freeze({ id: 1, label: '第一期', offset: 0 }),
+  Object.freeze({ id: 2, label: '第二期', offset: 5 }),
+  Object.freeze({ id: 3, label: '第三期', offset: 10 })
+]);
+export const WITHDRAWAL_STARTS = Object.freeze([
+  ['withdraw7_from8', 8], ['withdraw12_from15', 15], ['withdraw18_from20', 20],
+  ['withdraw23_from25', 25], ['withdraw29_from30', 30]
+]);
+
+export function activeSavingPhases(session = {}) {
+  const stored = Array.isArray(session.savingPhases) ? session.savingPhases : [];
+  let count = 1;
+  while (count < 3 && stored.some(phase => phase?.id === count + 1)) count++;
+  return SAVING_PHASES.slice(0, count).map(phase => ({ ...phase,
+    strategyCode: stored.find(item => item?.id === phase.id)?.strategyCode
+      || (phase.id === 1 ? session.withdrawalStrategyCode || (session.strategyCode !== 'none' ? session.strategyCode : null) : null)
+      || null
+  }));
+}
+
+export function withdrawalPoints(official) {
+  return WITHDRAWAL_STARTS.map(([strategyCode, policyYear]) => {
+    const strategy = official?.strategies?.find(item => item.strategy_code === strategyCode && Number(item.start_year) === policyYear);
+    return strategy ? { ...strategy, policyYear } : null;
+  }).filter(Boolean);
+}
+
+export function resolvedSavingPhases(session, official, mode = 'accumulation') {
+  const points = withdrawalPoints(official);
+  return activeSavingPhases(session).map(phase => {
+    const strategy = mode === 'withdrawal' ? points.find(item => item.strategy_code === phase.strategyCode) || points[0] : null;
+    return { ...phase, strategyCode: mode === 'withdrawal' ? strategy?.strategy_code : 'none', startYear: strategy?.policyYear };
+  });
+}
+
+export function calculateSavingPortfolio({ session, overallPolicyYear, official, mode = 'accumulation' }) {
+  const year = Number(overallPolicyYear);
+  const amount = Number(session.annualContribution);
+  const phases = resolvedSavingPhases(session, official, mode).map(phase => {
+    const localPolicyYear = year - phase.offset;
+    if (localPolicyYear <= 0) return { ...phase, localPolicyYear, started: false, available: true };
+    const result = mode === 'withdrawal' && !phase.strategyCode ? { available: false } : calculateOfficial({
+      annualContribution: session.annualContribution, policyYear: localPolicyYear, strategyCode: phase.strategyCode, official
+    });
+    return { ...phase, ...result, localPolicyYear, started: true };
+  });
+  const validInput = Number.isInteger(year) && year > 0 && Number.isFinite(amount) && amount > 0;
+  const totalContribution = validInput ? amount * phases.reduce((sum, phase) => sum + Math.min(5, Math.max(0, phase.localPolicyYear)), 0) : undefined;
+  const base = { policyYear: year, phases, totalContribution,
+    plannedContribution: Number.isFinite(amount) && amount > 0 ? amount * 5 * phases.length : undefined };
+  if (!validInput || phases.some(phase => phase.started && !phase.available)) {
+    return { ...base, available: false, message: '這個時間點暫未有完整資料，請探索其他時間點。' };
+  }
+  const started = phases.filter(phase => phase.started);
+  const sum = key => started.reduce((total, phase) => total + phase[key], 0);
+  return { ...base, available: true, futureValue: sum('futureValue'), remainingValue: sum('remainingValue'),
+    annualUsable: sum('annualUsable'), cumulativeUsed: sum('cumulativeUsed') };
+}
+
+// P7 and Customer View resolve the same default strategies, year and combined result.
+export function withdrawalPortfolio(session, official) {
+  const phases = resolvedSavingPhases(session, official, 'withdrawal');
+  const starts = phases.map(phase => phase.offset + phase.startYear).filter(Number.isFinite);
+  const firstStart = starts.length ? Math.min(...starts) : undefined;
+  const years = [...new Set(phases.flatMap(phase => supportedYears(official, phase.strategyCode)
+    .map(year => year + phase.offset)))].filter(year => year >= firstStart).sort((a, b) => a - b);
+  const requested = session.withdrawalOverallYear ?? session.withdrawalPolicyYear;
+  const selectedYear = requested != null && years.includes(Number(requested)) ? Number(requested) : years[0];
+  return { phases, years, selectedYear, result: calculateSavingPortfolio({ session, overallPolicyYear: selectedYear, official, mode: 'withdrawal' }) };
+}

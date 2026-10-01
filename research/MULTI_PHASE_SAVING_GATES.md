@@ -1,15 +1,12 @@
 # Multi-phase 5-year Saving — evidence gates
 
-## Outcome
+## Outcome after authoritative product decision
 
-**BLOCKED for customer-facing multi-phase implementation.** This PR contains a read-only evidence snapshot, this report and a regression test. It does not enable phase controls, change session/product state, replace calculations or alter production assets.
+**Gate 2 RESOLVED BY AUTHORITATIVE PRODUCT DECISION (2026-10-01).** Each active phase independently selects its own withdrawal strategy; strategy year is local to that phase; each phase uses the unchanged verified single-block primitive; customer results aggregate afterward. The product decision comes from the user, not invented insurer/iPOS evidence.
 
-Two required gates remain unresolved:
+**Gate 1 remains a genuine data limitation, handled through explicit availability.** Missing local years 1–7 (and other absent exact rows) are never estimated, valued at zero, or replaced by paid contributions. Any started unavailable phase blocks the complete portfolio financial values. A not-started phase is excluded from that time's value.
 
-1. Genuine Official tables contain no local policy years 1–7. A started later phase must not be valued at zero or at its paid contributions as a substitute for a missing Official account-value row.
-2. The repository and available Official metadata do not define the withdrawal mapping across separately shifted phases. Local-strategy reuse is a plausible design, not a verified existing multi-phase rule.
-
-Adding P5 controls while leaving P4/P6/P7/Customer View unable to value those same phases would create an inconsistent production journey. The user explicitly permits no production change in this situation. No partial customer UI or unused production engine is introduced.
+PR #11 now implements the coherent customer framework across P4/P5/P6/P7/Customer View. The original genuine snapshot is retained byte-for-byte. Code/runtime tests are complete; browser QA is pending because the Chromium Headless Shell download returned invalid archives. No physical-device certification is claimed.
 
 ## Starting point and authoritative sources
 
@@ -26,9 +23,9 @@ No other repository was modified. This is not a full Platform study or an Integr
 
 `calculateOfficial()` values one five-year arrangement with basis `annualContribution × 5`. It finds the exact requested `policy_year`; a missing row returns `available: false` with no financial value. `supportedYears()` enumerates existing rows without generating new years.
 
-P4 and P6 use the `none` strategy. P4's Current Method uses `currentPath()` with a five-year contribution horizon and the chosen projection horizon. P5 explains the single five-year contribution journey. P7 has the five start strategies plus a forward rail restricted to the selected strategy's exact rows. Customer View independently calls the same single-block primitive using session strategy/year fields.
+P4 and P6 use the `none` strategy. P4's Current Method uses `currentPath()` with a five-year contribution horizon and the chosen projection horizon. P5 explains the single five-year contribution journey. P7 has the five start strategies plus a forward rail restricted to the selected strategy's exact rows. Before this change, Customer View independently called the same single-block primitive using session strategy/year fields. It now consumes the same resolved withdrawal portfolio as P7.
 
-Customer state currently lives in one in-memory `state.session` across page navigation; it has no phase field or customer-session reload persistence. LocalStorage User Overrides are separate. No new state or migration is installed by this PR.
+Before implementation, customer state lived in one in-memory `state.session` across page navigation without phase fields. The new phase configuration remains in that current-flow session; it persists across page/mode navigation, not across a session reset or reload. LocalStorage User Overrides remain separate and unchanged.
 
 Targeted searches covered fetched branch history for phase/portfolio/offset/local-year identifiers, repeated Saving, Chinese first/second/third phase labels, and 10/15-year contribution terms. No earlier multi-phase Saving implementation or verified pre-P4 phase-selection design was found in the inspected repository history. The original `868e60d` implementation already used one five-year basis. Hits for “Phase 1” refer to project delivery, and hits for 15-year terms identify withdrawal strategies, not a 15-year contribution product.
 
@@ -82,60 +79,68 @@ Phase 2 maps to missing local years during overall years 6–12. Phase 3 does so
 
 For accumulation, restricting the **existing** overall rail to complete exact-row intersections would leave years 13–25, then 30–100 in 5-year steps for two phases; years 18–25, then 30–100 in 5-year steps for three phases. These are data-coverage observations only. No such rail restriction was implemented, and it does not resolve withdrawal semantics.
 
-**Decision:** no early-year fallback exists in current logic or inspected history. Existing verified behavior is unavailable for a missing exact row. Do not use zero, paid contributions, interpolation, extrapolation, a nearest row, or an invented 10/15-year multiplier. Genuine years 1–7 or an explicit supported-timeline product decision are required before enabling affected calculations.
+**Decision:** no early-year financial fallback exists. The user has explicitly authorized showing a customer-safe unavailable state at affected overall years. The account-value aggregate is available only when all started active phases have exact rows. No zero, paid-contribution substitution, interpolation, extrapolation, nearest row or invented 10/15-year multiplier is used.
 
-## Gate 2 — shifted withdrawal semantics
+## Gate 2 — resolved independent withdrawal design
 
-Genuine strategy metadata contains `strategy_code`, `sheet_name`, `start_year`, `withdraw_rate`, display/enabled/order fields. It has no multi-phase timing/mapping field. GAS reads those single-arrangement strategies and returns exact sheet rows. The existing primitive receives one policy year and one strategy; it does not establish how a customer-level choice applies across offsets.
+The original audit correctly found that genuine single-arrangement strategy metadata and repository history did not determine multi-phase timing. The user has now supplied the authoritative business rule:
 
-| Selected local strategy | Phase 1 start under candidate A | Phase 2 under candidate A | Phase 3 under candidate A |
-| --- | ---: | ---: | ---: |
-| 8-year | 8 | 13 | 18 |
-| 15-year | 15 | 20 | 25 |
-| 20-year | 20 | 25 | 30 |
-| 25-year | 25 | 30 | 35 |
-| 30-year | 30 | 35 | 40 |
+- Each phase independently chooses local year 8 / 15 / 20 / 25 / 30.
+- Its overall withdrawal start is its own offset plus its own selected start year.
+- Phase 1, 2 and 3 may choose different strategies; selectors do not change phase activation.
+- At one overall exploration year, each started phase maps independently to its local year and exact selected strategy row.
 
-The table above is the consequence of candidate A (independent local strategies), **not verified product behavior**. Another customer-level mapping must not be inferred. Even candidate A would encounter Phase 2 local year 3 at overall year 8 and Phase 3 local year 5 at overall year 15 when those phases are active; their account values cannot be silently omitted because withdrawals have not started.
+For example, Phase 1 choosing 15, Phase 2 choosing 8 and Phase 3 choosing 20 produces overall withdrawal starts 15 / 13 / 30. This is now supported product behavior, not a claim derived from previously absent insurer evidence.
 
-Verified single-block rules to preserve once the mapping is resolved:
+Verified single-block rules remain unchanged:
 
-- `annualUsable` uses the selected exact row's withdrawal rate, with the existing strategy-rate fallback and start-year gate.
-- `cumulativeUsed` sums the existing table rows from the strategy start through the selected year. Sparse absent years are not generated; this existing behavior must not be replaced with years-times-rate arithmetic.
-- `remainingValue` equals the exact selected multiplier times the five-year contribution basis. It already represents remaining/account value; do not deduct cumulativeUsed again.
+- `annualUsable` uses the exact row's withdrawal rate, with existing strategy-rate fallback and start-year gate.
+- `cumulativeUsed` sums existing rows from that phase's strategy start through its selected local year. No withdrawal rows are created for sparse years.
+- `remainingValue` is exact multiplier times that phase's five-year contribution basis. CumulativeUsed is not deducted again.
 
-**Decision:** BLOCKED. A genuine product rule or existing authoritative implementation must establish A versus another mapping, treatment before each phase's withdrawal starts, and customer-facing meaning of the shared start rail. Code feasibility alone does not verify that decision.
+The combined three financial metrics are withheld together if any started phase lacks a required row. This avoids presenting either a partial account-value sum or partial withdrawal metrics as the complete arrangement.
 
-## Requested model and page decisions
+## Implemented model and customer journey
 
-This describes the approved shape from the user's request, not shipped functionality.
+`src/calculation.js` keeps the original `calculateOfficial()` and `currentPath()` primitives unchanged, then adds reusable phase definitions, legacy-safe active-phase resolution, one portfolio aggregator and one P7/Customer View resolver. This uses an existing cached module, so no Service Worker shell dependency or update architecture change is needed.
 
 | Phase | Contribution window | Offset | Default |
 | --- | --- | ---: | --- |
 | 第一期 | Overall 1–5 | 0 | Active |
-| 第二期 | Overall 6–10 | 5 | Hidden and excluded until explicitly added |
-| 第三期 | Overall 11–15 | 10 | Hidden and excluded; requires 第二期 |
+| 第二期 | Overall 6–10 | 5 | Hidden/excluded until explicitly added |
+| 第三期 | Overall 11–15 | 10 | Hidden/excluded; requires 第二期 |
 
-Removal must cascade from Phase 2 to Phase 3. Future aggregation belongs above unchanged `calculateOfficial()` in one reusable helper. Paid contributions must count only elapsed contribution years, up to five per started phase; that contribution count is not a substitute for missing Official value rows. Existing sessions without a phase field must default to Phase 1 only.
+`session.savingPhases` stores the contiguous active phases and their independent strategy codes. `session.withdrawalOverallYear` stores the one exploration year. State helpers in `src/state.js` add only the next phase, cap at three, remove Phase 3, or cascade removal from Phase 2 to Phase 3. Removed strategies are not retained for later reactivation. Legacy `withdrawalStrategyCode` and `withdrawalPolicyYear` map safely to Phase 1/overall time without enabling another phase. An unselected phase uses the first available genuine start choice, preserving the old single-phase default; P7 and Customer View resolve that default identically.
 
-| Surface | Planned safe behavior after gates clear | This PR |
-| --- | --- | --- |
-| P4 | Option B: initial Phase 1; revisit after explicit P5 activation uses current phases. No historical pre-P4 selector was found. Compare the same contribution arrangement and time horizon. | Unchanged, single block |
-| P5 | Progressive first/second/third phase reveal with add/remove controls and cascading removal. | Unchanged; no optional activation |
-| P6 | Inherit P5 state; one total only when every started active phase has its required genuine row. | Unchanged, single block |
-| P7 | Inherit the same phases; aggregation depends on verified withdrawal mapping. Preserve both rails and dependent reset. | Unchanged, single block |
-| Customer View | Use the same resolved phases, strategy, overall year and result as P7. | Unchanged; no multi-phase snapshot |
+Paid contributions count only elapsed contribution years, capped at five for each started phase. This separately known input total is labelled as paid contributions; it never stands in for missing account value. The planned five-year contribution basis still applies independently inside the verified primitive.
 
-Customer View dependency deserves care during future implementation: P7 can render `points[0]` and the first eligible year as fallbacks without persisting them, whereas Customer View reads `withdrawalStrategyCode || strategyCode` and `withdrawalPolicyYear || policyYear`. Direct presentation without explicit P7 selection may therefore use different fallback inputs. This is an existing source-level observation, not a new regression or a fix in this blocked PR. A future shared resolved-result helper should avoid extending that inconsistency to multi-phase totals.
+| Surface | Implemented behavior |
+| --- | --- |
+| P4 | Initially Phase 1. On revisit, uses the active phases established in P5. Current Method still has its original five-year contribution horizon; multi-phase comparison wording explicitly distinguishes that horizon from the chosen Saving phases. No duplicate selector. |
+| P5 | Compact progressive phase cards, correct 1–5 / 6–10 / 11–15 windows and equal annual/five-year inputs. Add-next controls; removal cascades. Technical terms are absent from customer copy. |
+| P6 | Inherits phase state. One 累積 Saving 價值 plus paid contributions to the selected time. Exact or explicitly unavailable complete total. |
+| P7 | One independent start rail per active phase; one overall exploration rail; three combined metrics. The duplicated large hero/value card is removed without a placeholder gap. |
+| Customer View | Same resolver, active phases, independent strategies, selected overall year, combined metrics and availability as P7, including default selections before an explicit click. Existing report composition and PDF action retained. |
 
-## Validation and remaining work
+P7's overall year choices are the sorted union of each active strategy's exact row years shifted by its phase offset, starting at the earliest active withdrawal start. No interpolated year choices are created. Some points have data for only part of the arrangement: those points remain explorable but show unavailable complete totals. Beyond a particular phase's last exact year, its absence also blocks the total; no extrapolation is performed.
 
-- New `tests/multi_phase_evidence.test.py` executes the existing calculation primitive against all 194 genuine captured rows, missing early/sparse/out-of-range rows, offset examples and single-block withdrawal rules including no double deduction.
-- Its customer contribution is a test input; no Official multiplier or withdrawal rate is synthetic.
-- Full existing suite, including P3 live-input, PR #10 scroll lifecycle and automatic update contracts: passed alongside the new audit test (13 test files total).
+Stable strategy rail IDs are `withdrawal-start-rail`, `withdrawal-start-rail-2`, and `withdrawal-start-rail-3`; the single exploration ID remains `withdrawal-explore-rail`. PR #10's synchronous snapshot/restore lifecycle is unchanged. Changing or reselecting a phase start resets the overall exploration year to that phase's overall start and resets only the dependent exploration rail. Since that point may follow another phase's earlier start, the explicit reset synchronously aligns the chosen overall card using its measured position. Normal age/year selections only restore browsing position; no scrollIntoView, timeout or smooth-scroll behavior is added. All unchanged strategy rails preserve their own position. Selection is excluded from their identity context; the overall rail's context includes the active independent strategies and exact overall choices.
+
+## Validation
+
+- Full suite: **14 Python test files pass**, including Node runtime product and real-render tests.
+- New `tests/multi_phase_runtime.test.py`: default/legacy state, activation/removal/cascade, P5 progressive reveal/windows, P4 return navigation and unchanged Current Method horizon, one/two/three-phase P6 values, exact mapping, partial contributions, missing-row blocking, independent 15/8/20 strategies, shifted starts, sparse cumulative withdrawals, no double deduction, inactive/not-started exclusion, removed P7 hero, one overall rail, and matching Customer View.
+- Expanded `tests/timeline_scroll.test.py`: P4/P6 plus all three P7 strategy rails independently preserve positions, overall rail resets only on start selection, unrelated strategies retain position, no cross-page leaks and P3 input handling remains intact.
+- Genuine audit test still exercises all 194 captured rows and missing early/sparse/out-of-range rows. Snapshot is unchanged.
+- Synthetic unit fixtures are labelled test mechanics; no synthetic value enters Official or production data.
+- Existing source-level regressions updated only where the old single-phase contract was explicitly superseded; financial, GAS/Admin, portable data and automatic-update tests still pass.
 - `git diff --check`: passed.
-- Production source/assets, GAS, Admin/Auth, User Overrides and deployment/update workflow: unchanged by diff review.
-- Phase activation/removal UI, portfolio aggregation, cross-phase P7/customer snapshots and their implementation tests: **NOT IMPLEMENTED / BLOCKED**, not claimed passing.
-- New browser customer-flow, mobile/iPad/foldable/desktop layout, installed PWA and physical-device checks: **NOT VERIFIED**. No UI was changed; this PR does not claim responsive or physical-device certification.
+- Diff review: `calculateOfficial()`, `currentPath()`, `src/data.js`, Admin/Auth, GAS, genuine archive, Service Worker and deployment/update workflow unchanged.
 
-To unblock: supply genuine missing rows or an explicit policy limiting affected timelines; establish the authoritative shifted withdrawal rule; then implement and test the shared model, progressive P5 state, page aggregation and consistent Customer View together. Do not turn research values into production defaults.
+## Browser and remaining verification
+
+Chromium/Headless Shell is not installed in the execution environment. Attempted headless-shell installation failed because downloaded archives were invalid. A separate available Cloud Browser was also attempted against the local preview, but navigation was blocked by `net::ERR_BLOCKED_BY_CLIENT`; it could not access the application. Browser customer-flow, gesture behavior, actual page-overflow checks at phone portrait/landscape, iPad portrait/landscape, foldable narrow/wide and desktop, installed PWA, print-dialog/PDF appearance and physical-device checks remain **NOT VERIFIED / browser QA pending**.
+
+Static structure retains `touch-action:pan-x pan-y`, bounded rail overflow, shared ageYearRail, minimum-width-zero result tracks, wrapping phase controls and existing AVA responsive boundaries. This is structural inspection, not a browser or physical-device PASS.
+
+Gate 1 remains an ongoing data coverage limitation, not an unfinished guessed calculation: affected customer values explicitly remain unavailable until genuine rows exist. Current-flow phase state is not persisted across reload, matching the existing customer-session lifecycle. User Overrides are not modified or repurposed for product state. Do not merge automatically.

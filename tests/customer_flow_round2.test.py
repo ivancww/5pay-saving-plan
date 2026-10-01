@@ -61,7 +61,7 @@ p6 = views.split('function p6', 1)[1].split('function p7', 1)[0]
 assert 'function ageYearRail' in views
 assert "action = 'select-year'" in views
 assert 'data-action="${action}"' in views
-assert '<small>第 ${item.year}年</small>' in views
+assert '<small>第 ${item.localYear ?? item.year}年' in views
 assert 'timeline-rail' in p6
 assert 'data-value="${item.value ?? item.year}"' in views
 for page in ('p4', 'p6', 'p7'):
@@ -78,13 +78,15 @@ for code, year in {
     'withdraw23_from25': 25,
     'withdraw29_from30': 30,
 }.items():
-    assert f"['{code}', {year}]" in views
-assert "supportedYears(official, selected.strategy_code).filter(year => year >= startYear)" in views
+    assert f"['{code}', {year}]" in calculation
+assert 'withdrawalPortfolio(state.session, official)' in views
+assert '.map(year => year + phase.offset)' in calculation
 assert "action: 'select-withdrawal-year'" in views
 assert "action: 'select-withdrawal-start'" in views
 assert 'select-withdrawal-year' in main
 assert "action === 'select-withdrawal-start'" in main
-assert 'state.session.withdrawalPolicyYear = Number(control.dataset.value)' in main
+assert 'state.session.withdrawalOverallYear = Number(control.dataset.value)' in main
+assert 'selectPhaseWithdrawal(state.session,' in main
 assert "action === 'select-withdrawal-year'" in main
 assert 'remainingValue: futureValue' in calculation
 assert 'cumulativeUsed' in views

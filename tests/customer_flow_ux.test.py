@@ -37,7 +37,7 @@ for code, year in {
     'withdraw23_from25': 25,
     'withdraw29_from30': 30,
 }.items():
-    assert f"['{code}', {year}]" in views
+    assert f"['{code}', {year}]" in Path('src/calculation.js').read_text()
 assert '自動滾存' in data
 assert 'strategy-grid' not in views.split('function p7', 1)[1].split('function customerView', 1)[0]
 assert '不提取' not in views
