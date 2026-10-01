@@ -78,9 +78,11 @@ function p5(state) {
   return `<div class="journey"><div><span>目前歲數</span><strong>${currentAge == null ? '—' : `${currentAge}歲`}</strong></div><div class="journey-arrow">↓</div><div><span>每年安排</span><strong>${money(state.session.annualContribution)}</strong><small>持續 5 年</small></div><div class="journey-arrow">↓</div><div><span>完成供款時歲數</span><strong>${completionAge == null ? '—' : `${completionAge}歲`}</strong><small>總投入 ${money(total)}</small></div><div class="journey-arrow">↓</div><div><span>之後俾時間繼續</span><strong>睇時間點</strong></div></div><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">探索時間 →</button></div>`;
 }
 
-function ageYearRail({ id, items, selected, state, action = 'select-year' }) {
+function ageYearRail({ id, items, selected, state, action = 'select-year', context = '' }) {
   if (!items.length) return '<p class="ava-status ava-status--warning">未有可用時間點。</p>';
-  return `<div id="${id}" class="timeline-rail" role="listbox" aria-label="年齡及 policy year">${items.map(item => {
+  // Selection is deliberately excluded. Changed page/age/options/strategy is a new control.
+  const scrollContext = JSON.stringify([state.pageId, getCustomerAge(state), action, context, items.map(item => [item.value ?? item.year, item.strategyCode || ''])]);
+  return `<div id="${id}" class="timeline-rail" data-scroll-context="${esc(scrollContext)}" role="listbox" aria-label="年齡及 policy year">${items.map(item => {
     const age = ageAtPolicyYear(state, item.year);
     const isSelected = item.year === selected;
     const strategy = item.strategyCode ? ` data-strategy-code="${esc(item.strategyCode)}"` : '';
@@ -110,7 +112,7 @@ function p7(state, official) {
   const selectedPostYear = postYears.includes(state.session.withdrawalPolicyYear) ? state.session.withdrawalPolicyYear : postYears[0];
   const result = selected ? calculateOfficial({ annualContribution: state.session.annualContribution, policyYear: selectedPostYear, strategyCode: selected.strategy_code, official }) : { available: false, message: '未有使用策略。' };
   const startTimeline = ageYearRail({ id: 'withdrawal-start-rail', items: points.map(item => ({ year: item.policyYear, value: item.policyYear, strategyCode: item.strategy_code })), selected: selected?.policyYear, state, action: 'select-withdrawal-start' });
-  const postTimeline = ageYearRail({ id: 'withdrawal-explore-rail', items: postYears.map(year => ({ year })), selected: selectedPostYear, state, action: 'select-withdrawal-year' });
+  const postTimeline = ageYearRail({ id: 'withdrawal-explore-rail', items: postYears.map(year => ({ year })), selected: selectedPostYear, state, action: 'select-withdrawal-year', context: selected?.strategy_code });
   return `<div class="timeline-stage"><h2>幾時開始用？</h2><div class="time-bar-card timeline-rail-card">${startTimeline}</div></div><div class="timeline-stage"><h2>開始之後，時間行落去會點？</h2><div class="time-bar-card timeline-rail-card">${postTimeline}</div></div><div class="result-card"><span class="card-kicker">${selected ? `由 ${ageAtPolicyYear(state, startYear) == null ? '—' : `${ageAtPolicyYear(state, startYear)}歲`} 開始 · ${ageAtPolicyYear(state, selectedPostYear) == null ? '—' : `${ageAtPolicyYear(state, selectedPostYear)}歲`} 當時` : '未選擇安排'}</span><strong>${result.available ? money(result.remainingValue) : '—'}</strong><span>${result.available ? esc(selected.display_name) : esc(result.message)}</span></div><div class="withdrawal-result">${result.available ? `<div><span>每年可使用</span><strong>${money(result.annualUsable)}</strong></div><div><span>累積已使用</span><strong>${money(result.cumulativeUsed)}</strong></div><div><span>當時戶口價值</span><strong>${money(result.remainingValue)}</strong></div>` : `<p>${esc(result.message || '未有使用資料。')}</p>`}</div><div class="actions"><button class="ava-button ava-button--primary" data-action="customer-view" type="button">一 click 睇客戶頁 →</button></div>`;
 }
 
