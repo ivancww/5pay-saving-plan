@@ -30,14 +30,22 @@ if (editToggle && entryMode === ENTRY_MODES.frontend) editToggle.hidden = true;
 if (entryMode === ENTRY_MODES.user) state.mode = 'edit';
 if (entryMode !== ENTRY_MODES.standalone) document.querySelector('link[rel="manifest"]')?.remove();
 
-function draw(focus = null) {
+function draw(focus = null, resetRails = []) {
   if (entryMode === ENTRY_MODES.unsupported) {
     app.innerHTML = '<div class="ava-status ava-status--warning" role="alert"><strong>此 AVA 入口未啟用。</strong><p>Saving 目前只支援 Frontstage 和 User/Edit 入口。</p></div>';
     return;
   }
   const base = official || { flow: [], page_content: [], strategies: [], current_methods: [], return_tables: {}, version: {} };
   const effectiveOverrides = previewOverrides || overrides;
+  // Snapshot only the currently rendered controls; never carry positions between pages.
+  const railPositions = new Map([...app.querySelectorAll('.timeline-rail[id]')].map(rail => [rail.id, {
+    context: rail.dataset.scrollContext, left: rail.scrollLeft
+  }]));
   render(app, state, applyLocalOverrides(base, effectiveOverrides), effectiveOverrides, meta);
+  app.querySelectorAll('.timeline-rail[id]').forEach(rail => {
+    const previous = railPositions.get(rail.id);
+    if (previous && previous.context === rail.dataset.scrollContext && !resetRails.includes(rail.id)) rail.scrollLeft = previous.left;
+  });
   if (focus?.id) {
     const nextTarget = document.getElementById(focus.id);
     if (nextTarget) {
@@ -205,7 +213,8 @@ app.addEventListener('click', event => {
     saveOverrides(overrides); state.pageId = 'P1'; state.history = []; state.mode = 'use';
   }
   if (action === 'restore-defaults') { overrides = {}; saveOverrides(overrides); state.mode = 'use'; state.pageId = 'P1'; state.history = []; }
-  draw();
+  // A start selection already resets the dependent policy year, even on reselect.
+  draw(null, action === 'select-withdrawal-start' ? ['withdrawal-explore-rail'] : []);
 });
 
 app.addEventListener('change', event => {
