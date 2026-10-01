@@ -1,5 +1,7 @@
+import { activeSavingPhases, withdrawalPoints } from './calculation.js';
+
 export function createState({ currentAge = null } = {}) {
-  return { pageId: 'P1', history: [], session: { currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null }, mode: 'use', customerView: false };
+  return { pageId: 'P1', history: [], session: { currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null }], withdrawalOverallYear: null }, mode: 'use', customerView: false };
 }
 
 export function getCustomerAge(state) {
@@ -23,3 +25,26 @@ export function goTo(state, pageId) {
 }
 
 export function goBack(state) { const previous = state.history.pop(); if (previous) state.pageId = previous; return previous; }
+
+// Customer-flow state only: never Official data or presentation overrides.
+export function activateSavingPhase(session) {
+  const phases = activeSavingPhases(session);
+  if (phases.length < 3) phases.push({ id: phases.length + 1, strategyCode: null });
+  session.savingPhases = phases.map(({ id, strategyCode }) => ({ id, strategyCode }));
+}
+
+export function removeSavingPhase(session, id) {
+  if (id !== 2 && id !== 3) return;
+  session.savingPhases = activeSavingPhases(session).filter(phase => phase.id < id)
+    .map(({ id, strategyCode }) => ({ id, strategyCode }));
+}
+
+export function selectPhaseWithdrawal(session, phaseId, strategyCode, official) {
+  const phases = activeSavingPhases(session);
+  const phase = phases.find(item => item.id === phaseId);
+  const point = withdrawalPoints(official).find(item => item.strategy_code === strategyCode);
+  if (!phase || !point) return;
+  phase.strategyCode = strategyCode;
+  session.savingPhases = phases.map(({ id, strategyCode }) => ({ id, strategyCode }));
+  session.withdrawalOverallYear = phase.offset + point.policyYear;
+}

@@ -1,5 +1,5 @@
 import { applyLocalOverrides, loadCachedOfficial, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
-import { createState, getCustomerAge, goBack, goTo } from './state.js';
+import { activateSavingPhase, createState, getCustomerAge, goBack, goTo, removeSavingPhase, selectPhaseWithdrawal } from './state.js';
 import { exportCustomerView } from './pdf.js';
 import { render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
@@ -44,7 +44,12 @@ function draw(focus = null, resetRails = []) {
   render(app, state, applyLocalOverrides(base, effectiveOverrides), effectiveOverrides, meta);
   app.querySelectorAll('.timeline-rail[id]').forEach(rail => {
     const previous = railPositions.get(rail.id);
-    if (previous && previous.context === rail.dataset.scrollContext && !resetRails.includes(rail.id)) rail.scrollLeft = previous.left;
+    if (resetRails.includes(rail.id)) {
+      // A new phase start may be later than the other phases' starts. Keep that
+      // deliberate dependent-year reset visible, without scrolling normal selections.
+      const selected = rail.querySelector('[aria-selected="true"]');
+      if (selected) rail.scrollLeft = selected.offsetLeft - rail.firstElementChild.offsetLeft;
+    } else if (previous && previous.context === rail.dataset.scrollContext) rail.scrollLeft = previous.left;
   });
   if (focus?.id) {
     const nextTarget = document.getElementById(focus.id);
@@ -151,10 +156,11 @@ app.addEventListener('click', event => {
   if (action === 'back') goBack(state);
   if (action === 'select-year') state.session.policyYear = Number(control.dataset.value);
   if (action === 'select-withdrawal-start') {
-    state.session.withdrawalStrategyCode = control.dataset.strategyCode;
-    state.session.withdrawalPolicyYear = Number(control.dataset.value);
+    selectPhaseWithdrawal(state.session, Number(control.dataset.phaseId || 1), control.dataset.strategyCode, official);
   }
-  if (action === 'select-withdrawal-year') state.session.withdrawalPolicyYear = Number(control.dataset.value);
+  if (action === 'select-withdrawal-year') state.session.withdrawalOverallYear = Number(control.dataset.value);
+  if (action === 'add-saving-phase' && state.pageId === 'P5') activateSavingPhase(state.session);
+  if (action === 'remove-saving-phase' && state.pageId === 'P5') removeSavingPhase(state.session, Number(control.dataset.phaseId));
   if (action === 'select-strategy') state.session.strategyCode = control.dataset.value;
   if (action === 'customer-view') state.customerView = true;
   if (action === 'close-customer') state.customerView = false;
