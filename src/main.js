@@ -1,5 +1,5 @@
 import { applyLocalOverrides, loadCachedOfficial, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
-import { activateSavingPhase, createState, getCustomerAge, goBack, goTo, removeSavingPhase, selectPhaseWithdrawal } from './state.js';
+import { activateSavingPhase, createState, getCustomerAge, goBack, goTo, removeSavingPhase, selectPhaseWithdrawal, selectPhaseWithdrawalYear } from './state.js';
 import { exportCustomerView } from './pdf.js';
 import { render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
@@ -158,7 +158,7 @@ app.addEventListener('click', event => {
   if (action === 'select-withdrawal-start') {
     selectPhaseWithdrawal(state.session, Number(control.dataset.phaseId || 1), control.dataset.strategyCode, official);
   }
-  if (action === 'select-withdrawal-year') state.session.withdrawalOverallYear = Number(control.dataset.value);
+  if (action === 'select-withdrawal-year') selectPhaseWithdrawalYear(state.session, Number(control.dataset.phaseId || 1), control.dataset.value, official);
   if (action === 'add-saving-phase' && state.pageId === 'P5') activateSavingPhase(state.session);
   if (action === 'remove-saving-phase' && state.pageId === 'P5') removeSavingPhase(state.session, Number(control.dataset.phaseId));
   if (action === 'select-strategy') state.session.strategyCode = control.dataset.value;
@@ -220,7 +220,7 @@ app.addEventListener('click', event => {
   }
   if (action === 'restore-defaults') { overrides = {}; saveOverrides(overrides); state.mode = 'use'; state.pageId = 'P1'; state.history = []; }
   // A start selection already resets the dependent policy year, even on reselect.
-  draw(null, action === 'select-withdrawal-start' ? ['withdrawal-explore-rail'] : []);
+  draw(null, action === 'select-withdrawal-start' ? [Number(control.dataset.phaseId || 1) === 1 ? 'withdrawal-explore-rail' : `withdrawal-explore-rail-${control.dataset.phaseId}`] : []);
 });
 
 app.addEventListener('change', event => {

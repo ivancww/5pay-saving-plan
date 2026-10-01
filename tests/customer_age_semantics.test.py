@@ -24,7 +24,7 @@ assert presentation_age(40, 20) == 60
 assert 'const completionAge = ageAtPolicyYear(state, phases.length * 5);' in views
 assert 'function ageYearRail' in views
 assert "phase.id === 1 ? 'withdrawal-start-rail'" in views
-assert 'ageYearRail({ id: \'withdrawal-explore-rail\'' in views
+assert 'ageYearRail({ id: exploreId' in views
 assert views.count('ageAtPolicyYear(state,') >= 5
 assert 'current age + exact official policy year' in state
 

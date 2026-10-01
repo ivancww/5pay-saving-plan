@@ -1,7 +1,7 @@
-import { activeSavingPhases, withdrawalPoints } from './calculation.js';
+import { activeSavingPhases, resolvePhaseWithdrawal, withdrawalPoints } from './calculation.js';
 
 export function createState({ currentAge = null } = {}) {
-  return { pageId: 'P1', history: [], session: { currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null }], withdrawalOverallYear: null }, mode: 'use', customerView: false };
+  return { pageId: 'P1', history: [], session: { currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
 }
 
 export function getCustomerAge(state) {
@@ -29,14 +29,14 @@ export function goBack(state) { const previous = state.history.pop(); if (previo
 // Customer-flow state only: never Official data or presentation overrides.
 export function activateSavingPhase(session) {
   const phases = activeSavingPhases(session);
-  if (phases.length < 3) phases.push({ id: phases.length + 1, strategyCode: null });
-  session.savingPhases = phases.map(({ id, strategyCode }) => ({ id, strategyCode }));
+  if (phases.length < 3) phases.push({ id: phases.length + 1, strategyCode: null, withdrawalPolicyYear: null });
+  session.savingPhases = phases.map(({ id, strategyCode, withdrawalPolicyYear }) => ({ id, strategyCode, withdrawalPolicyYear }));
 }
 
 export function removeSavingPhase(session, id) {
   if (id !== 2 && id !== 3) return;
   session.savingPhases = activeSavingPhases(session).filter(phase => phase.id < id)
-    .map(({ id, strategyCode }) => ({ id, strategyCode }));
+    .map(({ id, strategyCode, withdrawalPolicyYear }) => ({ id, strategyCode, withdrawalPolicyYear }));
 }
 
 export function selectPhaseWithdrawal(session, phaseId, strategyCode, official) {
@@ -45,6 +45,15 @@ export function selectPhaseWithdrawal(session, phaseId, strategyCode, official) 
   const point = withdrawalPoints(official).find(item => item.strategy_code === strategyCode);
   if (!phase || !point) return;
   phase.strategyCode = strategyCode;
-  session.savingPhases = phases.map(({ id, strategyCode }) => ({ id, strategyCode }));
-  session.withdrawalOverallYear = phase.offset + point.policyYear;
+  phase.withdrawalPolicyYear = point.policyYear;
+  session.savingPhases = phases.map(({ id, strategyCode, withdrawalPolicyYear }) => ({ id, strategyCode, withdrawalPolicyYear }));
+}
+
+export function selectPhaseWithdrawalYear(session, phaseId, policyYear, official) {
+  const phases = activeSavingPhases(session);
+  const phase = phases.find(item => item.id === phaseId);
+  const year = Number(policyYear);
+  if (!phase || !resolvePhaseWithdrawal(phase, session, official).years.includes(year)) return;
+  phase.withdrawalPolicyYear = year;
+  session.savingPhases = phases.map(({ id, strategyCode, withdrawalPolicyYear }) => ({ id, strategyCode, withdrawalPolicyYear }));
 }

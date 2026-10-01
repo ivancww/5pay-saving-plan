@@ -80,12 +80,14 @@ for code, year in {
 }.items():
     assert f"['{code}', {year}]" in calculation
 assert 'withdrawalPortfolio(state.session, official)' in views
-assert '.map(year => year + phase.offset)' in calculation
+assert 'overallPolicyYear: phase.offset + selectedYear' in calculation
+assert 'year: phase.offset + year, localYear: year' in views
 assert "action: 'select-withdrawal-year'" in views
 assert "action: 'select-withdrawal-start'" in views
 assert 'select-withdrawal-year' in main
 assert "action === 'select-withdrawal-start'" in main
-assert 'state.session.withdrawalOverallYear = Number(control.dataset.value)' in main
+assert 'selectPhaseWithdrawalYear(state.session,' in main
+assert 'withdrawalOverallYear' not in main
 assert 'selectPhaseWithdrawal(state.session,' in main
 assert "action === 'select-withdrawal-year'" in main
 assert 'remainingValue: futureValue' in calculation

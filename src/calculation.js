@@ -86,11 +86,13 @@ export function activeSavingPhases(session = {}) {
   const stored = Array.isArray(session.savingPhases) ? session.savingPhases : [];
   let count = 1;
   while (count < 3 && stored.some(phase => phase?.id === count + 1)) count++;
-  return SAVING_PHASES.slice(0, count).map(phase => ({ ...phase,
-    strategyCode: stored.find(item => item?.id === phase.id)?.strategyCode
-      || (phase.id === 1 ? session.withdrawalStrategyCode || (session.strategyCode !== 'none' ? session.strategyCode : null) : null)
-      || null
-  }));
+  return SAVING_PHASES.slice(0, count).map(phase => {
+    const saved = stored.find(item => item?.id === phase.id);
+    return { ...phase,
+      strategyCode: saved ? saved.strategyCode || null : (phase.id === 1 ? session.withdrawalStrategyCode || (session.strategyCode !== 'none' ? session.strategyCode : null) : null) || null,
+      withdrawalPolicyYear: saved && Object.prototype.hasOwnProperty.call(saved, 'withdrawalPolicyYear') ? saved.withdrawalPolicyYear : (phase.id === 1 ? session.withdrawalPolicyYear ?? null : null)
+    };
+  });
 }
 
 export function withdrawalPoints(official) {
@@ -100,46 +102,57 @@ export function withdrawalPoints(official) {
   }).filter(Boolean);
 }
 
-export function resolvedSavingPhases(session, official, mode = 'accumulation') {
-  const points = withdrawalPoints(official);
-  return activeSavingPhases(session).map(phase => {
-    const strategy = mode === 'withdrawal' ? points.find(item => item.strategy_code === phase.strategyCode) || points[0] : null;
-    return { ...phase, strategyCode: mode === 'withdrawal' ? strategy?.strategy_code : 'none', startYear: strategy?.policyYear };
-  });
-}
-
-export function calculateSavingPortfolio({ session, overallPolicyYear, official, mode = 'accumulation' }) {
+// Accumulation is a progressive total of exact, currently known phase values.
+export function calculateSavingPortfolio({ session, overallPolicyYear, official }) {
   const year = Number(overallPolicyYear);
   const amount = Number(session.annualContribution);
-  const phases = resolvedSavingPhases(session, official, mode).map(phase => {
+  const phases = activeSavingPhases(session).map(phase => {
     const localPolicyYear = year - phase.offset;
-    if (localPolicyYear <= 0) return { ...phase, localPolicyYear, started: false, available: true };
-    const result = mode === 'withdrawal' && !phase.strategyCode ? { available: false } : calculateOfficial({
-      annualContribution: session.annualContribution, policyYear: localPolicyYear, strategyCode: phase.strategyCode, official
-    });
+    if (localPolicyYear <= 0) return { ...phase, localPolicyYear, started: false, available: false };
+    const result = calculateOfficial({ annualContribution: session.annualContribution,
+      policyYear: localPolicyYear, strategyCode: 'none', official });
     return { ...phase, ...result, localPolicyYear, started: true };
   });
   const validInput = Number.isInteger(year) && year > 0 && Number.isFinite(amount) && amount > 0;
-  const totalContribution = validInput ? amount * phases.reduce((sum, phase) => sum + Math.min(5, Math.max(0, phase.localPolicyYear)), 0) : undefined;
-  const base = { policyYear: year, phases, totalContribution,
+  const known = phases.filter(phase => phase.started && phase.available);
+  const base = { policyYear: year, phases, availablePhaseCount: known.length,
+    unavailablePhaseCount: phases.filter(phase => phase.started && !phase.available).length,
+    complete: validInput && phases.every(phase => !phase.started || phase.available),
+    totalContribution: validInput ? amount * phases.reduce((sum, phase) => sum + Math.min(5, Math.max(0, phase.localPolicyYear)), 0) : undefined,
     plannedContribution: Number.isFinite(amount) && amount > 0 ? amount * 5 * phases.length : undefined };
-  if (!validInput || phases.some(phase => phase.started && !phase.available)) {
-    return { ...base, available: false, message: '這個時間點暫未有完整資料，請探索其他時間點。' };
-  }
-  const started = phases.filter(phase => phase.started);
-  const sum = key => started.reduce((total, phase) => total + phase[key], 0);
-  return { ...base, available: true, futureValue: sum('futureValue'), remainingValue: sum('remainingValue'),
-    annualUsable: sum('annualUsable'), cumulativeUsed: sum('cumulativeUsed') };
+  if (!validInput || !known.length) return { ...base, available: false, message: '這個時間點暫未有可顯示價值。' };
+  const value = known.reduce((sum, phase) => sum + phase.remainingValue, 0);
+  return { ...base, available: true, futureValue: value, remainingValue: value };
 }
 
-// P7 and Customer View resolve the same default strategies, year and combined result.
+// Each withdrawal scenario has its own exact local time, independently of accumulation.
+export function resolvePhaseWithdrawal(phase, session, official) {
+  const points = withdrawalPoints(official);
+  const strategy = points.find(item => item.strategy_code === phase.strategyCode) || points[0];
+  const strategyCode = strategy?.strategy_code;
+  const startYear = strategy?.policyYear;
+  const years = strategy ? supportedYears(official, strategyCode).filter(year => year >= startYear) : [];
+  // A supplied unsupported selection is unavailable, never replaced by a nearest row.
+  const selectedYear = phase.withdrawalPolicyYear == null ? years[0] : Number(phase.withdrawalPolicyYear);
+  const result = years.includes(selectedYear) ? calculateOfficial({ annualContribution: session.annualContribution,
+    policyYear: selectedYear, strategyCode, official }) : { available: false, message: '這一期暫未有可顯示結果。' };
+  return { ...phase, strategyCode, startYear, years, selectedYear, localPolicyYear: selectedYear,
+    overallPolicyYear: phase.offset + selectedYear, result: result.available ? result : { ...result, message: '這一期暫未有可顯示結果。' } };
+}
+
+export function aggregateWithdrawalResults(phases, annualContribution) {
+  const amount = Number(annualContribution);
+  const totalContribution = Number.isFinite(amount) && amount > 0 ? amount * 5 * phases.length : undefined;
+  if (!phases.length || phases.some(phase => !phase.result.available)) {
+    return { available: false, totalContribution, message: '部分期數暫未有可顯示結果，合計稍後再看。' };
+  }
+  const sum = key => phases.reduce((total, phase) => total + phase.result[key], 0);
+  return { available: true, annualUsable: sum('annualUsable'), cumulativeUsed: sum('cumulativeUsed'),
+    remainingValue: sum('remainingValue'), futureValue: sum('futureValue'), totalContribution };
+}
+
+// P7 and Customer View share the exact same independent selections and summary.
 export function withdrawalPortfolio(session, official) {
-  const phases = resolvedSavingPhases(session, official, 'withdrawal');
-  const starts = phases.map(phase => phase.offset + phase.startYear).filter(Number.isFinite);
-  const firstStart = starts.length ? Math.min(...starts) : undefined;
-  const years = [...new Set(phases.flatMap(phase => supportedYears(official, phase.strategyCode)
-    .map(year => year + phase.offset)))].filter(year => year >= firstStart).sort((a, b) => a - b);
-  const requested = session.withdrawalOverallYear ?? session.withdrawalPolicyYear;
-  const selectedYear = requested != null && years.includes(Number(requested)) ? Number(requested) : years[0];
-  return { phases, years, selectedYear, result: calculateSavingPortfolio({ session, overallPolicyYear: selectedYear, official, mode: 'withdrawal' }) };
+  const phases = activeSavingPhases(session).map(phase => resolvePhaseWithdrawal(phase, session, official));
+  return { phases, result: aggregateWithdrawalResults(phases, session.annualContribution) };
 }
