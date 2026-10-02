@@ -28,7 +28,7 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
 
 /* Customer scenario visuals use the existing AVA canvas, cards and color tokens. */
 .scenario-grid,.tool-grid,.response-grid,.mixed-visual,.resource-bridge{display:grid;gap:12px;min-width:0}
-.scenario-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.scenario-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 .scenario-card{min-width:0;min-height:180px;overflow-wrap:anywhere}
 .scenario-icon,.tool-symbol{display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:12px;background:var(--selected);color:var(--accent);font-weight:800}
 .tool-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
