@@ -19,12 +19,14 @@ export function render(app, state, official, overrides = {}, meta = {}) {
   const synthetic = scenarioPage(state.pageId);
   const body = page.page_id.startsWith('LOCAL_') ? customPage(page) : (synthetic?.body(state, official) || ({ P1:p1, P2:p2, P3:p3, P4:p4, P5:p5, P6:p6, P7:p7 }[state.pageId]?.(state, official) || unavailable('未有這一頁的官方內容。')));
   app.innerHTML = `<div class="front-wrap" data-ava-mode="${state.mode}">
-    ${state.history.length ? '<button class="back-link" data-action="back" type="button">← 返回上一頁</button>' : ''}
-    <section class="ava-concept" aria-labelledby="page-title">
-      <div class="eyebrow">${esc(page.page_id)} · ${state.mode === 'edit' ? '編輯模式' : '對話進行中'}</div>
-      <h1 class="ava-page-title" id="page-title">${esc(title)}</h1>
-      <p class="ava-support">${esc(subtitle)}</p>
-      ${body}
+    ${state.history.length ? '<button class="ava-button ava-button--secondary back-link" data-action="back" type="button" aria-label="返回上一頁">← 返回</button>' : ''}
+    <section class="ava-concept ava-main-card" aria-labelledby="page-title">
+      <div class="flow-context">
+        <div class="eyebrow">${esc(page.page_id)} · ${state.mode === 'edit' ? '編輯模式' : '對話進行中'}</div>
+        <h1 class="ava-page-title" id="page-title">${esc(title)}</h1>
+        <p class="ava-support">${esc(subtitle)}</p>
+      </div>
+      <div class="flow-body">${body}</div>
     </section>
   </div>`;
   if (state.mode === 'edit') renderEditPanel(app, state, page, title, subtitle);
