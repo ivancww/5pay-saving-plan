@@ -29,7 +29,11 @@ if (avaReturnLink) {
   if (!contextHref) avaReturnLink.title = '未提供 AVA 返回內容；返回 Saving 首頁';
 }
 const editToggle = document.querySelector('#edit-toggle');
-if (editToggle && entryMode === ENTRY_MODES.frontend) editToggle.hidden = true;
+if (entryMode === ENTRY_MODES.frontend) {
+  if (editToggle) editToggle.hidden = true;
+  document.querySelector('#customer-view-button')?.setAttribute('hidden', '');
+  document.querySelector('#reset-session')?.setAttribute('hidden', '');
+}
 if (entryMode === ENTRY_MODES.user) state.mode = 'edit';
 if (entryMode !== ENTRY_MODES.standalone) document.querySelector('link[rel="manifest"]')?.remove();
 
