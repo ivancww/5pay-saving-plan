@@ -87,7 +87,6 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
 
 /* Medical-referenced customer hierarchy: page controls sit above one clear
    conversational surface, while Saving-specific cards and rails stay inside. */
-html,body{overflow-x:hidden}
 .back-link{border:1px solid var(--control);background:var(--surface);color:var(--primary);padding:10px 16px;box-shadow:var(--shadow)}
 .back-link:active{background:var(--pressed)}
 .ava-main-card{padding:clamp(20px,3vw,32px);border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:0 2px 8px rgba(15,23,42,.06)}
