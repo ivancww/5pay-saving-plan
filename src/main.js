@@ -11,6 +11,8 @@ import { currentPath } from './calculation.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS, investmentPath, scenarioRoute, toggleChoice } from './scenario-flow.js';
 
 const app = document.querySelector('#app');
+const versionNode = document.querySelector('#app-version');
+if (versionNode) versionNode.textContent = BUILD_ID === '__AVA_DEPLOYMENT_ID__' ? 'dev' : BUILD_ID.slice(0, 7);
 const formatMoney = value => value == null ? '—' : `HK$ ${Math.round(value).toLocaleString('en-US')}`;
 window.__AVA_SAVING_BUILD__ = BUILD_ID;
 console.info('[5PAY Saving] build %s', BUILD_ID);
