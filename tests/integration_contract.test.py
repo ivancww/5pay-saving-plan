@@ -23,6 +23,10 @@ assert "AVA_PLATFORM_URL" not in integration
 assert "https://ivancww.github.io" not in integration
 assert "entryMode === ENTRY_MODES.standalone" in main
 assert "entryMode === ENTRY_MODES.unsupported" in main
+assert 'const shouldRegisterServiceWorker = [' in main
+for mode in ('standalone', 'frontend', 'user', 'admin'):
+    assert f'ENTRY_MODES.{mode}' in main
+assert "if (!shouldRegisterServiceWorker || !('serviceWorker' in navigator)) return;" in main
 assert "loadCachedOfficial" in main
 assert 'id="return-ava"' in index
 assert "navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })" in main

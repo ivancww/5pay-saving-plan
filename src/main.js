@@ -18,6 +18,12 @@ window.__AVA_SAVING_BUILD__ = BUILD_ID;
 console.info('[5PAY Saving] build %s', BUILD_ID);
 const state = createState();
 const entryMode = getEntryMode(location.search);
+const shouldRegisterServiceWorker = [
+  ENTRY_MODES.standalone,
+  ENTRY_MODES.frontend,
+  ENTRY_MODES.user,
+  ENTRY_MODES.admin
+].includes(entryMode);
 let official = null; let meta = { source: 'loading' }; let overrides = loadOverrides(); let previewOverrides = null;
 let adminAuthorization = null;
 const avaReturnLink = document.querySelector('#return-ava');
@@ -285,21 +291,24 @@ async function startAdmin() {
   } catch (error) { adminAuthorization = null; renderAdmin(app, {}, { error: error.message }); }
 }
 
+function registerSavingServiceWorker() {
+  if (!shouldRegisterServiceWorker || !('serviceWorker' in navigator)) return;
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (refreshing) return;
+    refreshing = true;
+    window.location.reload();
+  });
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+    .then(registration => registration.update())
+    .catch(() => {});
+}
+
 if (entryMode === ENTRY_MODES.admin) startAdmin();
 else {
   draw();
   const cachedOfficial = loadCachedOfficial();
   if (cachedOfficial) { official = cachedOfficial; meta = { source: 'local-cache', stale: true }; draw(); }
   loadOfficialData().then(result => { official = result.official; meta = result; draw(); }).catch(error => { meta = { source: 'error', error }; draw(); });
-  if (entryMode === ENTRY_MODES.standalone && 'serviceWorker' in navigator) {
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    });
-    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
-      .then(registration => registration.update())
-      .catch(() => {});
-  }
 }
+registerSavingServiceWorker();
