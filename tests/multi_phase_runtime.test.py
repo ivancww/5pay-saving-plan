@@ -15,14 +15,14 @@ const rows = items => items.map(([policy_year,multiplier,withdrawal_rate=0])=>({
 const official = {
  flow:['P4','P5','P6','P7'].map(page_id=>({page_id,title:page_id,subtitle:''})),
  current_methods:[],
- strategies:codes.map((strategy_code,i)=>({strategy_code,start_year:starts[i],display_name:'test',sheet_name:strategy_code,withdraw_rate:0})),
+ strategies:codes.map((strategy_code,i)=>({strategy_code,start_year:starts[i],display_name:'test',sheet_name:strategy_code,withdraw_rate:[.07,.12,.18,.23,.29][i]})),
  return_tables:{
   none:rows([[8,1.2],[10,1.4],[13,1.6],[15,1.8],[18,2],[20,2.2],[25,2.7],[30,3.2]]),
-  [codes[0]]:rows([[8,1.1,.02],[10,1.3,.03],[13,1.5,.04],[15,1.7,.05],[18,1.9,.08],[20,2.1,.07],[25,2.6,.1],[30,3.1,.06]]),
-  [codes[1]]:rows([[8,1.2],[10,1.4],[13,1.6],[15,1.7,.05],[18,1.9,.08],[20,2.1,.07],[25,2.6,.1],[30,3.1,.06],[40,4.1,.13]]),
-  [codes[2]]:rows([[8,1.2],[10,1.4],[13,1.6],[15,1.8],[18,2],[20,2,.09],[25,2.5,.1],[30,3,.12]]),
-  [codes[3]]:rows([[8,1.2],[15,1.8],[20,2.2],[25,2.5,.1],[30,3,.1]]),
-  [codes[4]]:rows([[8,1.2],[15,1.8],[20,2.2],[25,2.7],[30,3,.12]])
+  [codes[0]]:rows([[8,1.1,.07],[10,1.3,.07],[13,1.5,.07],[15,1.7,.07],[18,1.9,.07],[20,2.1,.07],[25,2.6,.07],[30,3.1,.07]]),
+  [codes[1]]:rows([[8,1.2],[10,1.4],[13,1.6],[15,1.7,.12],[18,1.9,.12],[20,2.1,.12],[25,2.6,.12],[30,3.1,.12],[40,4.1,.12]]),
+  [codes[2]]:rows([[8,1.2],[10,1.4],[13,1.6],[15,1.8],[18,2],[20,2,.18],[25,2.5,.18],[30,3,.18]]),
+  [codes[3]]:rows([[8,1.2],[15,1.8],[20,2.2],[25,2.5,.23],[30,3,.23]]),
+  [codes[4]]:rows([[8,1.2],[15,1.8],[20,2.2],[25,2.7],[30,3,.29]])
  }
 };
 const state=createState({currentAge:40});
@@ -74,7 +74,7 @@ assert.deepEqual(portfolio.phases.map(p=>p.selectedYear),[40,25,30]);
 assert.deepEqual(portfolio.phases.map(p=>p.overallPolicyYear),[40,30,40]);
 const expected=portfolio.phases.map(p=>calculateOfficial({annualContribution:1000,policyYear:p.selectedYear,strategyCode:p.strategyCode,official}));
 for (const key of ['annualUsable','cumulativeUsed','remainingValue']) assert.equal(portfolio.result[key],expected.reduce((sum,p)=>sum+p[key],0));
-assert.equal(portfolio.phases[0].result.cumulativeUsed,2450); // sparse rows only: 15,18,20,25,30,40
+assert.equal(portfolio.phases[0].result.cumulativeUsed,15600); // 26 annual withdrawals: years 15 through 40 inclusive
 assert.equal(portfolio.result.remainingValue,48500);
 assert.notEqual(portfolio.result.remainingValue,48500-portfolio.result.cumulativeUsed);
 const independent=structuredClone(state.session.savingPhases);

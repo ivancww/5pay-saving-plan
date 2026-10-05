@@ -21,15 +21,9 @@ export function calculateOfficial({ annualContribution, policyYear, strategyCode
   const rate = Number(row.withdrawal_rate) || Number(strategy?.withdraw_rate) || 0;
   const startYear = Number(strategy?.start_year) || null;
   const annualUsable = rate > 0 && startYear && year >= startYear ? totalContribution * rate : 0;
-  const cumulativeUsed = rows
-    .filter(item => {
-      const itemYear = Number(item.policy_year);
-      return Number.isFinite(itemYear) && startYear && itemYear >= startYear && itemYear <= year;
-    })
-    .reduce((sum, item) => {
-      const itemRate = Number(item.withdrawal_rate) || Number(strategy?.withdraw_rate) || 0;
-      return sum + (itemRate > 0 ? totalContribution * itemRate : 0);
-    }, 0);
+  const cumulativeUsed = calculateCumulativeWithdrawal({
+    totalContribution, startYear, selectedYear: year, annualRate: Number(strategy?.withdraw_rate) || rate
+  });
   const futureValue = totalContribution * Number(row.multiplier);
   return {
     available: true, policyYear: year, multiplier: Number(row.multiplier), withdrawalRate: rate,
@@ -40,6 +34,14 @@ export function calculateOfficial({ annualContribution, policyYear, strategyCode
     remainingValue: futureValue,
     strategyCode, sheetName, basis: 'total_contribution'
   };
+}
+
+// Official rows are account-value observation points, not annual withdrawal events.
+// The configured strategy contract applies its annual rate for every year from
+// the withdrawal start through the selected policy year, including sparse years.
+export function calculateCumulativeWithdrawal({ totalContribution, startYear, selectedYear, annualRate }) {
+  if (!Number.isFinite(totalContribution) || !startYear || selectedYear < startYear || annualRate <= 0) return 0;
+  return totalContribution * annualRate * (selectedYear - startYear + 1);
 }
 
 function unavailable(message) { return { available: false, message }; }
