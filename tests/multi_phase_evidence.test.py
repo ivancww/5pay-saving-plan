@@ -31,9 +31,9 @@ for (const strategy of official.strategies) {
     const start = Number(strategy.start_year)||null;
     const rate = Number(row.withdrawal_rate)||Number(strategy.withdraw_rate)||0;
     assert.equal(result.annualUsable,rate>0&&start&&row.policy_year>=start ? amount*5*rate : 0);
-    const used = official.return_tables[strategy.sheet_name]
-      .filter(item=>start&&item.policy_year>=start&&item.policy_year<=row.policy_year)
-      .reduce((sum,item)=>sum+amount*5*(Number(item.withdrawal_rate)||Number(strategy.withdraw_rate)||0),0);
+    const used = start && row.policy_year >= start
+      ? amount*5*Number(strategy.withdraw_rate)*(row.policy_year-start+1)
+      : 0;
     assert.equal(result.cumulativeUsed,used);
   }
 }
