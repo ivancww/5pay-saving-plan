@@ -274,23 +274,25 @@ document.querySelector('#reset-session').addEventListener('click', () => locatio
 async function publishAdmin() {
   try {
     const status = document.querySelector('#admin-publish-status'); if (status) status.textContent = '驗證並發佈中…';
-    await publishOfficial(adminAuthorization.appGrant, readAdminPayload(app));
+    const expectedVersion = official?.version?.data_version || official?.version?.last_updated || official?.version?.module_version || '';
+    await publishOfficial(adminAuthorization.adminSessionProof, readAdminPayload(app), expectedVersion);
     const result = await loadOfficialData(); official = result.official; meta = result;
     renderAdmin(app, official, { message: 'Official 設定已發佈；User/local overrides 保持不變。' });
   } catch (error) { renderAdmin(app, official || {}, { error: error.message }); }
 }
 
 async function startAdmin() {
-  const launch = new URLSearchParams(location.search).get('avaAdminLaunch');
-  if (!launch) { renderAdmin(app, {}, { error: '缺少一次性 AVA Admin launch。' }); return; }
-  const cleanUrl = new URL(location.href); cleanUrl.searchParams.delete('avaAdminLaunch'); history.replaceState(null, '', cleanUrl.href);
+  const params = new URLSearchParams(location.search);
+  const launchTicket = params.get('avaAdminLaunch');
+  const launchNonce = params.get('avaAdminLaunchNonce');
+  if (!launchTicket || !launchNonce) { renderAdmin(app, {}, { error: '缺少完整的一次性 AVA Admin launch。' }); return; }
   try {
-    adminAuthorization = await exchangeAdminLaunch(launch);
+    adminAuthorization = await exchangeAdminLaunch({ launchTicket, launchNonce });
+    const cleanUrl = new URL(location.href); cleanUrl.searchParams.delete('avaAdminLaunch'); cleanUrl.searchParams.delete('avaAdminLaunchNonce'); history.replaceState(null, '', cleanUrl.href);
     const result = await loadOfficialData(); official = result.official; meta = result;
     renderAdmin(app, official);
   } catch (error) { adminAuthorization = null; renderAdmin(app, {}, { error: error.message }); }
 }
-
 function registerSavingServiceWorker() {
   if (!shouldRegisterServiceWorker || !('serviceWorker' in navigator)) return;
   let refreshing = false;
