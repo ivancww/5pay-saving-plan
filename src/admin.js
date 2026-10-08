@@ -4,21 +4,46 @@ export const ADMIN_DOMAINS = Object.freeze([
   'flow', 'page_content', 'routing', 'current_methods', 'withdrawal_strategies', 'customer_view'
 ]);
 
-export async function exchangeAdminLaunch(launchTicket, fetchImpl = globalThis.fetch) {
-  if (!launchTicket) throw new Error('此 Admin 入口沒有有效啟動票據。');
-  const response = await fetchImpl(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'exchangeAppLaunch', launchTicket }) });
-  const payload = await response.json();
-  if (!response.ok || payload.ok !== true || !payload.appGrant) throw new Error(payload.error || 'Admin 啟動被拒絕。');
-  return { appGrant: payload.appGrant, expiresAt: payload.expiresAt || null };
+const APP_ID = '5pay';
+const PLATFORM_ORIGIN = 'https://ivancww.github.io';
+
+function browserProofFromOpener(launchTicket, launchNonce) {
+  if (!launchTicket || !launchNonce || !window.opener) throw new Error('此 Admin 入口必須由 AVA Studio 啟動。');
+  return new Promise((resolve, reject) => {
+    const opener = window.opener;
+    let settled = false;
+    const finish = (error, value) => { if (settled) return; settled = true; clearTimeout(timer); window.removeEventListener('message', onMessage); error ? reject(error) : resolve(value); };
+    const timer = setTimeout(() => finish(new Error('AVA browser binding expired')), 15000);
+    const onMessage = event => {
+      if (event.source !== opener || event.origin !== PLATFORM_ORIGIN) return;
+      const data = event.data || {};
+      if (data.type !== 'ava-admin-session-response' || data.appId !== APP_ID || data.launchTicket !== launchTicket || data.launchNonce !== launchNonce) return;
+      if (!data.browserProof || data.contract !== 'ava-admin-session-v1') return finish(new Error('AVA browser proof 無效。'));
+      finish(null, { browserProof: String(data.browserProof), expiresAt: data.expiresAt, contract: data.contract });
+    };
+    window.addEventListener('message', onMessage);
+    opener.postMessage({ type: 'ava-admin-session-request', appId: APP_ID, launchTicket, launchNonce }, PLATFORM_ORIGIN);
+  });
 }
 
-export async function publishOfficial(appGrant, data, fetchImpl = globalThis.fetch) {
-  if (!appGrant) throw new Error('Admin 授權不存在。');
+export async function exchangeAdminLaunch({ launchTicket, launchNonce }, fetchImpl = globalThis.fetch) {
+  if (!launchTicket || !launchNonce) throw new Error('此 Admin 入口沒有完整啟動票據。');
+  const browser = await browserProofFromOpener(launchTicket, launchNonce);
+  const response = await fetchImpl(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'exchangeAdminSession', launchTicket, launchNonce, browserProof: browser.browserProof, appId: APP_ID }) });
+  const payload = await response.json();
+  const expiry = Date.parse(payload.expiresAt || '');
+  if (!response.ok || payload.success !== true || payload.appId !== APP_ID || payload.contract !== 'ava-admin-session-v1' || !payload.adminSessionProof || !Number.isFinite(expiry) || expiry <= Date.now()) throw new Error(payload.error || 'Admin 啟動被拒絕。');
+  return { adminSessionProof: String(payload.adminSessionProof), expiresAt: payload.expiresAt };
+}
+
+export async function publishOfficial(adminSessionProof, data, expectedVersion, fetchImpl = globalThis.fetch) {
+  if (!adminSessionProof) throw new Error('Admin session proof 不存在。');
+  if (!expectedVersion) throw new Error('Official data version 不存在，拒絕發佈。');
   const domains = Object.keys(data || {});
   if (!domains.length || domains.some(domain => !ADMIN_DOMAINS.includes(domain))) throw new Error('只可以發佈 Saving Official 設定。');
-  const response = await fetchImpl(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'publish_content', appGrant, data }) });
+  const response = await fetchImpl(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'publish_content', adminSessionProof, appId: APP_ID, operation: '5pay:official-write:configuration', expectedVersion, data }) });
   const payload = await response.json();
-  if (!response.ok || payload.ok !== true) throw new Error(payload.error || 'Official 發佈失敗。');
+  if (!response.ok || payload.success !== true) throw new Error(payload.error || 'Official 發佈失敗。');
   return payload;
 }
 
