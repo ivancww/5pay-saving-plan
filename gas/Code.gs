@@ -46,24 +46,27 @@ function doGet(e) {
 function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents || '{}');
-    if (body.action === 'exchangeAppLaunch') return json_(exchangeAppLaunch_(body.launchTicket));
+    if (body.action === 'exchangeAdminSession') return json_(exchangeAdminSession_(body));
     if (body.action === 'publish_content') return json_(publishContentRequest_(body));
-    return json_({ ok: false, error: 'Unsupported action' });
-  } catch (error) { return json_({ ok: false, error: error.message }); }
+    return json_({ success: false, ok: false, error: 'Unsupported action' });
+  } catch (error) { return json_({ success: false, ok: false, error: error.message }); }
 }
 
-function exchangeAppLaunch_(launchTicket) {
-  if (!String(launchTicket || '')) fail_('Admin launch is required');
-  const result = platformRequest_({ action: 'exchangeAppLaunch', launchTicket: String(launchTicket), appId: APP_ID });
-  if (result.success !== true || !result.appGrant || result.appId && result.appId !== APP_ID) fail_('Admin launch denied');
-  return { ok: true, appGrant: String(result.appGrant), expiresAt: result.expiresAt || null };
+function exchangeAdminSession_(body) {
+  ['launchTicket','launchNonce','browserProof','appId'].forEach(key => { if (typeof body[key] !== 'string' || !body[key] || body[key].length > 200) fail_('Invalid Admin launch request'); });
+  if (body.appId !== APP_ID) fail_('Invalid App ID');
+  const result = platformRequest_({ action: 'exchangeAdminSession', launchTicket: body.launchTicket, launchNonce: body.launchNonce, browserProof: body.browserProof, appId: APP_ID });
+  const expiry = Date.parse(result.expiresAt || '');
+  if (result.success !== true || result.appId !== APP_ID || !result.adminSessionProof || result.contract !== 'ava-admin-session-v1' || !Number.isFinite(expiry) || expiry <= Date.now()) fail_('Admin launch denied');
+  return { success: true, ok: true, appId: APP_ID, adminSessionProof: String(result.adminSessionProof), expiresAt: result.expiresAt, contract: result.contract };
 }
 
-function verifyAppGrant_(appGrant) {
-  if (!String(appGrant || '')) fail_('App Grant is required');
-  const result = platformRequest_({ action: 'verifyAppGrant', appGrant: String(appGrant), appId: APP_ID, operation: 'official-write' });
-  if (result.success !== true || result.appId !== APP_ID || result.operation !== 'official-write') fail_('Invalid App Admin authorization');
-  if (result.expiresAt && new Date(result.expiresAt).getTime() <= Date.now()) fail_('App Admin authorization expired');
+function verifyAdminSession_(adminSessionProof, operation) {
+  if (typeof adminSessionProof !== 'string' || !adminSessionProof) fail_('Admin session proof is required');
+  if (typeof operation !== 'string' || !/^5pay:official-write:[a-z0-9_-]+$/.test(operation)) fail_('Invalid Official operation');
+  const result = platformRequest_({ action: 'verifyAdminSession', adminSessionProof, appId: APP_ID, operation });
+  const expiry = Date.parse(result.expiresAt || '');
+  if (result.success !== true || result.appId !== APP_ID || result.operation !== operation || result.contract !== 'ava-admin-session-v1' || !Number.isFinite(expiry) || expiry <= Date.now()) fail_('Invalid or expired Admin authorization');
   return result;
 }
 
@@ -78,16 +81,26 @@ function platformRequest_(body) {
 }
 
 function publishContentRequest_(body) {
-  // Authorization and complete validation happen before the first Sheet write.
-  verifyAppGrant_(body.appGrant);
+  if (!body || body.appId !== APP_ID) fail_('Invalid App ID');
   const validated = validatePublish_(body.data);
+  const expectedVersion = String(body.expectedVersion || '');
+  if (!expectedVersion) fail_('Expected version is required');
+  validated.forEach(item => verifyAdminSession_(body.adminSessionProof, APP_ID + ':official-write:' + item.domain));
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  const snapshots = [];
   try {
     validatePublishTargets_(validated);
+    if (expectedVersion !== getExpectedVersion_()) fail_('Stale Official data version');
+    validated.forEach(item => snapshots.push(snapshotSheet_(SHEETS[item.domain])));
+    const systemSnapshot = snapshotSheet_(SHEETS.system); snapshots.push(systemSnapshot);
     validated.forEach(item => writeObjectsToSheet_(item.domain, item.rows));
     updateLastUpdated_();
+    validateReadAfterWrite_(validated);
     CacheService.getScriptCache().remove(BOOTSTRAP_CACHE_KEY);
-    return { ok: true, published: WRITE_DOMAINS.slice(), last_updated: new Date().toISOString() };
+    return { success: true, ok: true, appId: APP_ID, published: validated.map(item => item.domain), data_version: getExpectedVersion_(), last_updated: new Date().toISOString() };
+  } catch (error) {
+    snapshots.reverse().forEach(snapshot => { try { restoreSnapshot_(snapshot); } catch (_) {} });
+    throw error;
   } finally { lock.releaseLock(); }
 }
 
@@ -117,8 +130,10 @@ function validateRows_(domain, rows) {
 
 function validatePublishTargets_(validated) {
   validated.forEach(item => {
-    const sheet = sheet_(SHEETS[item.domain]), headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String), allowed = SCHEMAS[item.domain];
-    headers.forEach(header => { if (!allowed.includes(header)) fail_(`Unexpected ${item.domain} Sheet header: ${header}`); });
+    const sheet = sheet_(SHEETS[item.domain]), lastColumn = sheet.getLastColumn();
+    const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(String), allowed = SCHEMAS[item.domain];
+    headers.forEach(header => { if (!allowed.includes(header)) fail_('Unexpected ' + item.domain + ' Sheet header: ' + header); });
+    if (headers.length !== allowed.length || item.rows.length + 1 > sheet.getMaxRows()) fail_('Invalid ' + item.domain + ' Sheet capacity or schema');
   });
   const system = sheet_(SHEETS.system), values = system.getDataRange().getValues(), headers = values.shift().map(String), keyIndex = headers.indexOf('key'), valueIndex = headers.indexOf('value');
   if (keyIndex < 0 || valueIndex < 0 || !values.some(row => String(row[keyIndex]) === 'last_updated')) fail_('Saving_System last_updated schema is protected or invalid');
@@ -142,11 +157,32 @@ function validateDomainRow_(domain, row, index) {
 }
 
 function writeObjectsToSheet_(domain, rows) {
-  const sheet = sheet_(SHEETS[domain]), headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String), allowed = SCHEMAS[domain];
-  headers.forEach(header => { if (!allowed.includes(header)) fail_(`Unexpected ${domain} Sheet header: ${header}`); });
-  const values = rows.map(row => headers.map(header => row[header] === undefined ? '' : row[header]));
-  sheet.clearContents(); sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+  const sheet = sheet_(SHEETS[domain]), headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0].map(String), values = rows.map(row => headers.map(header => row[header] === undefined ? '' : row[header]));
+  if (headers.length !== SCHEMAS[domain].length || values.length + 1 > sheet.getMaxRows()) fail_('Destination capacity is insufficient');
+  if (values.length) sheet.getRange(2, 1, values.length, headers.length).setValues(values);
+  const oldRows = Math.max(0, sheet.getLastRow() - 1 - values.length);
+  if (oldRows) sheet.getRange(values.length + 2, 1, oldRows, headers.length).clearContent();
+}
+
+function validateReadAfterWrite_(validated) {
+  validated.forEach(item => {
+    const actual = rows_(SHEETS[item.domain]).slice(0, item.rows.length);
+    const expected = item.rows.map(row => Object.fromEntries(SCHEMAS[item.domain].map(key => [key, row[key]])));
+    if (JSON.stringify(actual.map(row => Object.fromEntries(SCHEMAS[item.domain].map(key => [key, row[key]])))) !== JSON.stringify(expected)) fail_('Read-after-write verification failed for ' + item.domain);
+  });
+}
+
+function snapshotSheet_(name) {
+  const sheet = sheet_(name), range = sheet.getDataRange();
+  return { name, values: range.getValues(), formulas: range.getFormulas() };
+}
+
+function restoreSnapshot_(snapshot) {
+  const sheet = sheet_(snapshot.name), rows = snapshot.values.length, cols = rows ? snapshot.values[0].length : 1;
+  sheet.getDataRange().clearContent();
+  if (!rows) return;
+  const range = sheet.getRange(1, 1, rows, cols); range.setValues(snapshot.values);
+  snapshot.formulas.forEach((row, r) => row.forEach((formula, c) => { if (formula) sheet.getRange(r + 1, c + 1).setFormula(formula); }));
 }
 
 function sheet_(name) { const sheet = SpreadsheetApp.getActive().getSheetByName(name); if (!sheet) fail_(`Missing Sheet: ${name}`); return sheet; }
@@ -172,6 +208,8 @@ function readReturnSheet_(sheetName) {
 function getReturnSheetFromStrategy_(strategy) { const strategyCode = String(strategy || ''), mapping = rows_(SHEETS.withdrawal_strategies).find(row => String(row.strategy_code) === strategyCode); if (!mapping || !RETURN_SHEETS.includes(String(mapping.sheet_name))) fail_('Unknown Saving withdrawal strategy'); return String(mapping.sheet_name); }
 function readReturnTables_() { return Object.fromEntries(RETURN_SHEETS.map(name => [name, readReturnSheet_(name)])); }
 function getSystemData_() { return Object.fromEntries(rows_(SHEETS.system).map(row => [String(row.key), row.value])); }
-function getVersionInfo_() { const system = getSystemData_(); return { module_name: system.module_name || 'Saving', module_version: system.module_version || '', schema_version: system.schema_version || '', data_version: system.data_version || '', last_updated: system.last_updated || '' }; }
+function versionValue_(value) { return value instanceof Date ? value.toISOString() : String(value || ''); }
+function getExpectedVersion_() { const system = getSystemData_(); return versionValue_(system.data_version || system.module_version || system.schema_version || system.last_updated); }
+function getVersionInfo_() { const system = getSystemData_(); return { module_name: system.module_name || 'Saving', module_version: versionValue_(system.module_version), schema_version: versionValue_(system.schema_version), data_version: versionValue_(system.data_version), last_updated: versionValue_(system.last_updated) }; }
 function readBootstrap_() { const content = readContent_(); return { system: getSystemData_(), flow: content.flow, page_content: content.page_content, routing: content.routing, current_methods: content.current_methods, withdrawal_strategies: content.withdrawal_strategies, customer_view: content.customer_view, return_tables: readReturnTables_() }; }
 function updateLastUpdated_() { const sheet = sheet_(SHEETS.system), values = sheet.getDataRange().getValues(), headers = values.shift().map(String), keyIndex = headers.indexOf('key'), valueIndex = headers.indexOf('value'); if (keyIndex < 0 || valueIndex < 0) fail_('Saving_System schema is protected or invalid'); const rowIndex = values.findIndex(row => String(row[keyIndex]) === 'last_updated'); if (rowIndex < 0) fail_('Saving_System last_updated row is required'); sheet.getRange(rowIndex + 2, valueIndex + 1).setValue(new Date()); }
