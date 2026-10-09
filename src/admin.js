@@ -6,9 +6,25 @@ export const ADMIN_DOMAINS = Object.freeze([
 
 const APP_ID = '5pay';
 const PLATFORM_ORIGIN = 'https://ivancww.github.io';
+const BROWSER_CONTEXT_PREFIX = 'ava-admin-session-v1:';
+
+export function browserProofFromContext(launchTicket, launchNonce, browserWindow = globalThis.window) {
+  let raw = '';
+  try { raw = String(browserWindow?.name || ''); browserWindow.name = ''; } catch (_) { return null; }
+  if (!raw.startsWith(BROWSER_CONTEXT_PREFIX)) return null;
+  let data;
+  try { data = JSON.parse(raw.slice(BROWSER_CONTEXT_PREFIX.length)); }
+  catch (_) { throw new Error('AVA browser proof 無效。'); }
+  const expiry = Date.parse(data?.expiresAt || '');
+  if (data?.type !== 'ava-admin-session-context' || data.appId !== APP_ID || data.launchTicket !== launchTicket || data.launchNonce !== launchNonce || !data.browserProof || data.contract !== 'ava-admin-session-v1' || !Number.isFinite(expiry) || expiry <= Date.now()) throw new Error('AVA browser proof 無效或已過期。');
+  return data;
+}
 
 function browserProofFromOpener(launchTicket, launchNonce) {
-  if (!launchTicket || !launchNonce || !window.opener) throw new Error('此 Admin 入口必須由 AVA Studio 啟動。');
+  if (!launchTicket || !launchNonce) throw new Error('此 Admin 入口必須由 AVA Studio 啟動。');
+  const contextProof = browserProofFromContext(launchTicket, launchNonce);
+  if (contextProof) return Promise.resolve(contextProof);
+  if (!window.opener) throw new Error('此 Admin 入口必須由 AVA Studio 啟動。');
   return new Promise((resolve, reject) => {
     const opener = window.opener;
     let settled = false;
