@@ -11,7 +11,7 @@ assert "body.action === 'exchangeAdminSession'" in gas
 assert "body.action === 'publish_content'" in gas
 assert "adminSessionProof" in gas and "JSON.stringify({ action: 'publish_content', adminSessionProof, appId: APP_ID, operation: '5pay:official-write:configuration', expectedVersion, data })" in admin
 assert "verifyAdminSession_(body.adminSessionProof" in gas
-assert gas.index('verifyAdminSession_(body.adminSessionProof') < gas.index('const validated = validatePublish_(body.data);') < gas.index('validated.forEach')
+assert gas.index('const validated = validatePublish_(body.data);') < gas.index('validated.forEach(item => verifyAdminSession_(body.adminSessionProof') < gas.index('validated.forEach(item => snapshots.push')
 assert gas.index('validatePublishTargets_(validated);') < gas.index('validated.forEach(item => writeObjectsToSheet_')
 assert "fields.forEach(key => { if (!Object.prototype.hasOwnProperty.call(row, key))" in gas
 for domain in ['flow', 'page_content', 'routing', 'current_methods', 'withdrawal_strategies', 'customer_view']:
