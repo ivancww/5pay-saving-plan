@@ -12,7 +12,7 @@ assert "entryMode === ENTRY_MODES.admin" in main
 assert "startAdmin()" in main
 runtime_source = ''.join(path.read_text() for path in [*Path('src').glob('*.js'), Path('index.html')])
 assert "verifyAppGrant" not in runtime_source
-assert "exchangeAppLaunch" in runtime_source
+assert "exchangeAdminSession" in runtime_source
 assert "state.mode = 'edit'" in main
 assert "data-action=\"preview\"" in views
 assert "data-action=\"save-preview\"" in views
