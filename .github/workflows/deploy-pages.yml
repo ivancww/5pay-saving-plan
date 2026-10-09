@@ -25,6 +25,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Validate Admin launch and deployment contracts
+        run: |
+          node --input-type=module --check < src/admin.js
+          python3 tests/admin_security_contract.test.py
+          python3 tests/gas_admin_contract.test.py
+          python3 tests/integration_contract.test.py
+          python3 tests/ui_hierarchy.test.py
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 

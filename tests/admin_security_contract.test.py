@@ -14,4 +14,11 @@ assert "IndexedDB" not in runtime
 assert "verifyAdminSession" not in admin
 assert "adminSessionProof" in admin
 assert "adminSessionProof" not in Path('src/portable.js').read_text()
+assert "browserProofFromContext" in admin
+assert "browserWindow.name = ''" in admin
+assert "data.appId !== APP_ID" in admin
+assert "data.launchTicket !== launchTicket" in admin
+assert "data.launchNonce !== launchNonce" in admin
+assert "expiry <= Date.now()" in admin
+assert admin.index("const contextProof = browserProofFromContext") < admin.index("if (!window.opener)")
 print('Saving Admin grant is memory-only and frontend never performs Platform verification')
