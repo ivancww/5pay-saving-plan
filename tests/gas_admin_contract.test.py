@@ -7,11 +7,11 @@ integration = Path('src/integration.js').read_text()
 
 for action in ['bootstrap', 'content', 'returns', 'return', 'version']:
     assert f"action === '{action}'" in gas
-assert "body.action === 'exchangeAppLaunch'" in gas
+assert "body.action === 'exchangeAdminSession'" in gas
 assert "body.action === 'publish_content'" in gas
-assert "body.data" in gas and "JSON.stringify({ action: 'publish_content', appGrant, data })" in admin
-assert "verifyAppGrant_(body.appGrant);" in gas
-assert gas.index('verifyAppGrant_(body.appGrant);') < gas.index('const validated = validatePublish_(body.data);') < gas.index('validated.forEach')
+assert "adminSessionProof" in gas and "JSON.stringify({ action: 'publish_content', adminSessionProof, appId: APP_ID, operation: '5pay:official-write:configuration', expectedVersion, data })" in admin
+assert "verifyAdminSession_(body.adminSessionProof" in gas
+assert gas.index('verifyAdminSession_(body.adminSessionProof') < gas.index('const validated = validatePublish_(body.data);') < gas.index('validated.forEach')
 assert gas.index('validatePublishTargets_(validated);') < gas.index('validated.forEach(item => writeObjectsToSheet_')
 assert "fields.forEach(key => { if (!Object.prototype.hasOwnProperty.call(row, key))" in gas
 for domain in ['flow', 'page_content', 'routing', 'current_methods', 'withdrawal_strategies', 'customer_view']:
@@ -19,7 +19,7 @@ for domain in ['flow', 'page_content', 'routing', 'current_methods', 'withdrawal
 for protected in ['return_tables', 'Saving_System', '自動滾存', '8年領取', '15年領取', '20年領取', '25年領取', '30年領取']:
     assert protected in gas
 assert "if (!WRITE_DOMAINS.includes(key))" in gas
-assert "verifyAppGrant" in gas and "appId: APP_ID" in gas and "operation: 'official-write'" in gas
+assert "verifyAdminSession" in gas and "appId: APP_ID" in gas and "official-write" in gas
 assert "getReturnSheetFromStrategy_(e.parameter.strategy)" in gas
 assert "normalizeNumber_" in gas and "normalizePercent_" in gas
 assert "system: getSystemData_()" in gas
