@@ -17,7 +17,11 @@ Existing GET actions remain `bootstrap`, `content`, `returns`, `return`, and
 mutating any Sheet, then writes only `Saving_Flow`, `Saving_Page_Content`,
 `Saving_Routing`, `Saving_Current_Methods`, `Saving_Withdrawal_Strategies`, and
 `Saving_Customer_View`. Return sheets and `Saving_System` are not publish
-targets; only the server-controlled `last_updated` value is updated.
+targets. If the bound workbook exposes a valid protected `Saving_System`
+`key`/`value` metadata table, the server may update its `last_updated` row.
+Otherwise the protected sheet is left unchanged and the response reports
+that server metadata was not persisted; the six writable domains do not
+depend on an unrelated malformed metadata sheet.
 
 Source implementation does not mean the deployed Web App is updated. A new
 GAS deployment/version must be reviewed and deployed before Platform changes

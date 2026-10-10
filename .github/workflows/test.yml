@@ -21,6 +21,7 @@ jobs:
           node --input-type=module --check < src/data.js
           node --input-type=module --check < src/main.js
           node --test tests/official_write_confirmation.test.js
+          node --test tests/gas_publish_simulation.test.js
       - name: Saving contract tests
         run: |
           python3 tests/admin_security_contract.test.py

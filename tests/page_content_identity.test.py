@@ -47,6 +47,9 @@ assert len(duplicate_keys) != len(set(duplicate_keys))
 
 # The duplicate check occurs before locks, snapshots, and writes.
 assert gas.index('const validated = validatePublish_(body.data);') < gas.index('const lock = LockService.getScriptLock()')
-assert gas.index('const identity = copy[identityField_(domain)];') < gas.index('const lock = LockService.getScriptLock()')
+# Identity validation is performed by validateRows_ before publish acquires
+# the mutation lock and before any target sheet is touched.
+assert gas.index('const validated = validatePublish_(body.data);') < gas.index('const lock = LockService.getScriptLock()')
+assert gas.index('const identity = copy[identityField_(domain)];') < gas.index('function validatePublishTargets_(validated)')
 
 print('page_content identity contract passed: content_id is unique; repeated page_id is allowed')
