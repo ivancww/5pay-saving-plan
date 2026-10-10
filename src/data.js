@@ -12,16 +12,19 @@ export const strategyMap = {
   withdraw29_from30: '30年領取'
 };
 
-const json = response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json(); };
+const json = async response => { if (!response.ok) throw new Error(`HTTP ${response.status}`); const payload = await response.json(); if (payload?.ok !== true) throw new Error(payload?.error || 'Official data request failed'); return payload; };
 
 export function normalize(payload, version = {}) {
   const data = payload?.data || {};
+  const versionInfo = version?.data || data.version || {};
+  const revision = String(payload?.revision || data.revision || version?.revision || versionInfo.revision || '');
   const tables = data.return_tables || {};
   const strategies = (data.withdrawal_strategies || []).filter(item => item.enabled !== false).sort((a, b) => a.sort_order - b.sort_order);
   const configuredStrategyMap = Object.fromEntries(strategies.filter(item => item.strategy_code && item.sheet_name).map(item => [item.strategy_code, item.sheet_name]));
   return {
     ...data,
-    version: version.data || data.version || {},
+    revision,
+    version: { ...versionInfo, revision },
     flow: (data.flow || []).filter(page => page.enabled !== false).sort((a, b) => a.order - b.order),
     page_content: (data.page_content || []).filter(item => item.enabled !== false).sort((a, b) => a.order - b.order),
     strategies,
