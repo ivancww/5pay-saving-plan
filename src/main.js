@@ -274,11 +274,14 @@ document.querySelector('#reset-session').addEventListener('click', () => locatio
 async function publishAdmin() {
   try {
     const status = document.querySelector('#admin-publish-status'); if (status) status.textContent = '驗證並發佈中…';
-    const expectedVersion = official?.version?.data_version || official?.version?.last_updated || official?.version?.module_version || '';
-    await publishOfficial(adminAuthorization.adminSessionProof, readAdminPayload(app), expectedVersion);
+    const expectedRevision = official?.revision || official?.version?.revision || '';
+    await publishOfficial(adminAuthorization.adminSessionProof, readAdminPayload(app), expectedRevision);
     const result = await loadOfficialData(); official = result.official; meta = result;
     renderAdmin(app, official, { message: 'Official 設定已發佈；User/local overrides 保持不變。' });
-  } catch (error) { renderAdmin(app, official || {}, { error: error.message }); }
+  } catch (error) {
+    const status = document.querySelector('#admin-publish-status');
+    if (status) status.textContent = `發佈失敗：${error.message}。未確認的 UI 變更仍然保留。`;
+  }
 }
 
 async function startAdmin() {
