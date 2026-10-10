@@ -37,6 +37,7 @@ jobs:
           python3 tests/integration_contract.test.py
           python3 tests/ui_hierarchy.test.py
           python3 tests/admin_structured_editor.test.py
+          python3 tests/admin_true_tabs.test.py
           python3 tests/calculation.test.py
           python3 tests/static_checks.py
           python3 tests/portable_media.test.py
