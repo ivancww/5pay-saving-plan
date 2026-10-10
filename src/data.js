@@ -52,11 +52,23 @@ export async function loadOfficialData() {
     const base = normalize(bootstrap, version);
     const contentData = content?.data || {};
     const returnData = returns?.data || {};
+    // Keep the unfiltered configuration rows for Admin. Frontstage normalization
+    // intentionally hides disabled records, but Admin must be able to preserve and
+    // edit the complete server-owned dataset.
+    const admin = {
+      flow: Array.isArray(contentData.flow) ? contentData.flow : (Array.isArray(bootstrap.data?.flow) ? bootstrap.data.flow : []),
+      page_content: Array.isArray(contentData.page_content) ? contentData.page_content : (Array.isArray(bootstrap.data?.page_content) ? bootstrap.data.page_content : []),
+      routing: Array.isArray(contentData.routing) ? contentData.routing : (Array.isArray(bootstrap.data?.routing) ? bootstrap.data.routing : []),
+      current_methods: Array.isArray(contentData.current_methods) ? contentData.current_methods : (Array.isArray(bootstrap.data?.current_methods) ? bootstrap.data.current_methods : []),
+      withdrawal_strategies: Array.isArray(contentData.withdrawal_strategies) ? contentData.withdrawal_strategies : (Array.isArray(bootstrap.data?.withdrawal_strategies) ? bootstrap.data.withdrawal_strategies : []),
+      customer_view: Array.isArray(contentData.customer_view) ? contentData.customer_view : (Array.isArray(bootstrap.data?.customer_view) ? bootstrap.data.customer_view : [])
+    };
     const official = normalize({ data: {
       ...base,
       ...contentData,
       return_tables: { ...base.return_tables, ...returnData }
     }}, version);
+    official.admin = admin;
     writeCache(official);
     return { official, source: 'cloud', stale: false };
   } catch (error) {
