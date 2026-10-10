@@ -28,10 +28,18 @@ jobs:
       - name: Validate Admin launch and deployment contracts
         run: |
           node --input-type=module --check < src/admin.js
+          node --input-type=module --check < src/data.js
+          node --input-type=module --check < src/main.js
+          node --test tests/official_write_confirmation.test.js
           python3 tests/admin_security_contract.test.py
           python3 tests/gas_admin_contract.test.py
+          python3 tests/gas_read_contract.test.py
           python3 tests/integration_contract.test.py
           python3 tests/ui_hierarchy.test.py
+          python3 tests/calculation.test.py
+          python3 tests/static_checks.py
+          python3 tests/portable_media.test.py
+          python3 tests/version_consistency.test.py
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
