@@ -1,0 +1,34 @@
+name: Saving contract tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: JavaScript syntax and confirmation tests
+        run: |
+          node --input-type=module --check < src/admin.js
+          node --input-type=module --check < src/data.js
+          node --input-type=module --check < src/main.js
+          node --test tests/official_write_confirmation.test.js
+      - name: Saving contract tests
+        run: |
+          python3 tests/admin_security_contract.test.py
+          python3 tests/gas_admin_contract.test.py
+          python3 tests/gas_read_contract.test.py
+          python3 tests/integration_contract.test.py
+          python3 tests/ui_hierarchy.test.py
+          python3 tests/calculation.test.py
+          python3 tests/static_checks.py
+          python3 tests/portable_media.test.py
+          python3 tests/version_consistency.test.py
