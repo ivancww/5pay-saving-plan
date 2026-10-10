@@ -1,15 +1,15 @@
 # 5PAY Saving Admin integration audit
 
-## Result
+## Current result
 
-Saving already had a genuine Official-write architecture: the existing
-`publish_content` action writes six approved configuration domains. The missing
-piece was Unified Admin Authentication and server-side authorization. This PR
-adds that boundary without changing Saving product or calculation behavior.
+Saving has a real Official-write surface for six existing configuration
+domains. This change keeps that business boundary and strengthens the
+Mother Standard evidence contract. It does not alter Saving calculations,
+return tables, customer flow, User/local overrides, or Sheet names.
 
-## Existing Official write boundary
+## Official write boundary
 
-`publish_content` writes only these existing targets:
+The `publish_content` action writes only:
 
 - `flow` → `Saving_Flow`
 - `page_content` → `Saving_Page_Content`
@@ -18,18 +18,48 @@ adds that boundary without changing Saving product or calculation behavior.
 - `withdrawal_strategies` → `Saving_Withdrawal_Strategies`
 - `customer_view` → `Saving_Customer_View`
 
-Return tables remain read-only: `自動滾存`, `8年領取`, `15年領取`, `20年領取`,
-`25年領取`, and `30年領取` are never publish targets. `Saving_System` is
-protected; only the server-controlled `last_updated` update is performed after
-a successful publish.
+The return tables (`自動滾存`, `8年領取`, `15年領取`, `20年領取`,
+`25年領取`, `30年領取`) and `Saving_System` remain protected from
+frontend publication. The server may update only its controlled
+`last_updated` value after a verified publish.
 
 ## Authentication boundary
 
-The Admin entry requires the one-time `avaAdminLaunch` query value. Saving GAS
-exchanges it server-to-server with AVA Platform using canonical App ID `5pay`,
-then keeps the returned App Grant only in the Admin page's memory. Every
-`publish_content` request calls Platform `verifyAppGrant` with `5pay` and
-`official-write` before validation or any Sheet mutation.
+The Admin entry requires a one-time `avaAdminLaunch` plus a
+browser-bound `ava-admin-session-v1` proof from AVA Studio. Saving GAS
+exchanges the proof through the Platform using App ID `5pay`, and verifies
+the returned Admin session again for the operation
+`5pay:official-write:<domain>`. The proof remains in memory only.
 
-No Saving password, email allowlist, Platform session token, persistent Admin
-credential, User override mutation, or frontend-only authorization is used.
+No Saving password, email allowlist, persistent Admin credential, User
+override mutation, or frontend-only authorization is used. Saving does not
+introduce the Medical Legacy App Grant exception.
+
+## Read and revision contract
+
+The read endpoints expose the existing Saving version fields plus a
+canonical 64-character SHA-256 `revision`. Bootstrap, `version`, and
+`checkVersion` use the same server-side revision source that is checked
+before a write. The browser never generates a revision.
+
+## Write confirmation contract
+
+A successful `publish_content` response must include:
+
+- the exact operation and published domain list;
+- a complete server-read Official snapshot for the submitted domains;
+- the canonical post-write revision;
+- `persisted: true`;
+- `read_after_write: true`.
+
+The frontend compares every submitted domain snapshot with the returned
+server snapshot. It does not treat HTTP 200 or `success:true` alone as
+persistence evidence. If evidence is incomplete or mismatched, it keeps
+the Admin draft visible and does not present a success state.
+
+## Verification boundary
+
+Source and mock contract tests are included in the repository. Production
+GAS deployment, Google Sheets identity, and authenticated reversible write
+E2E remain separate release gates. This PR does not deploy GAS, modify
+Script Properties or Sheets, or perform a production Official Write.
