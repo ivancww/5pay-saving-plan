@@ -141,6 +141,17 @@ function validateRows_(domain, rows) {
   });
 }
 
+function identityField_(domain) {
+  return ({
+    flow: 'page_id',
+    page_content: 'content_id',
+    routing: 'route_id',
+    current_methods: 'method_key',
+    withdrawal_strategies: 'strategy_code',
+    customer_view: 'block_id'
+  })[domain] || '';
+}
+
 function validatePublishTargets_(validated) {
   validated.forEach(item => {
     const sheet = sheet_(SHEETS[item.domain]), lastColumn = sheet.getLastColumn();
@@ -230,15 +241,3 @@ function getExpectedVersion_() { return officialRevision_(); }
 function getVersionInfo_() { const system = getSystemData_(); return { module_name: system.module_name || 'Saving', module_version: versionValue_(system.module_version), schema_version: versionValue_(system.schema_version), data_version: versionValue_(system.data_version), last_updated: versionValue_(system.last_updated), revision: officialRevision_() }; }
 function readBootstrap_() { const snapshot = readOfficialSnapshot_(); return { ...snapshot, revision: officialRevision_() }; }
 function updateLastUpdated_() { const sheet = sheet_(SHEETS.system), values = sheet.getDataRange().getValues(), headers = values.shift().map(String), keyIndex = headers.indexOf('key'), valueIndex = headers.indexOf('value'); if (keyIndex < 0 || valueIndex < 0) fail_('Saving_System schema is protected or invalid'); const rowIndex = values.findIndex(row => String(row[keyIndex]) === 'last_updated'); if (rowIndex < 0) fail_('Saving_System last_updated row is required'); sheet.getRange(rowIndex + 2, valueIndex + 1).setValue(new Date()); }
-
-
-function identityField_(domain) {
-  return ({
-    flow: 'page_id',
-    page_content: 'content_id',
-    routing: 'route_id',
-    current_methods: 'method_key',
-    withdrawal_strategies: 'strategy_code',
-    customer_view: 'block_id'
-  })[domain] || '';
-}
