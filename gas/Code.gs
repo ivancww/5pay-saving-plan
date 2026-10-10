@@ -94,7 +94,7 @@ function publishContentRequest_(body) {
     validated.forEach(item => snapshots.push(snapshotSheet_(SHEETS[item.domain])));
     const systemSnapshot = snapshotSheet_(SHEETS.system); snapshots.push(systemSnapshot);
     validated.forEach(item => writeObjectsToSheet_(item.domain, item.rows));
-    updateLastUpdated_();
+    const metadataUpdate = updateLastUpdated_();
     validateReadAfterWrite_(validated);
     CacheService.getScriptCache().remove(BOOTSTRAP_CACHE_KEY);
     const revision = officialRevision_();
@@ -109,7 +109,8 @@ function publishContentRequest_(body) {
       persisted: true,
       read_after_write: true,
       data_version: getDataVersion_(),
-      last_updated: new Date().toISOString()
+      last_updated: metadataUpdate.value,
+      server_metadata: { last_updated_persisted: metadataUpdate.persisted }
     };
   } catch (error) {
     snapshots.reverse().forEach(snapshot => { try { restoreSnapshot_(snapshot); } catch (_) {} });
@@ -159,8 +160,6 @@ function validatePublishTargets_(validated) {
     headers.forEach(header => { if (!allowed.includes(header)) fail_('Unexpected ' + item.domain + ' Sheet header: ' + header); });
     if (headers.length !== allowed.length || item.rows.length + 1 > sheet.getMaxRows()) fail_('Invalid ' + item.domain + ' Sheet capacity or schema');
   });
-  const system = sheet_(SHEETS.system), values = system.getDataRange().getValues(), headers = values.shift().map(String), keyIndex = headers.indexOf('key'), valueIndex = headers.indexOf('value');
-  if (keyIndex < 0 || valueIndex < 0 || !values.some(row => String(row[keyIndex]) === 'last_updated')) fail_('Saving_System last_updated schema is protected or invalid');
 }
 
 function validateDomainRow_(domain, row, index) {
@@ -232,7 +231,16 @@ function readReturnSheet_(sheetName) {
 }
 function getReturnSheetFromStrategy_(strategy) { const strategyCode = String(strategy || ''), mapping = rows_(SHEETS.withdrawal_strategies).find(row => String(row.strategy_code) === strategyCode); if (!mapping || !RETURN_SHEETS.includes(String(mapping.sheet_name))) fail_('Unknown Saving withdrawal strategy'); return String(mapping.sheet_name); }
 function readReturnTables_() { return Object.fromEntries(RETURN_SHEETS.map(name => [name, readReturnSheet_(name)])); }
-function getSystemData_() { return Object.fromEntries(rows_(SHEETS.system).map(row => [String(row.key), row.value])); }
+function systemMetadata_() {
+  const sheet = sheet_(SHEETS.system), values = sheet.getDataRange().getValues();
+  if (!values.length) return { valid: false, data: {}, keyIndex: -1, valueIndex: -1, lastUpdatedRow: -1 };
+  const headers = values.shift().map(String), keyIndex = headers.indexOf('key'), valueIndex = headers.indexOf('value');
+  if (keyIndex < 0 || valueIndex < 0) return { valid: false, data: {}, keyIndex, valueIndex, lastUpdatedRow: -1 };
+  const data = {}, lastUpdatedRow = values.findIndex(row => String(row[keyIndex]).trim() === 'last_updated');
+  values.forEach(row => { const key = String(row[keyIndex] || '').trim(); if (key) data[key] = row[valueIndex]; });
+  return { valid: true, data, keyIndex, valueIndex, lastUpdatedRow };
+}
+function getSystemData_() { return systemMetadata_().data; }
 function versionValue_(value) { return value instanceof Date ? value.toISOString() : String(value || ''); }
 function getDataVersion_() { const system = getSystemData_(); return versionValue_(system.data_version || system.module_version || system.schema_version || system.last_updated); }
 function readOfficialSnapshot_() { const content = readContent_(); return { system: getSystemData_(), flow: content.flow, page_content: content.page_content, routing: content.routing, current_methods: content.current_methods, withdrawal_strategies: content.withdrawal_strategies, customer_view: content.customer_view, return_tables: readReturnTables_() }; }
@@ -240,4 +248,10 @@ function officialRevision_() { const canonical = JSON.stringify(readOfficialSnap
 function getExpectedVersion_() { return officialRevision_(); }
 function getVersionInfo_() { const system = getSystemData_(); return { module_name: system.module_name || 'Saving', module_version: versionValue_(system.module_version), schema_version: versionValue_(system.schema_version), data_version: versionValue_(system.data_version), last_updated: versionValue_(system.last_updated), revision: officialRevision_() }; }
 function readBootstrap_() { const snapshot = readOfficialSnapshot_(); return { ...snapshot, revision: officialRevision_() }; }
-function updateLastUpdated_() { const sheet = sheet_(SHEETS.system), values = sheet.getDataRange().getValues(), headers = values.shift().map(String), keyIndex = headers.indexOf('key'), valueIndex = headers.indexOf('value'); if (keyIndex < 0 || valueIndex < 0) fail_('Saving_System schema is protected or invalid'); const rowIndex = values.findIndex(row => String(row[keyIndex]) === 'last_updated'); if (rowIndex < 0) fail_('Saving_System last_updated row is required'); sheet.getRange(rowIndex + 2, valueIndex + 1).setValue(new Date()); }
+function updateLastUpdated_() {
+  const metadata = systemMetadata_();
+  if (!metadata.valid || metadata.lastUpdatedRow < 0) return { persisted: false, value: '' };
+  const sheet = sheet_(SHEETS.system), value = new Date();
+  sheet.getRange(metadata.lastUpdatedRow + 2, metadata.valueIndex + 1).setValue(value);
+  return { persisted: true, value: value.toISOString() };
+}

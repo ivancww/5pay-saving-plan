@@ -20,8 +20,12 @@ The `publish_content` action writes only:
 
 The return tables (`自動滾存`, `8年領取`, `15年領取`, `20年領取`,
 `25年領取`, `30年領取`) and `Saving_System` remain protected from
-frontend publication. The server may update only its controlled
-`last_updated` value after a verified publish.
+frontend publication. If the bound workbook contains a valid protected
+`Saving_System` `key`/`value` metadata table, the server may update only
+its controlled `last_updated` value after a verified publish. If that
+metadata table is absent or has another protected schema, it is treated
+as read-only and left unchanged; it cannot block or receive the six
+domain configuration write.
 
 ## Authentication boundary
 
