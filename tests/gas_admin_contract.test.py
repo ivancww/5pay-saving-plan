@@ -9,7 +9,7 @@ for action in ['bootstrap', 'content', 'returns', 'return', 'version']:
     assert f"action === '{action}'" in gas
 assert "body.action === 'exchangeAdminSession'" in gas
 assert "body.action === 'publish_content'" in gas
-assert "adminSessionProof" in gas and "JSON.stringify({ action: 'publish_content', adminSessionProof, appId: APP_ID, operation: '5pay:official-write:configuration', expectedVersion, data })" in admin
+assert "adminSessionProof" in gas and "JSON.stringify({ action: 'publish_content', adminSessionProof, appId: APP_ID, operation, expectedVersion: expectedRevision, data })" in admin
 assert "verifyAdminSession_(body.adminSessionProof" in gas
 assert gas.index('const validated = validatePublish_(body.data);') < gas.index('validated.forEach(item => verifyAdminSession_(body.adminSessionProof') < gas.index('validated.forEach(item => snapshots.push')
 assert gas.index('validatePublishTargets_(validated);') < gas.index('validated.forEach(item => writeObjectsToSheet_')
