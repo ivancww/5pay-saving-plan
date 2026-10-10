@@ -1,36 +1,28 @@
-name: Deploy AVA Saving to GitHub Pages
+name: Saving contract tests
 
 on:
-  push:
+  pull_request:
     branches:
       - main
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: github-pages
-  cancel-in-progress: true
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Validate Admin launch and deployment contracts
+      - name: JavaScript syntax and confirmation tests
         run: |
           node --input-type=module --check < src/admin.js
           node --input-type=module --check < src/data.js
           node --input-type=module --check < src/main.js
           node --test tests/official_write_confirmation.test.js
+      - name: Saving contract tests
+        run: |
           python3 tests/admin_security_contract.test.py
           python3 tests/gas_admin_contract.test.py
           python3 tests/gas_read_contract.test.py
@@ -40,19 +32,3 @@ jobs:
           python3 tests/static_checks.py
           python3 tests/portable_media.test.py
           python3 tests/version_consistency.test.py
-
-      - name: Configure GitHub Pages
-        uses: actions/configure-pages@v5
-
-      - name: Stamp deployment identity
-        run: |
-          sed -i "s/__AVA_DEPLOYMENT_ID__/${GITHUB_SHA}/g" sw.js src/build.js
-
-      - name: Upload static site
-        uses: actions/upload-pages-artifact@v4
-        with:
-          path: .
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4

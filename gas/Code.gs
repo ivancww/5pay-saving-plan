@@ -38,7 +38,7 @@ function doGet(e) {
     if (action === 'content') return json_({ ok: true, data: readContent_() });
     if (action === 'returns') return json_({ ok: true, data: readReturnTables_() });
     if (action === 'return') return json_({ ok: true, data: readReturnSheet_(getReturnSheetFromStrategy_(e.parameter.strategy)) });
-    if (action === 'version') return json_({ ok: true, data: getVersionInfo_() });
+    if (action === 'version' || action === 'checkVersion') return json_({ ok: true, data: getVersionInfo_(), revision: officialRevision_() });
     return json_({ ok: false, error: 'Unsupported action' });
   } catch (error) { return json_({ ok: false, error: error.message }); }
 }
@@ -97,7 +97,20 @@ function publishContentRequest_(body) {
     updateLastUpdated_();
     validateReadAfterWrite_(validated);
     CacheService.getScriptCache().remove(BOOTSTRAP_CACHE_KEY);
-    return { success: true, ok: true, appId: APP_ID, published: validated.map(item => item.domain), data_version: getExpectedVersion_(), last_updated: new Date().toISOString() };
+    const revision = officialRevision_();
+    return {
+      success: true,
+      ok: true,
+      appId: APP_ID,
+      operation: APP_ID + ':official-write:configuration',
+      published: validated.map(item => item.domain),
+      data: readOfficialSnapshot_(),
+      revision,
+      persisted: true,
+      read_after_write: true,
+      data_version: getDataVersion_(),
+      last_updated: new Date().toISOString()
+    };
   } catch (error) {
     snapshots.reverse().forEach(snapshot => { try { restoreSnapshot_(snapshot); } catch (_) {} });
     throw error;
@@ -170,6 +183,7 @@ function validateReadAfterWrite_(validated) {
     const expected = item.rows.map(row => Object.fromEntries(SCHEMAS[item.domain].map(key => [key, row[key]])));
     if (JSON.stringify(actual.map(row => Object.fromEntries(SCHEMAS[item.domain].map(key => [key, row[key]])))) !== JSON.stringify(expected)) fail_('Read-after-write verification failed for ' + item.domain);
   });
+  return true;
 }
 
 function snapshotSheet_(name) {
@@ -209,7 +223,10 @@ function getReturnSheetFromStrategy_(strategy) { const strategyCode = String(str
 function readReturnTables_() { return Object.fromEntries(RETURN_SHEETS.map(name => [name, readReturnSheet_(name)])); }
 function getSystemData_() { return Object.fromEntries(rows_(SHEETS.system).map(row => [String(row.key), row.value])); }
 function versionValue_(value) { return value instanceof Date ? value.toISOString() : String(value || ''); }
-function getExpectedVersion_() { const system = getSystemData_(); return versionValue_(system.data_version || system.module_version || system.schema_version || system.last_updated); }
-function getVersionInfo_() { const system = getSystemData_(); return { module_name: system.module_name || 'Saving', module_version: versionValue_(system.module_version), schema_version: versionValue_(system.schema_version), data_version: versionValue_(system.data_version), last_updated: versionValue_(system.last_updated) }; }
-function readBootstrap_() { const content = readContent_(); return { system: getSystemData_(), flow: content.flow, page_content: content.page_content, routing: content.routing, current_methods: content.current_methods, withdrawal_strategies: content.withdrawal_strategies, customer_view: content.customer_view, return_tables: readReturnTables_() }; }
+function getDataVersion_() { const system = getSystemData_(); return versionValue_(system.data_version || system.module_version || system.schema_version || system.last_updated); }
+function readOfficialSnapshot_() { const content = readContent_(); return { system: getSystemData_(), flow: content.flow, page_content: content.page_content, routing: content.routing, current_methods: content.current_methods, withdrawal_strategies: content.withdrawal_strategies, customer_view: content.customer_view, return_tables: readReturnTables_() }; }
+function officialRevision_() { const canonical = JSON.stringify(readOfficialSnapshot_()); return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, canonical).map(byte => (byte + 256).toString(16).slice(-2)).join(''); }
+function getExpectedVersion_() { return officialRevision_(); }
+function getVersionInfo_() { const system = getSystemData_(); return { module_name: system.module_name || 'Saving', module_version: versionValue_(system.module_version), schema_version: versionValue_(system.schema_version), data_version: versionValue_(system.data_version), last_updated: versionValue_(system.last_updated), revision: officialRevision_() }; }
+function readBootstrap_() { const snapshot = readOfficialSnapshot_(); return { ...snapshot, revision: officialRevision_() }; }
 function updateLastUpdated_() { const sheet = sheet_(SHEETS.system), values = sheet.getDataRange().getValues(), headers = values.shift().map(String), keyIndex = headers.indexOf('key'), valueIndex = headers.indexOf('value'); if (keyIndex < 0 || valueIndex < 0) fail_('Saving_System schema is protected or invalid'); const rowIndex = values.findIndex(row => String(row[keyIndex]) === 'last_updated'); if (rowIndex < 0) fail_('Saving_System last_updated row is required'); sheet.getRange(rowIndex + 2, valueIndex + 1).setValue(new Date()); }

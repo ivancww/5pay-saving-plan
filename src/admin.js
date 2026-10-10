@@ -52,17 +52,23 @@ export async function exchangeAdminLaunch({ launchTicket, launchNonce }, fetchIm
   return { adminSessionProof: String(payload.adminSessionProof), expiresAt: payload.expiresAt };
 }
 
-export async function publishOfficial(adminSessionProof, data, expectedVersion, fetchImpl = globalThis.fetch) {
+export async function publishOfficial(adminSessionProof, data, expectedRevision, fetchImpl = globalThis.fetch) {
   if (!adminSessionProof) throw new Error('Admin session proof 不存在。');
-  if (!expectedVersion) throw new Error('Official data version 不存在，拒絕發佈。');
+  if (!expectedRevision) throw new Error('Official revision 不存在，拒絕發佈。');
   const domains = Object.keys(data || {});
   if (!domains.length || domains.some(domain => !ADMIN_DOMAINS.includes(domain))) throw new Error('只可以發佈 Saving Official 設定。');
-  const response = await fetchImpl(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'publish_content', adminSessionProof, appId: APP_ID, operation: '5pay:official-write:configuration', expectedVersion, data }) });
+  const operation = '5pay:official-write:configuration';
+  const response = await fetchImpl(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'publish_content', adminSessionProof, appId: APP_ID, operation, expectedVersion: expectedRevision, data }) });
   const payload = await response.json();
-  if (!response.ok || payload.success !== true) throw new Error(payload.error || 'Official 發佈失敗。');
+  const revision = String(payload?.revision || '');
+  const published = Array.isArray(payload?.published) ? [...payload.published].sort() : [];
+  const expectedDomains = [...domains].sort();
+  if (!response.ok || payload.success !== true || payload.ok !== true || payload.appId !== APP_ID || payload.operation !== operation || JSON.stringify(published) !== JSON.stringify(expectedDomains) || payload.persisted !== true || payload.read_after_write !== true || !/^[0-9a-f]{64}$/i.test(revision) || !payload.data || typeof payload.data !== 'object') throw new Error(payload.error || 'Official 發佈確認證據不完整。');
+  for (const domain of domains) {
+    if (!Array.isArray(payload.data[domain]) || JSON.stringify(payload.data[domain]) !== JSON.stringify(data[domain])) throw new Error(`Official 發佈確認不一致：${domain}。`);
+  }
   return payload;
 }
-
 const labels = { flow: 'Saving_Flow · P1–P7', page_content: 'Saving_Page_Content · 對話內容', routing: 'Saving_Routing · 導向映射', current_methods: 'Saving_Current_Methods · 現有方法', withdrawal_strategies: 'Saving_Withdrawal_Strategies · 使用策略', customer_view: 'Saving_Customer_View · 客戶頁' };
 
 export function renderAdmin(app, official, state = {}) {
