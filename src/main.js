@@ -5,7 +5,7 @@ import { render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
 import { downloadPortableBackup, validatePortableBackup } from './portable.js';
 import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
-import { exchangeAdminLaunch, publishOfficial, readAdminPayload, renderAdmin, resetAdminTab, switchAdminTab } from './admin.js';
+import { exchangeAdminLaunch, handleAdminTabKeydown, publishOfficial, readAdminPayload, renderAdmin, resetAdminTab, switchAdminRecord, switchAdminTab } from './admin.js';
 import { APP_VERSION, BUILD_ID } from './build.js';
 import { currentPath } from './calculation.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS, investmentPath, scenarioRoute, toggleChoice } from './scenario-flow.js';
@@ -168,6 +168,7 @@ app.addEventListener('click', event => {
   const control = event.target.closest('[data-action]'); if (!control) return;
   const action = control.dataset.action;
   if (entryMode === ENTRY_MODES.admin && action === 'admin-tab') { switchAdminTab(app, control.dataset.domain); return; }
+  if (entryMode === ENTRY_MODES.admin && action === 'admin-record') { switchAdminRecord(app, control.dataset.domain, control.value); return; }
   if (entryMode === ENTRY_MODES.admin && action === 'admin-reset') { resetAdminTab(app); return; }
   if (action === 'select-scenario') {
     const choice = control.dataset.value;
@@ -267,6 +268,16 @@ app.addEventListener('click', event => {
   if (action === 'restore-defaults') { overrides = {}; saveOverrides(overrides); state.mode = 'use'; state.pageId = 'START'; state.history = []; }
   // A start selection already resets the dependent policy year, even on reselect.
   draw(null, action === 'select-withdrawal-start' ? [Number(control.dataset.phaseId || 1) === 1 ? 'withdrawal-explore-rail' : `withdrawal-explore-rail-${control.dataset.phaseId}`] : []);
+});
+
+app.addEventListener('change', event => {
+  if (entryMode === ENTRY_MODES.admin && event.target.matches('[data-admin-record-select]')) {
+    switchAdminRecord(app, event.target.dataset.adminRecordSelect, event.target.value);
+  }
+});
+
+app.addEventListener('keydown', event => {
+  if (entryMode === ENTRY_MODES.admin) handleAdminTabKeydown(app, event);
 });
 
 app.addEventListener('change', event => {

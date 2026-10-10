@@ -153,17 +153,22 @@ function renderField(domain, row, index, definition, rows) {
   return `<label class="admin-field" for="${id}"><span>${label}${stableNote}</span><input class="ava-input" ${common} type="${type === 'number' ? 'number' : 'text'}" value="${escapeHtml(value)}" ${key === 'withdraw_rate' ? 'step="0.0001" min="0" max="1"' : ''} ${stable ? 'readonly' : ''}></label>`;
 }
 
-function renderRecord(domain, row, index, rows) {
+function renderRecord(domain, row, index, rows, activeIndex = 0) {
   const definitions = ADMIN_FIELD_DEFINITIONS[domain];
   const known = new Set(definitions.map(([key]) => key));
   const unknown = Object.keys(row).filter(key => !known.has(key));
   const extra = unknown.length ? `<details class="admin-extra"><summary>其他欄位已保留（${unknown.length} 項）</summary><p class="quiet-note">${escapeHtml(unknown.join('、'))} 不在此編輯器修改；儲存時會原樣保留。</p></details>` : '';
-  return `<article class="admin-record" data-admin-row data-admin-domain="${domain}" data-row-json="${escapeHtml(JSON.stringify(row))}"><div class="admin-record-heading"><div><span class="eyebrow">${escapeHtml(identityKey(domain, row))}</span><h3>${escapeHtml(ADMIN_DOMAIN_META[domain].label)} ${index + 1}</h3></div><span class="admin-record-index">第 ${index + 1} 筆</span></div><div class="admin-field-grid">${definitions.map(definition => renderField(domain, row, index, definition, rows)).join('')}</div>${extra}</article>`;
+  return `<article class="admin-record" data-admin-row data-admin-domain="${domain}" data-admin-record-index="${index}" ${index === activeIndex ? '' : 'hidden'} data-row-json="${escapeHtml(JSON.stringify(row))}"><div class="admin-record-heading"><div><span class="eyebrow">${escapeHtml(identityKey(domain, row))}</span><h3>${escapeHtml(ADMIN_DOMAIN_META[domain].label)} ${index + 1}</h3></div><span class="admin-record-index">第 ${index + 1} 筆</span></div><div class="admin-field-grid">${definitions.map(definition => renderField(domain, row, index, definition, rows)).join('')}</div>${extra}</article>`;
+}
+
+function renderRecordSelector(domain, rows) {
+  if (rows.length < 2) return '';
+  return `<div class="admin-record-tools"><label for="admin-record-select-${domain}"><span>選擇記錄</span><select class="ava-input" id="admin-record-select-${domain}" data-admin-record-select="${domain}">${rows.map((row, index) => `<option value="${index}">${escapeHtml(identityKey(domain, row))} · 第 ${index + 1} 筆</option>`).join('')}</select></label><span class="quiet-note">先選擇要編輯的官方記錄；其他記錄會暫時收起。</span></div>`;
 }
 
 function renderPanel(domain, rows, active) {
   const meta = ADMIN_DOMAIN_META[domain];
-  return `<section class="ava-card admin-domain" data-admin-panel="${domain}" ${active ? '' : 'hidden'}><div class="admin-domain-heading"><div><span class="eyebrow">${escapeHtml(meta.sheet)}</span><h2>${escapeHtml(meta.label)}</h2><p class="quiet-note">${escapeHtml(meta.description)}</p></div><span class="admin-count">${rows.length} 筆</span></div>${rows.length ? rows.map((row, index) => renderRecord(domain, row, index, rows)).join('') : '<p class="quiet-note">目前沒有可管理的官方資料。</p>'}</section>`;
+  return `<section class="ava-card admin-domain" data-admin-panel="${domain}" role="tabpanel" tabindex="-1" ${active ? '' : 'hidden'}><div class="admin-domain-heading"><div><span class="eyebrow">${escapeHtml(meta.sheet)}</span><h2>${escapeHtml(meta.label)}</h2><p class="quiet-note">${escapeHtml(meta.description)}</p></div><span class="admin-count">${rows.length} 筆</span></div>${rows.length ? `${renderRecordSelector(domain, rows)}${rows.map((row, index) => renderRecord(domain, row, index, rows)).join('')}` : '<p class="quiet-note">目前沒有可管理的官方資料。</p>'}</section>`;
 }
 
 export function renderAdmin(app, official, state = {}) {
@@ -171,9 +176,10 @@ export function renderAdmin(app, official, state = {}) {
   const values = valuesForDomain(official);
   const active = ADMIN_DOMAINS.includes(state.activeDomain) ? state.activeDomain : 'flow';
   app.__adminOriginal = clone(values);
+  app.__adminSelectedRecord = Object.fromEntries(ADMIN_DOMAINS.map(domain => [domain, 0]));
   app.dataset.adminActive = active;
   app.dataset.adminDirty = 'false';
-  app.innerHTML = `<div class="front-wrap admin-surface"><div class="front-topline"><span>AVA Studio · Saving Admin</span><span>Official Layer only</span></div><section class="ava-card admin-intro"><h1 class="ava-page-title">Saving 官方設定</h1><p class="ava-support">以結構化表格管理現有 Saving 官方資料。回報表、計算公式、User/local overrides 及安全設定不可在此修改。</p><p class="ava-status ava-status--warning">儲存前會由 Saving GAS server-side 驗證 Platform App Grant、App ID、欄位及版本；前端狀態不是授權。</p></section><nav class="admin-tabs" aria-label="Saving 官方資料分區" role="tablist">${ADMIN_DOMAINS.map(domain => `<button class="admin-tab ${domain === active ? 'is-active' : ''}" data-action="admin-tab" data-domain="${domain}" role="tab" aria-selected="${domain === active}" aria-controls="admin-panel-${domain}" type="button"><span>${escapeHtml(ADMIN_DOMAIN_META[domain].label)}</span><small>${values[domain].length} 筆</small></button>`).join('')}</nav><div class="admin-panels">${ADMIN_DOMAINS.map(domain => renderPanel(domain, values[domain], domain === active).replace(`data-admin-panel="${domain}"`, `id="admin-panel-${domain}" data-admin-panel="${domain}"`)).join('')}</div><div class="actions admin-actions"><button class="ava-button ava-button--primary" data-action="publish-admin" type="button">驗證並儲存官方資料</button><button class="ava-button ava-button--secondary" data-action="admin-reset" type="button">放棄本頁修改</button><span class="quiet-note" id="admin-publish-status" role="status">${state.message ? escapeHtml(state.message) : '可切換分區；未確認的修改不會自動儲存。'}</span></div></div>`;
+  app.innerHTML = `<div class="front-wrap admin-surface"><div class="front-topline"><span>AVA Studio · Saving Admin</span><span>Official Layer only</span></div><nav class="admin-tabs" aria-label="Saving 官方資料分區" role="tablist">${ADMIN_DOMAINS.map(domain => `<button id="admin-tab-${domain}" class="admin-tab ${domain === active ? 'is-active' : ''}" data-action="admin-tab" data-domain="${domain}" role="tab" aria-selected="${domain === active}" aria-controls="admin-panel-${domain}" tabindex="${domain === active ? '0' : '-1'}" type="button"><span>${escapeHtml(ADMIN_DOMAIN_META[domain].label)}</span><small>${values[domain].length} 筆</small></button>`).join('')}</nav><div class="admin-panels">${ADMIN_DOMAINS.map(domain => renderPanel(domain, values[domain], domain === active).replace(`data-admin-panel="${domain}"`, `id="admin-panel-${domain}" aria-labelledby="admin-tab-${domain}" data-admin-panel="${domain}"`)).join('')}</div><div class="actions admin-actions"><button class="ava-button ava-button--primary" data-action="publish-admin" type="button">驗證並儲存官方資料</button><button class="ava-button ava-button--secondary" data-action="admin-reset" type="button">放棄本頁修改</button><span class="quiet-note" id="admin-publish-status" role="status">${state.message ? escapeHtml(state.message) : '可切換分區；未確認的修改不會自動儲存。'}</span></div><details class="admin-system-info"><summary>系統資訊</summary><div class="admin-system-grid"><p><strong>官方資料版本</strong><span>${escapeHtml(official?.version?.data_version || official?.data_version || '未提供')}</span></p><p><strong>Canonical Revision</strong><span>${escapeHtml(official?.revision || official?.version?.revision || '未提供')}</span></p><p><strong>同步狀態</strong><span>已完成只讀 Official Data 載入；Official Write 仍須通過完整授權及保存確認。</span></p><p><strong>安全說明</strong><span>Saving GAS 會再次驗證 AVA Admin session、App ID、欄位、revision 及 read-after-write；前端狀態不是授權。</span></p></div></details></div>`;
 }
 
 function readField(field) {
@@ -205,11 +211,59 @@ function adminIsDirty(app) {
 export function switchAdminTab(app, domain) {
   if (!ADMIN_DOMAINS.includes(domain) || app.dataset.adminActive === domain) return true;
   if (adminIsDirty(app) && !globalThis.window?.confirm?.('目前分區有未儲存修改。確定放棄這些修改並切換？')) return false;
+  if (adminIsDirty(app)) resetAdminTab(app);
   app.querySelectorAll('[data-admin-panel]').forEach(panel => { panel.hidden = panel.dataset.adminPanel !== domain; });
-  app.querySelectorAll('[data-action="admin-tab"]').forEach(tab => { const active = tab.dataset.domain === domain; tab.classList.toggle('is-active', active); tab.setAttribute('aria-selected', String(active)); });
+  app.querySelectorAll('[data-action="admin-tab"]').forEach(tab => { const active = tab.dataset.domain === domain; tab.classList.toggle('is-active', active); tab.setAttribute('aria-selected', String(active)); tab.tabIndex = active ? 0 : -1; });
   app.dataset.adminActive = domain;
   app.dataset.adminDirty = 'false';
+  syncAdminRecordVisibility(app, domain);
+  const panel = app.querySelector(`[data-admin-panel="${domain}"]`);
+  const activeTab = app.querySelector(`[data-action="admin-tab"][data-domain="${domain}"]`);
+  panel?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
+  activeTab?.focus?.({ preventScroll: true });
   return true;
+}
+
+export function switchAdminRecord(app, domain, index) {
+  if (app.dataset.adminActive !== domain) return false;
+  const panel = app.querySelector(`[data-admin-panel="${domain}"]`);
+  const records = [...(panel?.querySelectorAll('[data-admin-row]') || [])];
+  const nextIndex = Number(index);
+  if (!Number.isInteger(nextIndex) || nextIndex < 0 || nextIndex >= records.length) return false;
+  if (Number(app.__adminSelectedRecord?.[domain] || 0) === nextIndex) return true;
+  if (adminIsDirty(app) && !globalThis.window?.confirm?.('目前記錄有未儲存修改。確定放棄這些修改並切換？')) return false;
+  if (adminIsDirty(app)) resetAdminTab(app);
+  app.__adminSelectedRecord[domain] = nextIndex;
+  syncAdminRecordVisibility(app, domain);
+  app.dataset.adminDirty = 'false';
+  const record = records[nextIndex];
+  record?.scrollIntoView?.({ block: 'start', behavior: 'auto' });
+  return true;
+}
+
+function syncAdminRecordVisibility(app, domain) {
+  const panel = app.querySelector(`[data-admin-panel="${domain}"]`);
+  if (!panel) return;
+  const records = [...panel.querySelectorAll('[data-admin-row]')];
+  const selected = Number(app.__adminSelectedRecord?.[domain] || 0);
+  records.forEach((record, index) => { record.hidden = index !== selected; });
+  const selector = panel.querySelector('[data-admin-record-select]');
+  if (selector) selector.value = String(selected);
+}
+
+export function handleAdminTabKeydown(app, event) {
+  const current = event.target.closest?.('[data-action="admin-tab"]');
+  if (!current) return false;
+  const tabs = [...app.querySelectorAll('[data-action="admin-tab"]')];
+  const index = tabs.indexOf(current);
+  let nextIndex = index;
+  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') nextIndex = (index + 1) % tabs.length;
+  else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') nextIndex = (index - 1 + tabs.length) % tabs.length;
+  else if (event.key === 'Home') nextIndex = 0;
+  else if (event.key === 'End') nextIndex = tabs.length - 1;
+  else return false;
+  event.preventDefault();
+  return switchAdminTab(app, tabs[nextIndex].dataset.domain);
 }
 
 export function resetAdminTab(app) {
