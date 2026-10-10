@@ -5,7 +5,7 @@ import { render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
 import { downloadPortableBackup, validatePortableBackup } from './portable.js';
 import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
-import { exchangeAdminLaunch, publishOfficial, readAdminPayload, renderAdmin } from './admin.js';
+import { exchangeAdminLaunch, publishOfficial, readAdminPayload, renderAdmin, resetAdminTab, switchAdminTab } from './admin.js';
 import { APP_VERSION, BUILD_ID } from './build.js';
 import { currentPath } from './calculation.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS, investmentPath, scenarioRoute, toggleChoice } from './scenario-flow.js';
@@ -154,6 +154,10 @@ async function restoreBackup(file) {
 
 app.addEventListener('input', event => {
   const target = event.target;
+  if (entryMode === ENTRY_MODES.admin) {
+    if (target.matches('[data-admin-field]')) app.dataset.adminDirty = 'true';
+    return;
+  }
   const liveField = target.matches('[data-field], [data-assumption]');
   const p3Editing = state.pageId === 'P3' && liveField;
   updateField(target);
@@ -163,6 +167,8 @@ app.addEventListener('input', event => {
 app.addEventListener('click', event => {
   const control = event.target.closest('[data-action]'); if (!control) return;
   const action = control.dataset.action;
+  if (entryMode === ENTRY_MODES.admin && action === 'admin-tab') { switchAdminTab(app, control.dataset.domain); return; }
+  if (entryMode === ENTRY_MODES.admin && action === 'admin-reset') { resetAdminTab(app); return; }
   if (action === 'select-scenario') {
     const choice = control.dataset.value;
     const destination = scenarioRoute(official, choice);
@@ -265,6 +271,7 @@ app.addEventListener('click', event => {
 
 app.addEventListener('change', event => {
   if (event.target.matches('#restore-backup') && event.target.files?.[0]) restoreBackup(event.target.files[0]);
+  if (entryMode === ENTRY_MODES.admin && event.target.matches('[data-admin-field]')) app.dataset.adminDirty = 'true';
 });
 
 document.querySelector('#customer-view-button').addEventListener('click', () => { state.customerView = true; draw(); });

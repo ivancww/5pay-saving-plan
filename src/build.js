@@ -2,4 +2,4 @@
 export const BUILD_ID = '__AVA_DEPLOYMENT_ID__';
 
 // Human-facing Official App version. Bump this on every released update.
-export const APP_VERSION = 'V1.6';
+export const APP_VERSION = 'V1.7';
