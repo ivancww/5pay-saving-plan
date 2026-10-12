@@ -40,7 +40,7 @@ test('bonds use simple coupon accumulation and stop at maturity', () => {
   approx(calculateBondValue({ principal: 300000, termYears: 5, annualRate: 0.04, selectedYear: 3 }), 336000);
   approx(calculateBondValue({ principal: 300000, termYears: 5, annualRate: 0.04, selectedYear: 5 }), 360000);
   approx(calculateBondValue({ principal: 300000, termYears: 5, annualRate: 0.04, selectedYear: 10 }), 360000);
-  const total = currentPath({ method: 'bond', amount: 100000, projectionYears: 10, assumptions: { bonds: [{ id: 'one', principal: 200000, termYears: 2, annualRate: 3 }, { id: 'two', principal: 300000, termYears: 5, annualRate: 4 }] });
+  const total = currentPath({ method: 'bond', amount: 100000, projectionYears: 10, assumptions: { bonds: [{ id: 'one', principal: 200000, termYears: 2, annualRate: 3 }, { id: 'two', principal: 300000, termYears: 5, annualRate: 4 }] } });
   approx(total.value, 200000 * 1.06 + 300000 * 1.2);
 });
 
