@@ -103,3 +103,26 @@ html,body{overflow-x:hidden}@media(max-width:650px){.withdrawal-result{grid-temp
 
 /* Customer UI Standard alignment: app/version/journey identity and page control row. */
 .brand-identity{display:flex;align-items:baseline;gap:6px;min-width:0}.brand-identity .app-version{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}.journey-title{display:block;color:var(--muted);font-size:12px;font-weight:600;line-height:1.35}.return-ava__icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}.page-control-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;min-width:0}
+
+
+/* Scenario 1 P3/P4/P5 focused presentation */
+.assumption-group,.holding-editor{display:grid;gap:12px;margin-top:16px}
+.holding-card{display:grid;gap:10px;padding:14px;border:1px solid var(--border);border-radius:14px;background:#fbfdff}
+.holding-remove{justify-self:start}
+.current-method-breakdown{display:grid;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:14px}
+.current-method-breakdown>div{display:flex;justify-content:space-between;gap:12px}
+.current-method-breakdown small{color:var(--subtle)}
+.phase-flow{display:grid;gap:10px;margin-top:18px}
+.phase-step{display:grid;grid-template-columns:34px 1fr;align-items:center;gap:12px;min-height:54px}
+.phase-step-number{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:var(--selected);color:var(--primary);font-weight:800}
+.phase-step>div{display:grid;gap:5px}
+.phase-step strong{font-size:20px}
+.phase-step small{color:var(--subtle)}
+.phase-flow-arrow{text-align:center;color:var(--accent);font-size:20px;font-weight:800}
+.phase-amount-input{max-width:220px}
+.phase-amount-value{font-size:20px}
+@media (max-width:600px){
+  .comparison-intro{max-width:100%;line-height:1.55}
+  .phase-step{grid-template-columns:30px 1fr}
+  .phase-step-number{width:30px;height:30px}
+}
