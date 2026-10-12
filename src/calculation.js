@@ -51,29 +51,106 @@ export function supportedYears(official, strategyCode = 'none') {
   return (official?.return_tables?.[sheet] || []).map(row => Number(row.policy_year)).filter(Number.isFinite);
 }
 
-export function currentPath({ method, amount, assumptions = {}, years = CONTRIBUTION_YEARS, contributionYears = CONTRIBUTION_YEARS, projectionYears = years }) {
-  const value = Number(amount);
-  if (!Number.isFinite(value) || value <= 0) return { kind: 'unknown', label: '輸入同一筆錢後，可以睇得更具體。' };
-  const contributions = Math.max(0, Math.floor(Number(contributionYears)) || 0);
-  const projection = Math.max(0, Math.floor(Number(projectionYears)) || 0);
-  if (method === 'cash' || method === 'none') return { kind: 'known', value: value * Math.min(contributions, projection), label: '按每年安排金額累積，未加入利息假設。' };
+function decimalRate(rawRate) {
+  if (rawRate == null || rawRate === '') return null;
+  const value = Number(rawRate);
+  return Number.isFinite(value) ? value / 100 : null;
+}
+
+export function futureValueWithEndOfYearContributions({ annualContribution, annualRate = 0, projectionYears, contributionYears = CONTRIBUTION_YEARS }) {
+  const amount = Number(annualContribution);
+  const rate = Number(annualRate);
+  const years = Math.max(0, Math.floor(Number(projectionYears)) || 0);
+  const yearsWithContributions = Math.max(0, Math.floor(Number(contributionYears)) || 0);
+  if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(rate)) return 0;
+  let value = 0;
+  for (let year = 1; year <= years; year += 1) {
+    value *= 1 + rate;
+    if (year <= yearsWithContributions) value += amount;
+  }
+  return value;
+}
+
+export function calculateBankValue({ principal = 0, annualRate = null, selectedYear = 0 }) {
+  const amount = Number(principal);
+  const years = Math.max(0, Math.floor(Number(selectedYear)) || 0);
+  const rate = annualRate == null ? null : Number(annualRate);
+  if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(years)) return 0;
+  return rate == null ? amount : amount * (1 + rate) ** years;
+}
+
+export function calculateFixedDepositValue({ principal, termYears, annualRate, selectedYear }) {
+  const amount = Number(principal);
+  const term = Math.max(0, Number(termYears));
+  const years = Math.max(0, Number(selectedYear));
+  const rate = Number(annualRate);
+  if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(term) || !Number.isFinite(rate) || !Number.isFinite(years)) return 0;
+  return amount * (1 + rate) ** Math.min(years, term);
+}
+
+export function calculateBondValue({ principal, termYears, annualRate, selectedYear }) {
+  const amount = Number(principal);
+  const term = Math.max(0, Number(termYears));
+  const years = Math.max(0, Number(selectedYear));
+  const rate = Number(annualRate);
+  if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(term) || !Number.isFinite(rate) || !Number.isFinite(years)) return 0;
+  return amount * (1 + rate * Math.min(years, term));
+}
+
+function normalizedHoldings(items) {
+  return (Array.isArray(items) ? items : []).map((item, index) => ({
+    id: item?.id || `holding-${index + 1}`,
+    principal: Number(item?.principal),
+    termYears: Number(item?.termYears),
+    annualRate: decimalRate(item?.annualRate)
+  })).filter(item => Number.isFinite(item.principal) && item.principal >= 0 && Number.isFinite(item.termYears) && item.termYears >= 0 && item.annualRate != null);
+}
+
+export function calculateBankProjection({ existingDeposit = 0, cashRate = null, annualContribution = 0, projectionYears = 0 }) {
+  const rate = decimalRate(cashRate);
+  const existingDepositFutureValue = calculateBankValue({ principal: existingDeposit, annualRate: rate, selectedYear: projectionYears });
+  const futureAnnualValue = futureValueWithEndOfYearContributions({ annualContribution, annualRate: rate ?? 0, projectionYears });
+  return {
+    value: existingDepositFutureValue + futureAnnualValue,
+    existingDepositFutureValue, futureAnnualValue, rate,
+    rateKnown: rate != null,
+    label: rate == null ? '未加入利息假設；按現有本金及每年安排展示。' : '按你輸入的銀行年息計算。'
+  };
+}
+
+function legacyCurrentPath({ method, amount, assumptions, projectionYears, contributionYears }) {
   const rateKey = { investment: 'returnRate', fixed_deposit: 'currentRate', bond: 'maturityRate' }[method];
   if (rateKey) {
     const rawRate = assumptions[rateKey];
-    if (rawRate == null || rawRate === '') return { kind: 'unknown', label: '請輸入年回報／利率，先睇到較完整的預計數字。' };
-    const rate = Number(rawRate) / 100;
-    if (!Number.isFinite(rate) || rate < -1) return { kind: 'unknown', label: '呢個假設未能讀取，未作推算。' };
-    let projected = 0;
-    for (let year = 0; year < projection; year += 1) {
-      projected = (projected + (year < contributions ? value : 0)) * (1 + rate);
-    }
-    return { kind: 'assumption', value: projected, label: `按你輸入的 ${rawRate}% 假設計算。` };
+    const rate = decimalRate(rawRate);
+    if (rate == null) return { kind: 'unknown', label: '請輸入年回報／利率，先睇到較完整的預計數字。' };
+    return { kind: 'assumption', value: futureValueWithEndOfYearContributions({ annualContribution: amount, annualRate: rate, projectionYears, contributionYears }), label: `按你輸入的 ${rawRate}% 假設計算。` };
   }
   if (method === 'long_term' && !assumptions.existingValue) return { kind: 'unknown', label: '等客戶提供現有安排資料後再展示。' };
-  return { kind: 'assumption', value: Number(assumptions.existingValue || value), label: '按你提供的現有安排資料展示。' };
+  return { kind: 'assumption', value: Number(assumptions.existingValue || amount), label: '按你提供的現有安排資料展示。' };
 }
 
-// Independent copies of the same verified five-year arrangement, never new products.
+export function currentPath({ method, amount, assumptions = {}, years = CONTRIBUTION_YEARS, contributionYears = CONTRIBUTION_YEARS, projectionYears = years }) {
+  const value = Number(amount);
+  if (!Number.isFinite(value) || value <= 0) return { kind: 'unknown', label: '輸入同一筆錢後，可以睇得更具體。' };
+  const projection = Math.max(0, Math.floor(Number(projectionYears)) || 0);
+  if (method === 'cash' || method === 'none') {
+    const bank = calculateBankProjection({ existingDeposit: assumptions.existingDeposit || 0, cashRate: assumptions.cashRate, annualContribution: value, projectionYears: projection });
+    return { kind: 'known', value: bank.value, label: bank.label, method, breakdown: bank };
+  }
+  if (method === 'fixed_deposit' || method === 'bond') {
+    const key = method === 'fixed_deposit' ? 'fixedDeposits' : 'bonds';
+    const holdings = normalizedHoldings(assumptions[key]);
+    if (holdings.length) {
+      const details = holdings.map(item => ({ ...item, value: method === 'fixed_deposit' ? calculateFixedDepositValue({ ...item, selectedYear: projection }) : calculateBondValue({ ...item, selectedYear: projection }), matured: projection > item.termYears }));
+      const total = details.reduce((sum, item) => sum + item.value, 0);
+      return { kind: 'assumption', value: total, method, details, label: method === 'fixed_deposit' ? '按每筆現有定期本金、年期及年息計算。' : '按每筆現有債券本金、距離到期及年息計算。' };
+    }
+  }
+  return legacyCurrentPath({ method, amount: value, assumptions, projectionYears: projection, contributionYears });
+}
+
+// Independent copies// Independent copies of the same verified five-year arrangement, never new products.
 export const SAVING_PHASES = Object.freeze([
   Object.freeze({ id: 1, label: '第一期', offset: 0 }),
   Object.freeze({ id: 2, label: '第二期', offset: 5 }),
@@ -88,16 +165,19 @@ export function activeSavingPhases(session = {}) {
   const stored = Array.isArray(session.savingPhases) ? session.savingPhases : [];
   let count = 1;
   while (count < 3 && stored.some(phase => phase?.id === count + 1)) count++;
+  const fallback = Number(session.annualContribution);
   return SAVING_PHASES.slice(0, count).map(phase => {
     const saved = stored.find(item => item?.id === phase.id);
-    return { ...phase,
+    const rawAmount = saved && Object.prototype.hasOwnProperty.call(saved, 'annualContribution') ? saved.annualContribution : fallback;
+    const annualContribution = Number.isFinite(Number(rawAmount)) && Number(rawAmount) > 0 ? Number(rawAmount) : null;
+    return { ...phase, annualContribution,
       strategyCode: saved ? saved.strategyCode || null : (phase.id === 1 ? session.withdrawalStrategyCode || (session.strategyCode !== 'none' ? session.strategyCode : null) : null) || null,
       withdrawalPolicyYear: saved && Object.prototype.hasOwnProperty.call(saved, 'withdrawalPolicyYear') ? saved.withdrawalPolicyYear : (phase.id === 1 ? session.withdrawalPolicyYear ?? null : null)
     };
   });
 }
 
-export function withdrawalPoints(official) {
+export function withdrawalPointsexport function withdrawalPoints(official) {
   return WITHDRAWAL_STARTS.map(([strategyCode, policyYear]) => {
     const strategy = official?.strategies?.find(item => item.strategy_code === strategyCode && Number(item.start_year) === policyYear);
     return strategy ? { ...strategy, policyYear } : null;
@@ -113,27 +193,26 @@ export function phaseStrategyChoices(official) {
 // Accumulation is a progressive total of exact, currently known phase values.
 export function calculateSavingPortfolio({ session, overallPolicyYear, official }) {
   const year = Number(overallPolicyYear);
-  const amount = Number(session.annualContribution);
   const phases = activeSavingPhases(session).map(phase => {
     const localPolicyYear = year - phase.offset;
     if (localPolicyYear <= 0) return { ...phase, localPolicyYear, started: false, available: false };
-    const result = calculateOfficial({ annualContribution: session.annualContribution,
-      policyYear: localPolicyYear, strategyCode: 'none', official });
+    const result = calculateOfficial({ annualContribution: phase.annualContribution, policyYear: localPolicyYear, strategyCode: 'none', official });
     return { ...phase, ...result, localPolicyYear, started: true };
   });
-  const validInput = Number.isInteger(year) && year > 0 && Number.isFinite(amount) && amount > 0;
+  const validInput = Number.isInteger(year) && year > 0 && phases.every(phase => !phase.started || Number.isFinite(phase.annualContribution));
   const known = phases.filter(phase => phase.started && phase.available);
+  const plannedContribution = validInput ? phases.reduce((sum, phase) => sum + Number(phase.annualContribution || 0) * CONTRIBUTION_YEARS, 0) : undefined;
+  const totalContribution = validInput ? phases.reduce((sum, phase) => sum + (phase.started ? Number(phase.annualContribution || 0) * Math.min(CONTRIBUTION_YEARS, Math.max(0, phase.localPolicyYear)) : 0), 0) : undefined;
   const base = { policyYear: year, phases, availablePhaseCount: known.length,
     unavailablePhaseCount: phases.filter(phase => phase.started && !phase.available).length,
     complete: validInput && phases.every(phase => !phase.started || phase.available),
-    totalContribution: validInput ? amount * phases.reduce((sum, phase) => sum + Math.min(5, Math.max(0, phase.localPolicyYear)), 0) : undefined,
-    plannedContribution: Number.isFinite(amount) && amount > 0 ? amount * 5 * phases.length : undefined };
+    totalContribution, plannedContribution };
   if (!validInput || !known.length) return { ...base, available: false, message: '這個時間點暫未有可顯示價值。' };
   const value = known.reduce((sum, phase) => sum + phase.remainingValue, 0);
   return { ...base, available: true, futureValue: value, remainingValue: value };
 }
 
-// Each withdrawal scenario has its own exact local time, independently of accumulation.
+// Each withdrawal scenario// Each withdrawal scenario has its own exact local time, independently of accumulation.
 export function resolvePhaseWithdrawal(phase, session, official) {
   const points = withdrawalPoints(official);
   const strategy = points.find(item => item.strategy_code === phase.strategyCode) || points[0];
@@ -141,17 +220,14 @@ export function resolvePhaseWithdrawal(phase, session, official) {
   const strategyCode = autoAccumulation ? 'none' : strategy?.strategy_code;
   const startYear = autoAccumulation ? null : strategy?.policyYear;
   const years = autoAccumulation ? supportedYears(official, 'none') : strategy ? supportedYears(official, strategyCode).filter(year => year >= startYear) : [];
-  // A supplied unsupported selection is unavailable, never replaced by a nearest row.
   const selectedYear = phase.withdrawalPolicyYear == null ? years[0] : Number(phase.withdrawalPolicyYear);
-  const result = years.includes(selectedYear) ? calculateOfficial({ annualContribution: session.annualContribution,
-    policyYear: selectedYear, strategyCode, official }) : { available: false, message: '這一期暫未有可顯示結果。' };
+  const result = years.includes(selectedYear) ? calculateOfficial({ annualContribution: phase.annualContribution ?? session.annualContribution, policyYear: selectedYear, strategyCode, official }) : { available: false, message: '這一期暫未有可顯示結果。' };
   return { ...phase, strategyCode, autoAccumulation, startYear, years, selectedYear, localPolicyYear: selectedYear,
     overallPolicyYear: phase.offset + selectedYear, result: result.available ? result : { ...result, message: '這一期暫未有可顯示結果。' } };
 }
 
 export function aggregateWithdrawalResults(phases, annualContribution) {
-  const amount = Number(annualContribution);
-  const totalContribution = Number.isFinite(amount) && amount > 0 ? amount * 5 * phases.length : undefined;
+  const totalContribution = phases.length ? phases.reduce((sum, phase) => sum + Number(phase.result?.totalContribution ?? (Number(phase.annualContribution || annualContribution) * CONTRIBUTION_YEARS)), 0) : undefined;
   if (!phases.length || phases.some(phase => !phase.result.available)) {
     return { available: false, totalContribution, message: '部分期數暫未有可顯示結果，合計稍後再看。' };
   }
@@ -160,7 +236,7 @@ export function aggregateWithdrawalResults(phases, annualContribution) {
     remainingValue: sum('remainingValue'), futureValue: sum('futureValue'), totalContribution };
 }
 
-// P7 and Customer View share the exact same independent selections and summary.
+// P7 and Customer View// P7 and Customer View share the exact same independent selections and summary.
 export function withdrawalPortfolio(session, official) {
   const phases = activeSavingPhases(session).map(phase => resolvePhaseWithdrawal(phase, session, official));
   return { phases, result: aggregateWithdrawalResults(phases, session.annualContribution) };
