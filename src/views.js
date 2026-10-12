@@ -190,7 +190,7 @@ function p5(state) {
   }).join('<div class="phase-arrow" aria-hidden="true">↓</div>');
   return `<div class='phase-journey'>${cards}</div>${phases.length < 3 ? `<div class='actions phase-add'><button class='ava-button ava-button--secondary' data-action='add-saving-phase' type='button'>${phases.length === 1 ? '＋ 繼續下一個 5 年' : '＋ 再加入下一個 5 年'}</button></div>` : ''}<p class='calculation-note'>每一期都係一份獨立的 5 年 Saving 安排。<br>目前歲數 ${currentAge == null ? '—' : `${currentAge}歲`} · 完成供款時歲數 ${completionAge == null ? '—' : `${completionAge}歲`}</p><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>探索時間 →</button></div>`;
 }
-function ageYearRailfunction ageYearRail({ id, items, selected, state, action = 'select-year', context = '', selectedStrategy = null }) {
+function ageYearRail({ id, items, selected, state, action = 'select-year', context = '', selectedStrategy = null }) {
   if (!items.length) return '<p class="ava-status ava-status--warning">未有可用時間點。</p>';
   // Selection is deliberately excluded. Changed page/age/options/strategy is a new control.
   const scrollContext = JSON.stringify([state.pageId, getCustomerAge(state), action, context, items.map(item => [item.value ?? item.year, item.strategyCode || ''])]);
