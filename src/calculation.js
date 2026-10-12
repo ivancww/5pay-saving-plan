@@ -177,7 +177,7 @@ export function activeSavingPhases(session = {}) {
   });
 }
 
-export function withdrawalPointsexport function withdrawalPoints(official) {
+export function withdrawalPoints(official) {
   return WITHDRAWAL_STARTS.map(([strategyCode, policyYear]) => {
     const strategy = official?.strategies?.find(item => item.strategy_code === strategyCode && Number(item.start_year) === policyYear);
     return strategy ? { ...strategy, policyYear } : null;
