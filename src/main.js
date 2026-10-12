@@ -133,7 +133,7 @@ function updateField(target) {
   }
 }
 
-function updateP3Live() {function updateP3Live() {
+function updateP3Live() {
   const path = currentPath({ method: state.session.currentMethod, amount: state.session.annualContribution, assumptions: state.session.assumptions });
   const annualValue = document.querySelector('#p3-annual-contribution-value');
   const pathValue = document.querySelector('#p3-current-path-value');
