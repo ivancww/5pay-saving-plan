@@ -30,14 +30,14 @@ export function goBack(state) { const previous = state.history.pop(); if (previo
 // Customer-flow state only: never Official data or presentation overrides.
 export function activateSavingPhase(session) {
   const phases = activeSavingPhases(session);
-  if (phases.length < 3) phases.push({ id: phases.length + 1, strategyCode: null, withdrawalPolicyYear: null });
-  session.savingPhases = phases.map(({ id, strategyCode, withdrawalPolicyYear }) => ({ id, strategyCode, withdrawalPolicyYear }));
+  if (phases.length < 3) phases.push({ id: phases.length + 1, annualContribution: session.annualContribution, strategyCode: null, withdrawalPolicyYear: null });
+  session.savingPhases = phases.map(({ id, annualContribution, strategyCode, withdrawalPolicyYear }) => ({ id, annualContribution, strategyCode, withdrawalPolicyYear }));
 }
 
 export function removeSavingPhase(session, id) {
   if (id !== 2 && id !== 3) return;
   session.savingPhases = activeSavingPhases(session).filter(phase => phase.id < id)
-    .map(({ id, strategyCode, withdrawalPolicyYear }) => ({ id, strategyCode, withdrawalPolicyYear }));
+    .map(({ id, annualContribution, strategyCode, withdrawalPolicyYear }) => ({ id, annualContribution, strategyCode, withdrawalPolicyYear }));
 }
 
 export function selectPhaseWithdrawal(session, phaseId, strategyCode, official) {
@@ -47,7 +47,7 @@ export function selectPhaseWithdrawal(session, phaseId, strategyCode, official) 
   if (!phase || !point) return;
   phase.strategyCode = strategyCode;
   phase.withdrawalPolicyYear = point.policyYear;
-  session.savingPhases = phases.map(({ id, strategyCode, withdrawalPolicyYear }) => ({ id, strategyCode, withdrawalPolicyYear }));
+  session.savingPhases = phases.map(({ id, annualContribution, strategyCode, withdrawalPolicyYear }) => ({ id, annualContribution, strategyCode, withdrawalPolicyYear }));
 }
 
 export function selectPhaseWithdrawalYear(session, phaseId, policyYear, official) {
@@ -56,5 +56,5 @@ export function selectPhaseWithdrawalYear(session, phaseId, policyYear, official
   const year = Number(policyYear);
   if (!phase || !resolvePhaseWithdrawal(phase, session, official).years.includes(year)) return;
   phase.withdrawalPolicyYear = year;
-  session.savingPhases = phases.map(({ id, strategyCode, withdrawalPolicyYear }) => ({ id, strategyCode, withdrawalPolicyYear }));
+  session.savingPhases = phases.map(({ id, annualContribution, strategyCode, withdrawalPolicyYear }) => ({ id, annualContribution, strategyCode, withdrawalPolicyYear }));
 }
