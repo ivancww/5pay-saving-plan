@@ -207,7 +207,7 @@ function p6(state, official) {
   const selectedYear = years.includes(state.session.policyYear) ? state.session.policyYear : years[0];
   const result = calculateSavingPortfolio({ session: state.session, overallPolicyYear: selectedYear, official });
   const timeline = ageYearRail({ id: 'accumulation-time-rail', items: years.map(year => ({ year })), selected: selectedYear, state });
-  return `<div class="anchor-metric"><span>到這個時間點已投入 · ${result.phases.length} 期安排</span><strong>${money(result.totalContribution)}</strong></div><div class="time-bar-card timeline-rail-card"><div class="time-bar-heading"><span>向左右探索年齡</span><span>左右滑動查看更多</span></div>${timeline}</div><div class="result-card"><span class="card-kicker">累積 Saving 價值 · ${ageAtPolicyYear(state, selectedYear) == null ? '—' : `${ageAtPolicyYear(state, selectedYear)}歲`}</span><strong>${result.available ? money(result.futureValue) : '—'}</strong><span>${result.available ? `目前已包括 ${result.availablePhaseCount} 期可顯示價值${result.unavailablePhaseCount ? ' · 其他已開始期數的價值稍後再看' : ''}` : esc(result.message)}</span></div><div class="actions"><button class="ava-button ava-button--secondary" data-action="next" type="button">探索使用方式 →</button></div>`;
+  return `<div class="anchor-metric"><span>各期 5 年總投入 · ${result.phases.length} 期安排</span><strong>${money(result.plannedContribution)}</strong></div><div class="time-bar-card timeline-rail-card"><div class="time-bar-heading"><span>向左右探索年齡</span><span>左右滑動查看更多</span></div>${timeline}</div><div class="result-card"><span class="card-kicker">累積 Saving 價值 · ${ageAtPolicyYear(state, selectedYear) == null ? '—' : `${ageAtPolicyYear(state, selectedYear)}歲`}</span><strong>${result.available ? money(result.futureValue) : '—'}</strong><span>${result.available ? `目前已包括 ${result.availablePhaseCount} 期可顯示價值${result.unavailablePhaseCount ? ' · 其他已開始期數的價值稍後再看' : ''}` : esc(result.message)}</span></div><div class="actions"><button class="ava-button ava-button--secondary" data-action="next" type="button">探索使用方式 →</button></div>`;
 }
 
 function p7(state, official) {
@@ -239,8 +239,7 @@ function customerView(state, official, meta) {
   const contextNote = scenario === 'scenario3' ? '只記錄你揀選的方向，不作產品評分。' : '保留現有選擇，不作未有資料的推算。';
   const lead = scenario === 'scenario3' ? '未必需要一件工具負責晒所有角色；Saving 可以係另一筆預先規劃的未來資源。' : scenario === 'scenario2' ? '現有工具可以繼續，同時看看另一筆 Saving 安排的官方已知價值。' : `原有 ${esc(method)} 可以繼續，同時多一筆可以預先規劃嘅未來資源。`;
   const generatedAt = new Date().toLocaleDateString('zh-HK', { year: 'numeric', month: 'long', day: 'numeric' });
-  const contribution = Number(state.session.annualContribution) * 5;
-  const contributions = phases.map(phase => `<div class="customer-phase-row" data-contribution-phase="${phase.id}"><b>${phase.label}</b><small>每年 ${money(state.session.annualContribution)} · 供款 5 年<br>供款總額 ${money(contribution)}</small></div>`).join('');
+  const contributions = phases.map(phase => { const amount = Number(phase.annualContribution); const total = Number.isFinite(amount) && amount > 0 ? amount * 5 : null; return `<div class="customer-phase-row" data-contribution-phase="${phase.id}"><b>${phase.label}</b><small>每年 ${money(amount)} · 供款 5 年<br>供款總額 ${money(total)}</small></div>`; }).join('');
   const arrangement = phases.map(phase => {
     const choice = phase.autoAccumulation ? '自動滾存' : phase.startYear == null ? '暫未有可用安排' : `第 ${phase.startYear} 年開始`;
     const age = ageAtPolicyYear(state, phase.overallPolicyYear);
