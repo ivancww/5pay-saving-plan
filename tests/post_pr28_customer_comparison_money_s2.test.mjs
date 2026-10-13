@@ -90,6 +90,7 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(!views.includes('現有方法目前資源'));
   assert.ok(!views.includes('另一筆 Saving'));
   assert.ok(!views.includes('Saving 只使用'));
+  assert.ok(!views.includes('exact Official value'));
   assert.ok(main.includes('continue-scenario2-to-saving'));
   assert.ok(main.includes('continue-scenario3-to-saving'));
   assert.ok(!main.includes("scenarioRoute(official, 'scenario_to_saving')"));
