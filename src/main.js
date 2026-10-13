@@ -225,7 +225,7 @@ app.addEventListener('click', event => {
     if (path) goTo(state, scenarioRoute(official, path === 'S2_MIXED' ? 'scenario2_market' : `scenario2_${path.slice(3).toLowerCase()}`));
   }
   if (action === 'select-market-history-series' && state.pageId === 'S2_MARKET' && SCENARIO2_MARKET_HISTORY[control.dataset.value]) state.session.marketHistorySeries = control.dataset.value;
-  if (action === 'select-market-history-year' && state.pageId === 'S2_MARKET' && /^20\\d{2}$/.test(control.dataset.value)) state.session.marketHistoryYear = control.dataset.value;
+  if (action === 'select-market-history-year' && state.pageId === 'S2_MARKET' && /^20\d{2}$/.test(control.dataset.value)) state.session.marketHistoryYear = control.dataset.value;
   if (action === 'select-market-response' && state.pageId === 'S2_MARKET' && ['hold', 'reduce', 'wait'].includes(control.dataset.value)) state.session.marketResponse = control.dataset.value;
   if (action === 'select-maturity-response' && state.pageId === 'S2_MATURITY' && ['renew', 'compare', 'switch', 'later'].includes(control.dataset.value)) state.session.maturityResponse = control.dataset.value;
   if (action === 'select-maturity-horizon' && state.pageId === 'S2_MATURITY' && [1, 2, 5, 10, 15].includes(Number(control.dataset.value))) state.session.maturityHorizon = Number(control.dataset.value);
