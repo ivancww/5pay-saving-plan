@@ -3,11 +3,12 @@ import test from 'node:test';
 import fs from 'node:fs';
 
 import { normalizeMoneyValue, parseMoney, formatMoneyInput } from '../src/money.js';
-import { calculateSavingPortfolio, currentPath } from '../src/calculation.js';
+import { activeSavingPhases, calculateSavingPortfolio, currentPath } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
 import { normalizeMoneyState } from '../src/state.js';
 import { formatCustomerMoney, render } from '../src/views.js';
 import { getExistingResourceFutureValue } from '../src/views.js';
+import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries } from '../src/scenario2-market-history.js';
 
 const official = {
   strategyMap: { none: 'none' },
@@ -73,6 +74,41 @@ test('money formatting and malformed state never produce NaN customer output', (
   }, { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] });
   assert.ok(!app.innerHTML.includes('NaN'));
   assert.ok(!app.innerHTML.includes('HK$ NaN'));
+});
+
+test('missing phase annual contribution inherits session amount after normalization', () => {
+  const session = {
+    annualContribution: 100000,
+    savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+  };
+  normalizeMoneyState(session);
+  assert.equal(Object.prototype.hasOwnProperty.call(session.savingPhases[0], 'annualContribution'), false);
+  assert.equal(activeSavingPhases(session)[0].annualContribution, 100000);
+});
+
+test('explicit phase override remains independent from inherited Phase 1 amount', () => {
+  const session = {
+    annualContribution: 100000,
+    savingPhases: [
+      { id: 1, strategyCode: null, withdrawalPolicyYear: null },
+      { id: 2, annualContribution: 80000, strategyCode: null, withdrawalPolicyYear: null }
+    ]
+  };
+  normalizeMoneyState(session);
+  const phases = activeSavingPhases(session);
+  assert.equal(phases[0].annualContribution, 100000);
+  assert.equal(phases[1].annualContribution, 80000);
+});
+
+test('Scenario 2 market history is sourced, normalized and finite for all four references', () => {
+  for (const key of ['hsi', 'sp500', 'tracker2800', 'spy']) {
+    const raw = SCENARIO2_MARKET_HISTORY[key];
+    const series = normalizedMarketSeries(key);
+    assert.ok(raw?.sourceName && raw?.sourceUrl && raw?.asOfDate);
+    assert.equal(series.observations[0].normalized, 100);
+    assert.ok(series.observations.length >= 10);
+    assert.ok(series.observations.every(item => Number.isFinite(item.value) && Number.isFinite(item.normalized)));
+  }
 });
 
 test('bank P4 keeps existing resource separate from the new-arrangement comparison', () => {
@@ -153,7 +189,11 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(views.includes('同一筆新增安排'));
   assert.ok(views.includes('計劃總投入'));
   assert.ok(views.includes('截至呢個時間點已安排'));
-  assert.ok(views.includes('概念示意'));
+  assert.ok(views.includes('過去約10年，市場實際行過點？'));
+  assert.ok(views.includes('以起點 = 100 作歷史走勢比較'));
+  assert.ok(views.includes('數據截至'));
+  assert.ok(views.includes('select-market-history-series'));
+  assert.ok(views.includes('select-market-history-year'));
   assert.ok(views.includes('select-maturity-horizon'));
   assert.ok(views.includes('data-value="${year}"'));
   const moneyInputs = [...views.matchAll(/<input[^>]*data-money-input[^>]*>/g)].map(match => match[0]);
