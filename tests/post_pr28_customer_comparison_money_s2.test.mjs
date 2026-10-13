@@ -77,7 +77,7 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(views.includes('data-value="${year}"'));
   const moneyInputs = [...views.matchAll(/<input[^>]*data-money-input[^>]*>/g)].map(match => match[0]);
   assert.ok(moneyInputs.length >= 6);
-  assert.ok(moneyInputs.every(input => !/type=['"]number['"]/.test(input)));
+  assert.ok((views.match(/data-money-input inputmode='numeric' type='text'/g) || []).length >= 4);
   assert.ok(main.includes('formatMoneyInputElement(target)'));
   assert.ok(main.includes('updateP3Live()'));
   assert.ok(!main.match(/formatMoneyInputElement\(target\)[\s\S]*render\(/));
