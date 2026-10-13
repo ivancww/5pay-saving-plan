@@ -154,7 +154,7 @@ function updateP3Live() {
 function updateP5Live() {
   document.querySelectorAll('[data-phase-total]').forEach(node => {
     const input = document.querySelector(`[data-phase-annual='${node.dataset.phaseTotal}']`);
-    const amount = Number(input?.value);
+    const amount = parseMoney(input?.value);
     node.textContent = Number.isFinite(amount) && amount > 0 ? formatMoney(amount * 5) : '—';
   });
 }
