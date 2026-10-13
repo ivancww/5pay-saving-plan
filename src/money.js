@@ -6,8 +6,13 @@ export function parseMoney(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function formatMoneyInput(value) {
+export function normalizeMoneyValue(value) {
   const parsed = typeof value === 'number' ? value : parseMoney(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function formatMoneyInput(value) {
+  const parsed = normalizeMoneyValue(value);
   return parsed == null ? '' : Math.round(parsed).toLocaleString('en-US');
 }
 
