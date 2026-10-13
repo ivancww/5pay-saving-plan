@@ -74,7 +74,7 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(views.includes('截至呢個時間點已安排'));
   assert.ok(views.includes('概念示意'));
   assert.ok(views.includes('select-maturity-horizon'));
-  assert.deepEqual([1, 2, 5, 10, 15].map(year => views.includes(`data-value="${year}"`)), [true, true, true, true, true]);
+  assert.deepEqual([1, 2, 5, 10, 15].map(year => views.includes(`data-value=\'${year}\'`)), [true, true, true, true, true]);
   const moneyInputs = [...views.matchAll(/<input[^>]*data-money-input[^>]*>/g)].map(match => match[0]);
   assert.ok(moneyInputs.length >= 6);
   assert.ok(moneyInputs.every(input => !/type=['"]number['"]/.test(input)));
