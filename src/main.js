@@ -8,6 +8,7 @@ import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
 import { exchangeAdminLaunch, handleAdminTabKeydown, publishOfficial, readAdminPayload, renderAdmin, resetAdminTab, switchAdminRecord, switchAdminTab } from './admin.js';
 import { APP_VERSION, BUILD_ID } from './build.js';
 import { currentPath } from './calculation.js';
+import { formatMoneyInputElement, parseMoney } from './money.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS, investmentPath, scenarioRoute, toggleChoice } from './scenario-flow.js';
 
 const app = document.querySelector('#app');
@@ -109,11 +110,12 @@ function nextPage() {
 }
 function makeHoldingId(method) { return `${method}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function updateField(target) {
-  if (target.dataset.field) state.session[target.dataset.field] = target.value === '' ? null : Number(target.value);
+  const value = target.dataset.moneyInput ? parseMoney(target.value) : (target.value === '' ? null : Number(target.value));
+  if (target.dataset.field) state.session[target.dataset.field] = value;
   if (target.dataset.field === 'currentAge') state.session.ageError = false;
   if (target.dataset.assumption) {
     const key = { 'customer-return-rate':'returnRate', 'current-rate':'currentRate', 'maturity-rate':'maturityRate', 'existing-value':'existingValue', 'existing-deposit':'existingDeposit', 'cash-rate':'cashRate' }[target.dataset.assumption];
-    if (key) state.session.assumptions[key] = target.value === '' ? null : Number(target.value);
+    if (key) state.session.assumptions[key] = value;
   }
   if (target.dataset.holdingField) {
     const method = target.dataset.holdingMethod;
@@ -121,14 +123,14 @@ function updateField(target) {
     const index = Number(target.dataset.holdingIndex);
     while (items.length <= index) items.push({ id: makeHoldingId(method), principal: null, termYears: null, annualRate: null });
     const key = target.dataset.holdingField;
-    items[index][key] = target.value === '' ? null : Number(target.value);
+    items[index][key] = value;
     state.session.assumptions[method] = items;
   }
   if (target.dataset.phaseAnnual) {
     const id = Number(target.dataset.phaseAnnual);
     const items = Array.isArray(state.session.savingPhases) ? state.session.savingPhases.map(item => ({ ...item })) : [{ id: 1, annualContribution: state.session.annualContribution, strategyCode: null, withdrawalPolicyYear: null }];
     const index = items.findIndex(item => item.id === id);
-    if (index >= 0) items[index].annualContribution = target.value === '' ? null : Number(target.value);
+    if (index >= 0) items[index].annualContribution = value;
     state.session.savingPhases = items;
   }
 }
@@ -151,7 +153,7 @@ function updateP3Live() {
 function updateP5Live() {
   document.querySelectorAll('[data-phase-total]').forEach(node => {
     const input = document.querySelector(`[data-phase-annual='${node.dataset.phaseTotal}']`);
-    const amount = Number(input?.value);
+    const amount = parseMoney(input?.value);
     node.textContent = Number.isFinite(amount) && amount > 0 ? formatMoney(amount * 5) : '—';
   });
 }
@@ -186,6 +188,7 @@ app.addEventListener('input', event => {
   const liveField = target.matches('[data-field], [data-assumption], [data-holding-field], [data-phase-annual]');
   const p3Editing = state.pageId === 'P3' && liveField;
   const p5Editing = state.pageId === 'P5' && target.matches('[data-phase-annual]');
+  if (target.matches('[data-money-input]')) formatMoneyInputElement(target);
   updateField(target);
   if (p3Editing) { updateP3Live(); return; }
   if (p5Editing) { updateP5Live(); return; }
@@ -207,6 +210,7 @@ app.addEventListener('click', event => {
       state.session.scenarioGoals = [];
       state.session.marketResponse = null;
       state.session.maturityResponse = null;
+      state.session.maturityHorizon = 5;
       state.session.mixedFocus = null;
       goTo(state, destination);
     }
@@ -218,12 +222,14 @@ app.addEventListener('click', event => {
   }
   if (action === 'select-market-response' && state.pageId === 'S2_MARKET' && ['hold', 'reduce', 'wait'].includes(control.dataset.value)) state.session.marketResponse = control.dataset.value;
   if (action === 'select-maturity-response' && state.pageId === 'S2_MATURITY' && ['renew', 'compare', 'switch', 'later'].includes(control.dataset.value)) state.session.maturityResponse = control.dataset.value;
+  if (action === 'select-maturity-horizon' && state.pageId === 'S2_MATURITY' && [1, 2, 5, 10, 15].includes(Number(control.dataset.value))) state.session.maturityHorizon = Number(control.dataset.value);
   if (action === 'select-mixed-focus' && state.pageId === 'S2_MIXED' && ['market', 'maturity'].includes(control.dataset.value)) state.session.mixedFocus = control.dataset.value;
   if (action === 'toggle-goal' && state.pageId === 'S3_GOALS') state.session.scenarioGoals = toggleChoice(state.session.scenarioGoals, control.dataset.value, SCENARIO_GOALS);
   if (action === 'continue-goals' && state.pageId === 'S3_GOALS' && state.session.scenarioGoals.length) goTo(state, scenarioRoute(official, 'scenario3_goals'));
   if (action === 'continue-market-to-maturity' && state.pageId === 'S2_MARKET' && state.session.marketResponse) goTo(state, scenarioRoute(official, 'scenario2_maturity'));
   if (action === 'continue-maturity-to-mixed' && state.pageId === 'S2_MATURITY' && state.session.maturityResponse) goTo(state, scenarioRoute(official, 'scenario2_mixed'));
-  if (action === 'continue-to-saving' && ((state.pageId === 'S2_MARKET' && state.session.marketResponse && !state.session.investmentTools.some(key => key === 'fixed_deposit' || key === 'bond')) || (state.pageId === 'S2_MATURITY' && state.session.maturityResponse && !state.session.investmentTools.some(key => key === 'stock' || key === 'etf')) || state.pageId === 'S2_MIXED' || state.pageId === 'S3_TRADEOFF')) goTo(state, scenarioRoute(official, 'scenario_to_saving'));
+  if (action === 'continue-scenario2-to-saving' && ((state.pageId === 'S2_MARKET' && state.session.marketResponse && !state.session.investmentTools.some(key => key === 'fixed_deposit' || key === 'bond')) || (state.pageId === 'S2_MATURITY' && state.session.maturityResponse && !state.session.investmentTools.some(key => key === 'stock' || key === 'etf')) || (state.pageId === 'S2_MIXED' && state.session.mixedFocus))) goTo(state, scenarioRoute(official, 'scenario2_to_saving'));
+  if (action === 'continue-scenario3-to-saving' && state.pageId === 'S3_TRADEOFF') goTo(state, scenarioRoute(official, 'scenario3_to_saving'));
   if (action === 'select-method') { state.session.currentMethod = control.dataset.value; goTo(state, 'P2'); }
   if (action === 'select-purpose') { state.session.purpose = control.dataset.value; goTo(state, 'P3'); }
   if (action === 'add-holding' && state.pageId === 'P3') {

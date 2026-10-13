@@ -127,3 +127,24 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
   .phase-step{grid-template-columns:30px minmax(0,1fr)}
   .phase-step-number{width:30px;height:30px}
 }
+
+
+/* Post-PR28 customer comparison and money input UX */
+.input-section{display:grid;gap:10px;padding:14px;border:1px solid var(--border);border-radius:14px;margin-top:12px}
+.input-section h3,.resource-section h3{margin:0;font-size:1rem}
+.input-section--new{background:var(--surface)}
+.input-section--existing{background:var(--surface-muted,#f7f8fa)}
+.existing-resource{display:grid;gap:8px}
+.existing-resource>div,.resource-summary>div{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.existing-resource strong,.resource-summary strong{overflow-wrap:anywhere;text-align:right}
+.resource-section{display:grid;gap:10px;margin:14px 0}
+.resource-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.anchor-metric--secondary{margin-top:10px;background:var(--surface-muted,#f7f8fa)}
+.anchor-metric small{display:block;color:var(--muted);font-size:.82rem;margin-top:4px}
+.customer-comparison{display:grid;gap:10px;margin:0 0 18px}
+.customer-comparison .customer-block>div{display:flex;justify-content:space-between;gap:12px;padding-top:8px}
+.customer-comparison strong{overflow-wrap:anywhere;text-align:right}
+@media (max-width:1000px) and (min-width:651px){.resource-summary{grid-template-columns:1fr}}
+@media (max-width:650px){.resource-summary{grid-template-columns:1fr}.input-section{padding:12px}}
+
+.existing-resource-total{border-top:1px solid var(--border);padding-top:8px;font-weight:700}

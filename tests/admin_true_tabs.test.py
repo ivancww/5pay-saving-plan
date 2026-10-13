@@ -34,6 +34,6 @@ assert "5pay:official-write:configuration" in admin
 assert 'payload.persisted !== true' in admin
 assert 'payload.read_after_write !== true' in admin
 assert 'data-row-json' in admin
-assert "export const APP_VERSION = 'V1.9';" in build
+assert "export const APP_VERSION = 'V1.10';" in build
 
 print('true-tab Admin UX and compact-header contract passed')
