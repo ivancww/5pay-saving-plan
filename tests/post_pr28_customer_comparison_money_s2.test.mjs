@@ -104,11 +104,44 @@ test('Scenario 2 market history is sourced, normalized and finite for all four r
   for (const key of ['hsi', 'sp500', 'tracker2800', 'spy']) {
     const raw = SCENARIO2_MARKET_HISTORY[key];
     const series = normalizedMarketSeries(key);
-    assert.ok(raw?.sourceName && raw?.sourceUrl && raw?.asOfDate);
+    assert.ok(raw?.primarySource?.name && raw?.primarySource?.url);
+    assert.equal(raw.dataThroughDate, '2025-12-31');
+    assert.equal(raw.verifiedAt, '2026-10-13');
     assert.equal(series.observations[0].normalized, 100);
     assert.ok(series.observations.length >= 10);
     assert.ok(series.observations.every(item => Number.isFinite(item.value) && Number.isFinite(item.normalized)));
   }
+});
+
+test('market evidence separates data-through date from verification date and matches the displayed basis', () => {
+  const evidence = JSON.parse(fs.readFileSync(new URL('../research/evidence/scenario2-market-history-2026-10-13.json', import.meta.url), 'utf8'));
+  for (const item of evidence.observations) {
+    assert.equal(item.data_through_date, '2025-12-31');
+    assert.equal(item.verified_at, '2026-10-13');
+    assert.equal(item.observations.at(-1)[0], '2025');
+    assert.ok(item.normalization_method);
+    assert.ok(item.dividend_distribution_treatment);
+    assert.ok(item.fx_treatment);
+  }
+  const spyEvidence = evidence.observations.find(item => item.series_id === 'spy');
+  assert.equal(spyEvidence.display_basis, SCENARIO2_MARKET_HISTORY.spy.displayBasis);
+  assert.equal(spyEvidence.raw_data_type, SCENARIO2_MARKET_HISTORY.spy.rawDataType);
+  const trackerEvidence = evidence.observations.find(item => item.series_id === 'tracker2800');
+  assert.match(trackerEvidence.raw_data_type, /derived normalized cumulative/);
+  assert.match(trackerEvidence.normalization_method, /2016 baseline = 100/);
+
+  const app = { innerHTML: '' };
+  render(app, {
+    pageId: 'S2_MARKET',
+    history: [],
+    mode: 'use',
+    customerView: false,
+    session: { scenario: 'scenario2', investmentTools: ['stock'], marketResponse: null, marketHistorySeries: 'hsi' }
+  }, { flow: [{ page_id: 'S2_MARKET', title: '市場', subtitle: '' }], page_content: [] });
+  assert.ok(app.innerHTML.includes('歷史數據至 2025 年底'));
+  assert.ok(app.innerHTML.includes('資料核對日期 2026-10-13'));
+  assert.ok(!app.innerHTML.includes('數據截至 2026-10-13'));
+  assert.ok(!app.innerHTML.includes('2026 年底'));
 });
 
 test('bank P4 keeps existing resource separate from the new-arrangement comparison', () => {
