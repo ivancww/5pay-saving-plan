@@ -193,12 +193,6 @@ function currentMethodBreakdown(current) {
   return `<div class='current-method-breakdown'>${current.details.map(item => `<div><span>${item.matured ? '已到期資金' : '現有本金'}</span><strong>${money(item.value)}</strong></div>`).join('')}</div>`;
 }
 
-function currentMethodBreakdown(current) {
-  if (current.breakdown?.existingDepositFutureValue != null) return `<div class='current-method-breakdown'><div><span>現有存款增長後</span><strong>${money(current.breakdown.existingDepositFutureValue)}</strong></div><div><span>＋ 之後每年安排累積</span><strong>${money(current.breakdown.futureAnnualValue)}</strong></div><small>${esc(current.breakdown.label)}</small></div>`;
-  if (!current.details?.length) return '';
-  return `<div class='current-method-breakdown'>${current.details.map(item => `<div><span>${item.matured ? '已到期資金' : '現有本金'}</span><strong>${money(item.value)}</strong></div>`).join('')}</div>`;
-}
-
 function p4(state, official) {
   const years = supportedYears(official, 'none');
   const selectedYear = years.includes(state.session.policyYear) ? state.session.policyYear : years[0];
