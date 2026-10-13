@@ -2,18 +2,19 @@ import { activeSavingPhases, calculateSavingPortfolio, currentPath, supportedYea
 import { ageAtPolicyYear, getCustomerAge } from './state.js';
 import { MEDIA_TYPES, mediaCanRender, mediaFallbackLabel, normalizeMediaList } from './media.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS } from './scenario-flow.js';
-import { formatMoneyInput } from './money.js';
+import { formatMoneyInput, normalizeMoneyValue } from './money.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
-const money = value => value == null ? '—' : `HK$ ${Math.round(value).toLocaleString('en-US')}`;
+const money = value => { const parsed = normalizeMoneyValue(value); return parsed == null ? '—' : `HK$ ${Math.round(parsed).toLocaleString('en-US')}`; };
 const inputMoney = value => formatMoneyInput(value);
 const pct = value => `${(Number(value) * 100).toFixed(Number(value) % 0.01 ? 1 : 0)}%`;
 const pageContent = (official, pageId) => official?.page_content?.filter(item => item.page_id === pageId) || [];
 
 export function getExistingResourceFutureValue(current) {
-  const bankValue = current?.breakdown?.existingDepositFutureValue;
+  const bankValue = normalizeMoneyValue(current?.breakdown?.existingDepositFutureValue);
   if (bankValue != null) return bankValue;
-  return current?.details?.length ? current.details.reduce((sum, item) => sum + Number(item.value || 0), 0) : null;
+  const values = (current?.details || []).map(item => normalizeMoneyValue(item?.value)).filter(value => value != null);
+  return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
 }
 
 
