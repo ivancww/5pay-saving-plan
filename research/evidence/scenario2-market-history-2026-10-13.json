@@ -1,0 +1,218 @@
+{
+  "version": 1,
+  "retrieved_at": "2026-10-13",
+  "convention": "Annual year-end observations, normalized within each series so the first observation (2016) equals 100.",
+  "data_basis": "Price-only references. HSI and S&P 500 are price index levels; 2800.HK and SPY use price observations/price returns. Dividends and distributions are excluded.",
+  "currency": "Each series remains in its local market context; no HKD/USD conversion.",
+  "observations": [
+    {
+      "series_id": "hsi",
+      "display_name": "Hang Seng Index",
+      "market": "Hong Kong",
+      "data_basis": "price index level",
+      "source_name": "Hang Seng Indexes Company; DataCedar cross-check",
+      "source_url": "https://www.hsi.com.hk/eng/indexes/all-indexes/hs",
+      "secondary_source_url": "https://datacedar.com/markets/hkex/hsi",
+      "as_of_date": "2026-10-13",
+      "values": [
+        [
+          "2016",
+          22000.56
+        ],
+        [
+          "2017",
+          29919.15
+        ],
+        [
+          "2018",
+          25845.7
+        ],
+        [
+          "2019",
+          28189.75
+        ],
+        [
+          "2020",
+          27231.13
+        ],
+        [
+          "2021",
+          23397.67
+        ],
+        [
+          "2022",
+          19781.41
+        ],
+        [
+          "2023",
+          17047.4
+        ],
+        [
+          "2024",
+          20059.96
+        ],
+        [
+          "2025",
+          25630.55
+        ]
+      ]
+    },
+    {
+      "series_id": "sp500",
+      "display_name": "S&P 500 Index",
+      "market": "United States",
+      "data_basis": "price index level",
+      "source_name": "S&P Dow Jones Indices via FRED",
+      "source_url": "https://fred.stlouisfed.org/series/SP500",
+      "secondary_source_url": "https://www.spglobal.com/spdji/en/indices/equity/sp-500/",
+      "as_of_date": "2026-10-13",
+      "values": [
+        [
+          "2016",
+          2238.83
+        ],
+        [
+          "2017",
+          2673.61
+        ],
+        [
+          "2018",
+          2506.85
+        ],
+        [
+          "2019",
+          3230.78
+        ],
+        [
+          "2020",
+          3756.07
+        ],
+        [
+          "2021",
+          4766.18
+        ],
+        [
+          "2022",
+          3839.5
+        ],
+        [
+          "2023",
+          4769.83
+        ],
+        [
+          "2024",
+          5881.63
+        ],
+        [
+          "2025",
+          6845.5
+        ]
+      ]
+    },
+    {
+      "series_id": "tracker2800",
+      "display_name": "Tracker Fund of Hong Kong (2800.HK)",
+      "market": "Hong Kong",
+      "data_basis": "price return; distributions excluded",
+      "source_name": "Tracker Fund of Hong Kong; POEMS annual price-return table",
+      "source_url": "https://www.trahk.com.hk/en-hk/trahk-fund/fund-information/",
+      "secondary_source_url": "https://www.poems.com.sg/etf-screener/HKEX-2800/",
+      "as_of_date": "2026-10-13",
+      "values": [
+        [
+          "2016",
+          100
+        ],
+        [
+          "2017",
+          140.5234
+        ],
+        [
+          "2018",
+          125.899
+        ],
+        [
+          "2019",
+          141.9186
+        ],
+        [
+          "2020",
+          141.2483
+        ],
+        [
+          "2021",
+          124.4261
+        ],
+        [
+          "2022",
+          109.6317
+        ],
+        [
+          "2023",
+          98.1942
+        ],
+        [
+          "2024",
+          119.8279
+        ],
+        [
+          "2025",
+          158.0168
+        ]
+      ]
+    },
+    {
+      "series_id": "spy",
+      "display_name": "SPDR S&P 500 ETF Trust (SPY)",
+      "market": "United States",
+      "data_basis": "unadjusted closing price; distributions excluded",
+      "source_name": "State Street SPDR; Macrotrends annual price history",
+      "source_url": "https://www.ssga.com/us/en/intermediary/etfs/spdr-sp-500-etf-trust-spy",
+      "secondary_source_url": "https://www.macrotrends.net/stocks/charts/SPY/state-street-spdr-s-p-500-etf-trust/stock-price-history",
+      "as_of_date": "2026-10-13",
+      "values": [
+        [
+          "2016",
+          223.53
+        ],
+        [
+          "2017",
+          266.86
+        ],
+        [
+          "2018",
+          249.92
+        ],
+        [
+          "2019",
+          321.86
+        ],
+        [
+          "2020",
+          373.88
+        ],
+        [
+          "2021",
+          476.16
+        ],
+        [
+          "2022",
+          382.43
+        ],
+        [
+          "2023",
+          475.31
+        ],
+        [
+          "2024",
+          586.1
+        ],
+        [
+          "2025",
+          678.316
+        ]
+      ]
+    }
+  ],
+  "disclaimer": "歷史走勢不代表未來回報；未計股息、分派、費用、稅項或匯率影響。"
+}
