@@ -107,12 +107,29 @@ function nextPage() {
   if (next) goTo(state, next.page_id);
   draw();
 }
+function makeHoldingId(method) { return `${method}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function updateField(target) {
   if (target.dataset.field) state.session[target.dataset.field] = target.value === '' ? null : Number(target.value);
   if (target.dataset.field === 'currentAge') state.session.ageError = false;
   if (target.dataset.assumption) {
-    const key = { 'customer-return-rate':'returnRate', 'current-rate':'currentRate', 'maturity-rate':'maturityRate', 'existing-value':'existingValue' }[target.dataset.assumption];
-    state.session.assumptions[key] = target.value === '' ? null : Number(target.value);
+    const key = { 'customer-return-rate':'returnRate', 'current-rate':'currentRate', 'maturity-rate':'maturityRate', 'existing-value':'existingValue', 'existing-deposit':'existingDeposit', 'cash-rate':'cashRate' }[target.dataset.assumption];
+    if (key) state.session.assumptions[key] = target.value === '' ? null : Number(target.value);
+  }
+  if (target.dataset.holdingField) {
+    const method = target.dataset.holdingMethod;
+    const items = Array.isArray(state.session.assumptions[method]) ? state.session.assumptions[method].map(item => ({ ...item })) : [];
+    const index = Number(target.dataset.holdingIndex);
+    while (items.length <= index) items.push({ id: makeHoldingId(method), principal: null, termYears: null, annualRate: null });
+    const key = target.dataset.holdingField;
+    items[index][key] = target.value === '' ? null : Number(target.value);
+    state.session.assumptions[method] = items;
+  }
+  if (target.dataset.phaseAnnual) {
+    const id = Number(target.dataset.phaseAnnual);
+    const items = Array.isArray(state.session.savingPhases) ? state.session.savingPhases.map(item => ({ ...item })) : [{ id: 1, annualContribution: state.session.annualContribution, strategyCode: null, withdrawalPolicyYear: null }];
+    const index = items.findIndex(item => item.id === id);
+    if (index >= 0) items[index].annualContribution = target.value === '' ? null : Number(target.value);
+    state.session.savingPhases = items;
   }
 }
 
@@ -129,6 +146,14 @@ function updateP3Live() {
     pathStatus.className = `path-status path-status--${path.kind}`;
     pathStatus.textContent = path.label;
   }
+}
+
+function updateP5Live() {
+  document.querySelectorAll('[data-phase-total]').forEach(node => {
+    const input = document.querySelector(`[data-phase-annual='${node.dataset.phaseTotal}']`);
+    const amount = Number(input?.value);
+    node.textContent = Number.isFinite(amount) && amount > 0 ? formatMoney(amount * 5) : '—';
+  });
 }
 
 function readPageMedia(page) {
@@ -158,10 +183,12 @@ app.addEventListener('input', event => {
     if (target.matches('[data-admin-field]')) app.dataset.adminDirty = 'true';
     return;
   }
-  const liveField = target.matches('[data-field], [data-assumption]');
+  const liveField = target.matches('[data-field], [data-assumption], [data-holding-field], [data-phase-annual]');
   const p3Editing = state.pageId === 'P3' && liveField;
+  const p5Editing = state.pageId === 'P5' && target.matches('[data-phase-annual]');
   updateField(target);
   if (p3Editing) { updateP3Live(); return; }
+  if (p5Editing) { updateP5Live(); return; }
   if (!liveField) return;
 });
 app.addEventListener('click', event => {
@@ -199,6 +226,16 @@ app.addEventListener('click', event => {
   if (action === 'continue-to-saving' && ((state.pageId === 'S2_MARKET' && state.session.marketResponse && !state.session.investmentTools.some(key => key === 'fixed_deposit' || key === 'bond')) || (state.pageId === 'S2_MATURITY' && state.session.maturityResponse && !state.session.investmentTools.some(key => key === 'stock' || key === 'etf')) || state.pageId === 'S2_MIXED' || state.pageId === 'S3_TRADEOFF')) goTo(state, scenarioRoute(official, 'scenario_to_saving'));
   if (action === 'select-method') { state.session.currentMethod = control.dataset.value; goTo(state, 'P2'); }
   if (action === 'select-purpose') { state.session.purpose = control.dataset.value; goTo(state, 'P3'); }
+  if (action === 'add-holding' && state.pageId === 'P3') {
+    const method = control.dataset.holdingMethod;
+    const items = Array.isArray(state.session.assumptions[method]) ? state.session.assumptions[method] : [];
+    state.session.assumptions[method] = [...items, { id: makeHoldingId(method), principal: null, termYears: null, annualRate: null }];
+  }
+  if (action === 'remove-holding' && state.pageId === 'P3') {
+    const method = control.dataset.holdingMethod;
+    const index = Number(control.dataset.holdingIndex);
+    state.session.assumptions[method] = (state.session.assumptions[method] || []).filter((_, itemIndex) => itemIndex !== index);
+  }
   if (action === 'next') nextPage();
   if (action === 'back') goBack(state);
   if (action === 'select-year') state.session.policyYear = Number(control.dataset.value);

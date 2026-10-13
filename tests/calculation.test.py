@@ -8,3 +8,8 @@ assert 'interpolatedMultiplier' not in source
 assert 'totalContribution = amount * CONTRIBUTION_YEARS' in source
 assert 'rows.find(item => Number(item.policy_year) === year)' in source
 print('calculation safety contract passed')
+
+assert 'futureValueWithEndOfYearContributions' in source
+assert 'calculateFixedDepositValue' in source
+assert 'calculateBondValue' in source
+assert 'phase.annualContribution' in source
