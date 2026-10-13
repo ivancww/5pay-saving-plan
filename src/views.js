@@ -219,7 +219,7 @@ function p4(state, official) {
 }
 function p4Scenario(state, official, selectedYear, timeline) {
   const saving = calculateSavingPortfolio({ session: state.session, overallPolicyYear: selectedYear, official });
-  return `<div class="comparison-intro">另外建立一筆 Saving<br><span>時間行落去會點？</span></div><div class="time-bar-card timeline-rail-card"><div class="time-bar-heading"><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div><div class="resource-card resource-card--new"><span class="card-kicker">Saving · ${saving.phases.length} 期安排</span><strong>${saving.available ? money(saving.futureValue) : '—'}</strong><span>${saving.available ? `到第 ${selectedYear} 年 · 按官方已知數據` : esc(saving.message)}</span></div><p class="calculation-note">只展示 Saving 的官方已知價值；沒有為現有工具或偏好虛構回報。</p><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">了解點樣運作 →</button></div>`;
+  return `<div class="comparison-intro">另外建立一筆 Saving<br><span>時間行落去會點？</span></div><div class="time-bar-card timeline-rail-card"><div class="time-bar-heading"><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div><div class="resource-card resource-card--new"><span class="card-kicker">長期累積安排 · ${saving.phases.length} 期安排</span><strong>${saving.available ? money(saving.futureValue) : '—'}</strong><span>${saving.available ? `到第 ${selectedYear} 年 · 按官方已知數據` : esc(saving.message)}</span></div><p class="calculation-note">只展示 Saving 的官方已知價值；沒有為現有工具或偏好虛構回報。</p><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">了解點樣運作 →</button></div>`;
 }
 
 function p5(state) {
@@ -274,6 +274,25 @@ function withdrawalMetrics(result, combined = true) {
 
 function combinedWithdrawalMetrics(result) { return withdrawalMetrics(result); }
 
+function comparisonHorizon(state, official, phases) {
+  const requested = Math.max(1, phases.length * 5);
+  const years = supportedYears(official, 'none');
+  return years.includes(requested) ? requested : years.filter(year => year <= requested).slice(-1)[0] || years[0] || requested;
+}
+
+function customerBankComparison(state, official, phases) {
+  if (state.session.scenario !== 'scenario1' || state.session.currentMethod !== 'cash') return '';
+  const year = comparisonHorizon(state, official, phases);
+  const age = ageAtPolicyYear(state, year);
+  const current = currentPath({ method: 'cash', amount: state.session.annualContribution, assumptions: state.session.assumptions, projectionYears: year });
+  const saving = calculateSavingPortfolio({ session: state.session, overallPolicyYear: year, official });
+  const comparison = buildScenario1Comparison({ method: 'cash', current, officialValue: saving.available ? saving.futureValue : null });
+  const basis = age == null ? `以第${year}年作比較` : `以 ${age}歲（第${year}年）作比較`;
+  const currentRows = comparison.hasExistingDeposit ? `<div><span>現有銀行存款累積</span><strong>${money(current.breakdown.existingDepositFutureValue)}</strong></div><div><span>每年銀行安排累積</span><strong>${money(current.breakdown.futureAnnualValue)}</strong></div>` : `<div><span>每年銀行安排累積</span><strong>${money(current.breakdown?.futureAnnualValue)}</strong></div>`;
+  const longRows = comparison.hasExistingDeposit ? `<div><span>現有銀行存款累積</span><strong>${money(comparison.existingDepositFutureValue)}</strong></div><div><span>長期累積資源</span><strong>${money(comparison.longTermValue)}</strong></div>` : `<div><span>長期累積資源</span><strong>${money(comparison.longTermValue)}</strong></div>`;
+  return `<section class='customer-comparison' aria-label='現有做法與長期累積安排比較'><p class='comparison-basis'>${basis}</p><div class='customer-comparison-grid'><div class='customer-block'><span>而家做法</span>${currentRows}<div class='comparison-total'><span>預計總資源</span><strong>${money(comparison.currentTotal)}</strong></div></div><div class='customer-block customer-block--accent'><span>長期累積安排</span>${longRows}<div class='comparison-total'><span>預計總資源</span><strong>${money(comparison.longTermTotal)}</strong></div></div></div>${comparison.difference == null ? '' : `<p class='calculation-note'>相差 ${money(comparison.difference)}；以上只按兩種安排在同一時間點作比較。</p>`}</section>`;
+}
+
 function customerView(state, official, meta) {
   const { phases, result } = withdrawalPortfolio(state.session, official);
   const method = official.current_methods?.find(x => x.method_key === state.session.currentMethod)?.display_name || '現有安排';
@@ -281,20 +300,19 @@ function customerView(state, official, meta) {
   const context = scenario === 'scenario2' ? (state.session.investmentTools || []).map(toolLabel).map(esc).join(' ＋ ') : scenario === 'scenario3' ? (state.session.scenarioGoals || []).map(key => SCENARIO_GOALS.find(item => item[0] === key)?.[1]).map(esc).join(' ＋ ') : esc(method);
   const contextLabel = scenario === 'scenario3' ? '你重視的特點' : '你而家嘅做法';
   const contextNote = scenario === 'scenario3' ? '只記錄你揀選的方向，不作產品評分。' : '保留現有選擇，不作未有資料的推算。';
-  const lead = scenario === 'scenario3' ? '未必需要一件工具負責晒所有角色；Saving 可以係另一筆預先規劃的未來資源。' : scenario === 'scenario2' ? '現有工具可以繼續，同時看看另一筆 Saving 安排的官方已知價值。' : `原有 ${esc(method)} 可以繼續，同時多一筆可以預先規劃嘅未來資源。`;
+  const lead = scenario === 'scenario3' ? '未必需要一件工具負責晒所有角色；長期累積安排可以係另一筆預先規劃的未來資源。' : scenario === 'scenario2' ? '現有工具可以繼續，同時看看長期累積安排的官方已知價值。' : `原有 ${esc(method)} 可以繼續，同時多一筆可以預先規劃嘅未來資源。`;
   const generatedAt = new Date().toLocaleDateString('zh-HK', { year: 'numeric', month: 'long', day: 'numeric' });
-  const contributions = phases.map(phase => { const amount = Number(phase.annualContribution); const total = Number.isFinite(amount) && amount > 0 ? amount * 5 : null; return `<div class="customer-phase-row" data-contribution-phase="${phase.id}"><b>${phase.label}</b><small>每年 ${money(amount)} · 供款 5 年<br>供款總額 ${money(total)}</small></div>`; }).join('');
+  const contributions = phases.map(phase => { const amount = Number(phase.annualContribution); const total = Number.isFinite(amount) && amount > 0 ? amount * 5 : null; return `<div class='customer-phase-row' data-contribution-phase='${phase.id}'><b>${phase.label}</b><small>每年 ${money(amount)} · 供款 5 年<br>供款總額 ${money(total)}</small></div>`; }).join('');
   const arrangement = phases.map(phase => {
     const choice = phase.autoAccumulation ? '自動滾存' : phase.startYear == null ? '暫未有可用安排' : `第 ${phase.startYear} 年開始`;
     const age = ageAtPolicyYear(state, phase.overallPolicyYear);
     const metrics = phase.result.available ? `${phase.autoAccumulation ? '沒有提取' : `每年 ${money(phase.result.annualUsable)}`} · 累積已使用 ${money(phase.result.cumulativeUsed)}<br>戶口 ${money(phase.result.remainingValue)}` : '暫未有可顯示結果';
-    return `<div class="customer-phase-row" data-customer-withdrawal-phase="${phase.id}"><b>${phase.label}：${choice}</b><small>探索第 ${phase.selectedYear ?? '—'} 年（${age == null ? '—' : `${age}歲`}）<br>${metrics}</small></div>`;
+    return `<div class='customer-phase-row' data-customer-withdrawal-phase='${phase.id}'><b>${phase.label}：${choice}</b><small>探索第 ${phase.selectedYear ?? '—'} 年（${age == null ? '—' : `${age}歲`}）<br>${metrics}</small></div>`;
   }).join('');
-  const summary = phases.length > 1 ? `<h2>整體效果</h2><p class="calculation-note">按以上各期目前選擇合計</p>${combinedWithdrawalMetrics(result)}` : '';
-
-  return `<div class="customer-view" data-ava-mode="presentation"><div class="presentation-label">Customer Presentation · ${meta.stale ? '離線快取資料' : 'AVA Saving'}</div><h1>${scenario === 'scenario3' ? '你重視的方向' : '現有方法'} ＋ 新增安排<br><span>＝ 新嘅整體資源畫面</span></h1><p class="presentation-lead">${lead}</p><div class="customer-grid"><div class="customer-block"><span>${contextLabel}</span><strong>${context}</strong><small>${contextNote}</small></div><div class="customer-block customer-block--accent"><span>新增 Saving 安排 · ${phases.length} 期</span><strong>${result.available ? money(result.remainingValue) : '—'}</strong><small>${result.available ? phases.length > 1 ? '按各期目前選擇合計' : '按第一期目前選擇' : esc(result.message)}</small></div><div class="customer-block customer-block--phases"><span>各期供款安排</span>${contributions}${phases.length > 1 ? `<div class="customer-contribution-total"><span>合計供款</span><strong>${money(result.totalContribution)}</strong></div>` : ''}</div><div class="customer-block customer-block--phases"><span>各期使用安排</span>${arrangement}</div></div>${summary}<p class="disclosure">以上 Saving 數字按各期現有官方資料計算；客戶輸入的現有方法及任何假設會清楚分開展示。資料版本：${esc(official.version?.data_version || '未提供')}；生成日期：${generatedAt}。</p><div class="actions presentation-actions"><button class="ava-button ava-button--primary" data-action="print" type="button">匯出客戶頁 PDF</button><button class="ava-button ava-button--secondary" data-action="close-customer" type="button">返回對話</button></div></div>`;
+  const summary = phases.length > 1 ? `<h2>整體效果</h2><p class='calculation-note'>按以上各期目前選擇合計</p>${combinedWithdrawalMetrics(result)}` : '';
+  const bankComparison = customerBankComparison(state, official, phases);
+  return `<div class='customer-view' data-ava-mode='presentation'><div class='presentation-label'>Customer Presentation · ${meta.stale ? '離線快取資料' : 'AVA Saving'}</div><h1>${scenario === 'scenario3' ? '你重視的方向' : '現有方法'} ＋ 長期累積安排<br><span>＝ 新嘅整體資源畫面</span></h1><p class='presentation-lead'>${lead}</p>${bankComparison}<div class='customer-grid'><div class='customer-block'><span>${contextLabel}</span><strong>${context}</strong><small>${contextNote}</small></div><div class='customer-block customer-block--accent'><span>長期累積安排 · ${phases.length} 期</span><strong>${result.available ? money(result.remainingValue) : '—'}</strong><small>${result.available ? phases.length > 1 ? '按各期目前選擇合計' : '按第一期目前選擇' : esc(result.message)}</small></div><div class='customer-block customer-block--phases'><span>各期供款安排</span>${contributions}${phases.length > 1 ? `<div class='customer-contribution-total'><span>合計供款</span><strong>${money(result.totalContribution)}</strong></div>` : ''}</div><div class='customer-block customer-block--phases'><span>各期使用安排</span>${arrangement}</div></div>${summary}<p class='disclosure'>以上長期累積安排數字按各期現有官方資料計算；客戶輸入的現有方法及任何假設會清楚分開展示。資料版本：${esc(official.version?.data_version || '未提供')}；生成日期：${generatedAt}。</p><div class='actions presentation-actions'><button class='ava-button ava-button--primary' data-action='print' type='button'>匯出客戶頁 PDF</button><button class='ava-button ava-button--secondary' data-action='close-customer' type='button'>返回對話</button></div></div>`;
 }
-
 function unavailable(message) { return `<div class="ava-status ava-status--warning">${esc(message)}</div>`; }
 function renderEditPanel(app, state, page, title, subtitle) {
   const current = state.pageId;
