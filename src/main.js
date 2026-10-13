@@ -210,6 +210,7 @@ app.addEventListener('click', event => {
       state.session.scenarioGoals = [];
       state.session.marketResponse = null;
       state.session.maturityResponse = null;
+      state.session.maturityHorizon = 5;
       state.session.mixedFocus = null;
       goTo(state, destination);
     }
