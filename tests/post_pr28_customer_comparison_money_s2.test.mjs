@@ -224,7 +224,8 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(views.includes('截至呢個時間點已安排'));
   assert.ok(views.includes('過去約10年，市場實際行過點？'));
   assert.ok(views.includes('以起點 = 100 作歷史走勢比較'));
-  assert.ok(views.includes('數據截至'));
+  assert.ok(views.includes('歷史數據至'));
+  assert.ok(views.includes('資料核對日期'));
   assert.ok(views.includes('select-market-history-series'));
   assert.ok(views.includes('select-market-history-year'));
   assert.ok(views.includes('select-maturity-horizon'));
