@@ -117,7 +117,7 @@ function scenario2Market(state) {
     <div class="horizon-line" aria-label="選擇歷史年份">
       ${values.map(item => `<button class="year-chip ${item.year === String(selectedYear) ? 'is-selected' : ''}" data-action="select-market-history-year" data-value="${item.year}" type="button" aria-pressed="${item.year === String(selectedYear)}">${item.year}</button>`).join('')}
     </div>
-    <p class="history-disclosure">資料期間 ${values[0]?.year || '—'}–${values[values.length - 1]?.year || '—'} · ${esc(series?.sourceName || '資料來源')} · 數據截至 ${esc(series?.asOfDate || '—')}。索引／價格只作歷史參考，不代表未來回報；${esc(series?.basis || '未計股息或分派')}，亦未計費用、稅項或匯率影響。代表性市場例子，並非投資建議。</p>
+    <p class="history-disclosure">資料期間 ${values[0]?.year || '—'}–${values[values.length - 1]?.year || '—'} · ${esc(series?.primarySource?.name || series?.sourceName || '資料來源')} · 歷史數據至 ${esc(String(series?.dataThroughDate || '—').slice(0, 4))} 年底 · 資料核對日期 ${esc(series?.verifiedAt || '—')}。索引／價格只作歷史參考，不代表未來回報；${esc(series?.displayBasis || series?.basis || '未計股息或分派')}，亦未計費用、稅項或匯率影響。代表性市場例子，並非投資建議。</p>
   </div>
   <div class="response-grid" aria-label="市場波動時的想法">${responses.map(([key,label,note]) => `<button class="response-card ${selected === key ? 'is-selected' : ''}" data-action="select-market-response" data-value="${key}" type="button" aria-pressed="${selected === key}"><strong>${label}</strong><small>${note}</small></button>`).join('')}</div>
   <p class="selection-note" role="status">${marketResponse(selected)}</p>
