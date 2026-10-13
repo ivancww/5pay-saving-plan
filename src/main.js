@@ -228,7 +228,8 @@ app.addEventListener('click', event => {
   if (action === 'continue-goals' && state.pageId === 'S3_GOALS' && state.session.scenarioGoals.length) goTo(state, scenarioRoute(official, 'scenario3_goals'));
   if (action === 'continue-market-to-maturity' && state.pageId === 'S2_MARKET' && state.session.marketResponse) goTo(state, scenarioRoute(official, 'scenario2_maturity'));
   if (action === 'continue-maturity-to-mixed' && state.pageId === 'S2_MATURITY' && state.session.maturityResponse) goTo(state, scenarioRoute(official, 'scenario2_mixed'));
-  if (action === 'continue-to-saving' && ((state.pageId === 'S2_MARKET' && state.session.marketResponse && !state.session.investmentTools.some(key => key === 'fixed_deposit' || key === 'bond')) || (state.pageId === 'S2_MATURITY' && state.session.maturityResponse && !state.session.investmentTools.some(key => key === 'stock' || key === 'etf')) || state.pageId === 'S2_MIXED' || state.pageId === 'S3_TRADEOFF')) goTo(state, scenarioRoute(official, 'scenario_to_saving'));
+  if (action === 'continue-scenario2-to-saving' && ((state.pageId === 'S2_MARKET' && state.session.marketResponse && !state.session.investmentTools.some(key => key === 'fixed_deposit' || key === 'bond')) || (state.pageId === 'S2_MATURITY' && state.session.maturityResponse && !state.session.investmentTools.some(key => key === 'stock' || key === 'etf')) || (state.pageId === 'S2_MIXED' && state.session.mixedFocus))) goTo(state, scenarioRoute(official, 'scenario2_to_saving'));
+  if (action === 'continue-scenario3-to-saving' && state.pageId === 'S3_TRADEOFF') goTo(state, scenarioRoute(official, 'scenario3_to_saving'));
   if (action === 'select-method') { state.session.currentMethod = control.dataset.value; goTo(state, 'P2'); }
   if (action === 'select-purpose') { state.session.purpose = control.dataset.value; goTo(state, 'P3'); }
   if (action === 'add-holding' && state.pageId === 'P3') {
