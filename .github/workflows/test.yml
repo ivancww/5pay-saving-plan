@@ -20,12 +20,15 @@ jobs:
           node --input-type=module --check < src/admin.js
           node --input-type=module --check < src/data.js
           node --input-type=module --check < src/calculation.js
+          node --input-type=module --check < src/money.js
+          node --input-type=module --check < src/market-data.js
           node --input-type=module --check < src/state.js
           node --input-type=module --check < src/views.js
           node --input-type=module --check < src/main.js
           node --test tests/official_write_confirmation.test.js
           node --test tests/gas_publish_simulation.test.js
           node --test tests/scenario1_calculation.test.mjs
+          node --test tests/post_pr28_customer_comparison.test.mjs
       - name: Saving contract tests
         run: |
           python3 tests/admin_security_contract.test.py

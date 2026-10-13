@@ -150,6 +150,28 @@ export function currentPath({ method, amount, assumptions = {}, years = CONTRIBU
   return legacyCurrentPath({ method, amount: value, assumptions, projectionYears: projection, contributionYears });
 }
 
+export function buildScenario1Comparison({ method, current, officialValue }) {
+  const currentTotal = Number(current?.value);
+  const official = Number(officialValue);
+  const existingDepositFutureValue = method === 'cash'
+    ? Number(current?.breakdown?.existingDepositFutureValue || 0)
+    : 0;
+  const hasExistingDeposit = existingDepositFutureValue > 0;
+  const longTermTotal = Number.isFinite(official)
+    ? (hasExistingDeposit ? existingDepositFutureValue + official : official)
+    : null;
+  return {
+    existingDepositFutureValue,
+    hasExistingDeposit,
+    currentTotal: Number.isFinite(currentTotal) ? currentTotal : null,
+    longTermValue: Number.isFinite(official) ? official : null,
+    longTermTotal,
+    difference: Number.isFinite(currentTotal) && Number.isFinite(longTermTotal)
+      ? longTermTotal - currentTotal
+      : null
+  };
+}
+
 // Independent copies of the same verified five-year arrangement, never new products.
 export const SAVING_PHASES = Object.freeze([
   Object.freeze({ id: 1, label: '第一期', offset: 0 }),

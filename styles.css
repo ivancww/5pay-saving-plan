@@ -127,3 +127,20 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
   .phase-step{grid-template-columns:30px minmax(0,1fr)}
   .phase-step-number{width:30px;height:30px}
 }
+
+/* Post-PR28 customer comparison and historical market experience */
+.market-switch{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.market-switch .year-chip{min-height:44px}
+.market-values{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;line-height:1.4}
+.market-result{grid-template-columns:repeat(4,minmax(0,1fr))}
+.market-result>div{min-width:0}
+.market-result strong{overflow-wrap:anywhere}
+.customer-comparison{display:grid;gap:10px;margin:0 0 18px}
+.comparison-basis{margin:0;color:var(--muted);font-weight:700}
+.customer-comparison-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.customer-comparison-grid .customer-block{min-width:0}
+.customer-comparison-grid .customer-block>div{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;min-width:0;padding-top:8px}
+.customer-comparison-grid .customer-block>div strong{min-width:0;overflow-wrap:anywhere;text-align:right}
+.customer-comparison-grid .comparison-total{border-top:1px solid var(--border);margin-top:8px;padding-top:12px!important}
+@media (max-width:1000px) and (min-width:651px){.market-result{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:650px){.market-result,.customer-comparison-grid{grid-template-columns:1fr}.customer-comparison-grid .customer-block>div{align-items:flex-start}}
