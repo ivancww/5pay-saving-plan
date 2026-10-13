@@ -150,7 +150,7 @@ export function currentPath({ method, amount, assumptions = {}, years = CONTRIBU
   return legacyCurrentPath({ method, amount: value, assumptions, projectionYears: projection, contributionYears });
 }
 
-// Independent copies// Independent copies of the same verified five-year arrangement, never new products.
+// Independent copies of the same verified five-year arrangement, never new products.
 export const SAVING_PHASES = Object.freeze([
   Object.freeze({ id: 1, label: '第一期', offset: 0 }),
   Object.freeze({ id: 2, label: '第二期', offset: 5 }),
@@ -212,7 +212,7 @@ export function calculateSavingPortfolio({ session, overallPolicyYear, official 
   return { ...base, available: true, futureValue: value, remainingValue: value };
 }
 
-// Each withdrawal scenario// Each withdrawal scenario has its own exact local time, independently of accumulation.
+// Each withdrawal scenario has its own exact local time, independently of accumulation.
 export function resolvePhaseWithdrawal(phase, session, official) {
   const points = withdrawalPoints(official);
   const strategy = points.find(item => item.strategy_code === phase.strategyCode) || points[0];
