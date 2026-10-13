@@ -167,5 +167,5 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(!styles.includes('overflow-x:hidden'));
   assert.ok(styles.includes('@media (max-width:650px)'));
   assert.ok(styles.includes('@media (max-width:1000px) and (min-width:651px)'));
-  assert.ok(build.includes("APP_VERSION = 'V1.10.1'"));
+  assert.ok(build.includes("APP_VERSION = 'V1.11'"));
 });
