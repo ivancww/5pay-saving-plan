@@ -50,7 +50,7 @@ test('P6 preserves planned total and current-time contribution separately', () =
   assert.equal(early.availablePhaseCount, 1);
 });
 
-test('Scenario 2 retains all four tools and routes into P3 after both branches', () => {
+test('Scenario 2 retains all four tools and has a dedicated route separate from Scenario 3', () => {
   for (const selected of [
     ['stock'], ['etf'], ['stock', 'etf'],
     ['fixed_deposit'], ['bond'], ['fixed_deposit', 'bond'],
@@ -59,7 +59,9 @@ test('Scenario 2 retains all four tools and routes into P3 after both branches',
   ]) {
     assert.ok(investmentPath(selected));
   }
-  assert.equal(scenarioRoute({}, 'scenario_to_saving'), 'P3');
+  assert.equal(scenarioRoute({}, 'scenario2_to_saving'), 'P3');
+  assert.equal(scenarioRoute({}, 'scenario3_to_saving'), 'P2');
+  assert.equal(scenarioRoute({}, 'scenario_to_saving'), null);
   assert.equal(scenarioRoute({}, 'scenario1'), 'P1');
 });
 
@@ -69,6 +71,11 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   const styles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
   const build = fs.readFileSync(new URL('../src/build.js', import.meta.url), 'utf8');
   assert.ok(views.includes('目前已有資源'));
+  assert.ok(views.includes('現有資源總額'));
+  assert.ok(views.includes('複利儲蓄安排'));
+  assert.ok(main.includes('continue-scenario2-to-saving'));
+  assert.ok(main.includes('continue-scenario3-to-saving'));
+  assert.ok(!main.includes("scenarioRoute(official, 'scenario_to_saving')"));
   assert.ok(views.includes('同一筆新增安排'));
   assert.ok(views.includes('計劃總投入'));
   assert.ok(views.includes('截至呢個時間點已安排'));
