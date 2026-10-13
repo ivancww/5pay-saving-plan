@@ -221,6 +221,7 @@ app.addEventListener('click', event => {
   }
   if (action === 'select-market-response' && state.pageId === 'S2_MARKET' && ['hold', 'reduce', 'wait'].includes(control.dataset.value)) state.session.marketResponse = control.dataset.value;
   if (action === 'select-maturity-response' && state.pageId === 'S2_MATURITY' && ['renew', 'compare', 'switch', 'later'].includes(control.dataset.value)) state.session.maturityResponse = control.dataset.value;
+  if (action === 'select-maturity-horizon' && state.pageId === 'S2_MATURITY' && [1, 2, 5, 10, 15].includes(Number(control.dataset.value))) state.session.maturityHorizon = Number(control.dataset.value);
   if (action === 'select-mixed-focus' && state.pageId === 'S2_MIXED' && ['market', 'maturity'].includes(control.dataset.value)) state.session.mixedFocus = control.dataset.value;
   if (action === 'toggle-goal' && state.pageId === 'S3_GOALS') state.session.scenarioGoals = toggleChoice(state.session.scenarioGoals, control.dataset.value, SCENARIO_GOALS);
   if (action === 'continue-goals' && state.pageId === 'S3_GOALS' && state.session.scenarioGoals.length) goTo(state, scenarioRoute(official, 'scenario3_goals'));
