@@ -82,6 +82,10 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   const styles = fs.readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
   const build = fs.readFileSync(new URL('../src/build.js', import.meta.url), 'utf8');
   assert.ok(views.includes('目前已有資源'));
+  const customerViewStart = views.indexOf('function customerView');
+  const customerViewSource = views.slice(customerViewStart, views.indexOf('function unavailable', customerViewStart));
+  assert.ok(customerViewSource.includes("scenario === 'scenario1' ? customerScenario1Resources(state, official, phases) : ''"));
+  assert.ok(customerViewSource.includes('${scenario1Resources}'));
   assert.ok(views.includes('現有資源總額'));
   assert.ok(views.includes('複利儲蓄安排'));
   assert.ok(views.includes('合計資源'));
