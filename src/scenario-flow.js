@@ -45,7 +45,7 @@ export function investmentPath(selected) {
 const NEXT = Object.freeze({
   scenario1: 'P1', scenario2: 'S2_TOOLS', scenario3: 'S3_GOALS',
   scenario2_market: 'S2_MARKET', scenario2_maturity: 'S2_MATURITY', scenario2_mixed: 'S2_MIXED',
-  scenario3_goals: 'S3_TRADEOFF', scenario_to_saving: 'P2'
+  scenario3_goals: 'S3_TRADEOFF', scenario_to_saving: 'P3'
 });
 
 export function scenarioRoute(official, routeId) {
@@ -54,6 +54,6 @@ export function scenarioRoute(official, routeId) {
   const configured = official?.routing?.find(row => row.route_id === routeId && row.enabled !== false)?.next_page;
   // Routing can use existing flow IDs, but cannot bypass the required visual
   // stages or jump into protected calculation pages.
-  const allowed = routeId === 'scenario_to_saving' ? ['P2'] : [fallback];
+  const allowed = routeId === 'scenario_to_saving' ? ['P3'] : [fallback];
   return allowed.includes(configured) ? configured : fallback;
 }
