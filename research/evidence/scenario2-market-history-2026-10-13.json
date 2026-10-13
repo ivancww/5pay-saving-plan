@@ -1,0 +1,261 @@
+{
+  "version": 2,
+  "retrievedAt": "2026-10-13",
+  "convention": "Annual reference observations normalized within each series so the first observation (2016) equals 100.",
+  "currencyAndFx": "Each series remains in its local market context; no HKD/USD conversion and no FX effect is implied.",
+  "observations": [
+    {
+      "series_id": "hsi",
+      "display_name": "Hang Seng Index",
+      "market": "Hong Kong",
+      "raw_data_type": "annual index closing level",
+      "display_basis": "price index; dividends excluded",
+      "data_through_date": "2025-12-31",
+      "verified_at": "2026-10-13",
+      "primary_source": {
+        "name": "Hang Seng Indexes Company",
+        "url": "https://www.hsi.com.hk/eng/indexes/all-indexes/hs"
+      },
+      "secondary_source": {
+        "name": "DataCedar annual close table",
+        "url": "https://datacedar.com/markets/hkex/hsi"
+      },
+      "observations": [
+        [
+          "2016",
+          22000.56
+        ],
+        [
+          "2017",
+          29919.15
+        ],
+        [
+          "2018",
+          25845.7
+        ],
+        [
+          "2019",
+          28189.75
+        ],
+        [
+          "2020",
+          27231.13
+        ],
+        [
+          "2021",
+          23397.67
+        ],
+        [
+          "2022",
+          19781.41
+        ],
+        [
+          "2023",
+          17047.4
+        ],
+        [
+          "2024",
+          20059.96
+        ],
+        [
+          "2025",
+          25630.55
+        ]
+      ],
+      "normalization_method": "Divide each annual index level by the 2016 level and multiply by 100.",
+      "dividend_distribution_treatment": "Not applicable to a price index; dividends excluded.",
+      "fx_treatment": "No FX conversion."
+    },
+    {
+      "series_id": "sp500",
+      "display_name": "S&P 500 Index",
+      "market": "United States",
+      "raw_data_type": "annual index closing level",
+      "display_basis": "price index; dividends excluded",
+      "data_through_date": "2025-12-31",
+      "verified_at": "2026-10-13",
+      "primary_source": {
+        "name": "FRED SP500 series sourced from S&P data",
+        "url": "https://fred.stlouisfed.org/series/SP500"
+      },
+      "secondary_source": {
+        "name": "S&P Dow Jones Indices",
+        "url": "https://www.spglobal.com/spdji/en/indices/equity/sp-500/"
+      },
+      "observations": [
+        [
+          "2016",
+          2238.83
+        ],
+        [
+          "2017",
+          2673.61
+        ],
+        [
+          "2018",
+          2506.85
+        ],
+        [
+          "2019",
+          3230.78
+        ],
+        [
+          "2020",
+          3756.07
+        ],
+        [
+          "2021",
+          4766.18
+        ],
+        [
+          "2022",
+          3839.5
+        ],
+        [
+          "2023",
+          4769.83
+        ],
+        [
+          "2024",
+          5881.63
+        ],
+        [
+          "2025",
+          6845.5
+        ]
+      ],
+      "normalization_method": "Divide each annual index level by the 2016 level and multiply by 100.",
+      "dividend_distribution_treatment": "Price index only; dividends excluded.",
+      "fx_treatment": "No FX conversion."
+    },
+    {
+      "series_id": "tracker2800",
+      "display_name": "Tracker Fund of Hong Kong (2800.HK)",
+      "market": "Hong Kong",
+      "raw_data_type": "derived normalized cumulative series from annual price-return percentages",
+      "display_basis": "price return; distributions excluded",
+      "data_through_date": "2025-12-31",
+      "verified_at": "2026-10-13",
+      "primary_source": {
+        "name": "POEMS annual price-return table for 2800",
+        "url": "https://www.poems.com.sg/etf-screener/HKEX-2800/"
+      },
+      "secondary_source": {
+        "name": "Tracker Fund of Hong Kong fund information",
+        "url": "https://www.trahk.com.hk/en-hk/trahk-fund/fund-information/"
+      },
+      "observations": [
+        [
+          "2016",
+          100
+        ],
+        [
+          "2017",
+          140.5234
+        ],
+        [
+          "2018",
+          125.899
+        ],
+        [
+          "2019",
+          141.9186
+        ],
+        [
+          "2020",
+          141.2483
+        ],
+        [
+          "2021",
+          124.4261
+        ],
+        [
+          "2022",
+          109.6317
+        ],
+        [
+          "2023",
+          98.1942
+        ],
+        [
+          "2024",
+          119.8279
+        ],
+        [
+          "2025",
+          158.0168
+        ]
+      ],
+      "normalization_method": "Published annual price-return percentages are compounded into a normalized cumulative series; 2016 baseline = 100. These stored values are not raw HKD fund prices.",
+      "dividend_distribution_treatment": "Distributions excluded; price return only.",
+      "fx_treatment": "No FX conversion."
+    },
+    {
+      "series_id": "spy",
+      "display_name": "SPDR S&P 500 ETF Trust (SPY)",
+      "market": "United States",
+      "raw_data_type": "annual OHLC close field",
+      "display_basis": "unadjusted market close; distributions excluded",
+      "data_through_date": "2025-12-31",
+      "verified_at": "2026-10-13",
+      "primary_source": {
+        "name": "Kabutan US annual OHLC history for SPY",
+        "url": "https://us.kabutan.jp/stocks/SPY/historical_prices/yearly"
+      },
+      "secondary_source": {
+        "name": "TradersUnion SPY annual price history",
+        "url": "https://tradersunion.com/etfs/spy/price-history/"
+      },
+      "instrument_source": {
+        "name": "State Street SPDR",
+        "url": "https://www.ssga.com/us/en/intermediary/etfs/spdr-sp-500-etf-trust-spy"
+      },
+      "observations": [
+        [
+          "2016",
+          223.53
+        ],
+        [
+          "2017",
+          266.86
+        ],
+        [
+          "2018",
+          249.92
+        ],
+        [
+          "2019",
+          321.86
+        ],
+        [
+          "2020",
+          373.88
+        ],
+        [
+          "2021",
+          476.16
+        ],
+        [
+          "2022",
+          382.43
+        ],
+        [
+          "2023",
+          475.31
+        ],
+        [
+          "2024",
+          586.1
+        ],
+        [
+          "2025",
+          678.316
+        ]
+      ],
+      "normalization_method": "Divide each annual unadjusted close by the 2016 close and multiply by 100.",
+      "dividend_distribution_treatment": "Unadjusted close / price-only basis; distributions excluded.",
+      "fx_treatment": "No FX conversion."
+    }
+  ],
+  "disclaimer": "歷史走勢不代表未來回報；未計股息、分派、費用、稅項或匯率影響。"
+}

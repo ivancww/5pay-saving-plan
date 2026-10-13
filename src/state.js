@@ -16,7 +16,17 @@ export function normalizeMoneyState(session) {
     }
   }
   if (Array.isArray(session.savingPhases)) {
-    session.savingPhases = session.savingPhases.map(phase => ({ ...phase, annualContribution: normalizeMoneyValue(phase?.annualContribution) }));
+    session.savingPhases = session.savingPhases.map(phase => {
+      const next = { ...phase };
+      // A missing phase amount means inherit session.annualContribution.
+      // An explicit null remains an explicit cleared override.
+      if (Object.prototype.hasOwnProperty.call(phase || {}, 'annualContribution')) {
+        next.annualContribution = normalizeMoneyValue(phase.annualContribution);
+      } else {
+        delete next.annualContribution;
+      }
+      return next;
+    });
   }
   return session;
 }

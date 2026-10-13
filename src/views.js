@@ -3,6 +3,7 @@ import { ageAtPolicyYear, getCustomerAge } from './state.js';
 import { MEDIA_TYPES, mediaCanRender, mediaFallbackLabel, normalizeMediaList } from './media.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS } from './scenario-flow.js';
 import { formatMoneyInput, normalizeMoneyValue } from './money.js';
+import { marketHistoryKeys, normalizedMarketSeries } from './scenario2-market-history.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
 export function formatCustomerMoney(value) { const parsed = normalizeMoneyValue(value); return parsed == null ? '—' : `HK$ ${Math.round(parsed).toLocaleString('en-US')}`; }
@@ -85,12 +86,43 @@ function scenario2Tools(state, official) {
 
 function scenario2Market(state) {
   const selected = state.session.marketResponse;
-  const mixed = state.session.investmentTools?.some(key => key === 'stock' || key === 'etf') && state.session.investmentTools?.some(key => key === 'fixed_deposit' || key === 'bond');
-  const marketLabels = (state.session.investmentTools || []).filter(key => key === 'stock' || key === 'etf').map(toolLabel).join(' ＋ ');
+  const tools = state.session.investmentTools || [];
+  const mixed = tools.some(key => key === 'stock' || key === 'etf') && tools.some(key => key === 'fixed_deposit' || key === 'bond');
+  const keys = marketHistoryKeys({ stocks: tools.includes('stock'), etfs: tools.includes('etf') });
+  const activeKey = keys.includes(state.session.marketHistorySeries) ? state.session.marketHistorySeries : keys[0];
+  const series = normalizedMarketSeries(activeKey);
+  const marketLabels = tools.filter(key => key === 'stock' || key === 'etf').map(toolLabel).join(' ＋ ');
   const responses = [['hold','繼續持有','繼續參與市場'],['reduce','減低持倉','先降低一部分市場參與'],['wait','等穩定啲再決定','將決定留到另一個時間點']];
-  return `<div class="visual-stage"><strong class="visual-kicker">${esc(marketLabels)} · 概念示意</strong><svg class="market-path" viewBox="0 0 600 180" role="img" aria-label="概念性的市場波動示意：100、112、125、103、94、108"><polyline class="market-path__line" points="35,120 140,87 245,48 350,112 455,140 560,98"/>${[[35,120],[140,87],[245,48],[350,112],[455,140],[560,98]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="7"/>`).join('')}</svg><div class="market-values" aria-hidden="true">${[100,112,125,103,94,108].map(value => `<span>${value}</span>`).join('')}</div><p class="visual-caption">數字只為展示上落，唔係歷史數據、預測或預期回報。需要用錢時，市場可能剛好較弱。</p></div><div class="response-grid" aria-label="市場波動時的想法">${responses.map(([key,label,note]) => `<button class="response-card ${selected === key ? 'is-selected' : ''}" data-action="select-market-response" data-value="${key}" type="button" aria-pressed="${selected === key}"><strong>${label}</strong><small>${note}</small></button>`).join('')}</div><p class="selection-note" role="status">${marketResponse(selected)}</p>${selected ? scenario2ResourceBridge(state, mixed ? 'continue-market-to-maturity' : 'continue-scenario2-to-saving') : ''}`;
+  const values = series?.observations || [];
+  const min = Math.min(...values.map(item => item.normalized));
+  const max = Math.max(...values.map(item => item.normalized));
+  const points = values.map((item, index) => {
+    const x = 28 + (index * 544 / Math.max(1, values.length - 1));
+    const y = 142 - ((item.normalized - min) / Math.max(1, max - min)) * 104;
+    return [x.toFixed(1), y.toFixed(1)];
+  });
+  const selectedYear = state.session.marketHistoryYear || values[values.length - 1]?.year;
+  const selectedPoint = values.find(item => item.year === String(selectedYear)) || values[values.length - 1];
+  return `<div class="visual-stage">
+    <strong class="visual-kicker">${esc(marketLabels)} · 過去約10年，市場實際行過點？</strong>
+    <div class="history-series-tabs" role="tablist" aria-label="市場歷史參考">
+      ${keys.map(key => { const item = normalizedMarketSeries(key); return `<button class="year-chip ${key === activeKey ? 'is-selected' : ''}" data-action="select-market-history-series" data-value="${key}" type="button" role="tab" aria-selected="${key === activeKey}">${esc(item?.shortLabel || key)}</button>`; }).join('')}
+    </div>
+    <svg class="market-path" viewBox="0 0 600 180" role="img" aria-label="${esc(series?.label || '市場歷史走勢')}：以起點等於100">
+      <polyline class="market-path__line" points="${points.map(point => point.join(',')).join(' ')}"/>
+      ${points.map(([x,y]) => `<circle cx="${x}" cy="${y}" r="5"/>`).join('')}
+    </svg>
+    <div class="market-values" aria-hidden="true">${values.map(item => `<span>${item.year} · ${item.normalized.toFixed(1)}</span>`).join('')}</div>
+    <p class="visual-caption">以起點 = 100 作歷史走勢比較。已選 ${esc(selectedPoint?.year || '')}：${selectedPoint?.normalized.toFixed(1) || '—'}。</p>
+    <div class="horizon-line" aria-label="選擇歷史年份">
+      ${values.map(item => `<button class="year-chip ${item.year === String(selectedYear) ? 'is-selected' : ''}" data-action="select-market-history-year" data-value="${item.year}" type="button" aria-pressed="${item.year === String(selectedYear)}">${item.year}</button>`).join('')}
+    </div>
+    <p class="history-disclosure">資料期間 ${values[0]?.year || '—'}–${values[values.length - 1]?.year || '—'} · ${esc(series?.primarySource?.name || series?.sourceName || '資料來源')} · 歷史數據至 ${esc(String(series?.dataThroughDate || '—').slice(0, 4))} 年底 · 資料核對日期 ${esc(series?.verifiedAt || '—')}。索引／價格只作歷史參考，不代表未來回報；${esc(series?.displayBasis || series?.basis || '未計股息或分派')}，亦未計費用、稅項或匯率影響。代表性市場例子，並非投資建議。</p>
+  </div>
+  <div class="response-grid" aria-label="市場波動時的想法">${responses.map(([key,label,note]) => `<button class="response-card ${selected === key ? 'is-selected' : ''}" data-action="select-market-response" data-value="${key}" type="button" aria-pressed="${selected === key}"><strong>${label}</strong><small>${note}</small></button>`).join('')}</div>
+  <p class="selection-note" role="status">${marketResponse(selected)}</p>
+  ${selected ? scenario2ResourceBridge(state, mixed ? 'continue-market-to-maturity' : 'continue-scenario2-to-saving') : ''}`;
 }
-
 function marketResponse(value) { return value ? '呢度沒有正確答案。你需要用錢的時間，未必配合當時市場狀況。' : '揀一個你較自然的反應，感受一下時間點的影響。'; }
 function scenario2Maturity(state) {
   const selected = state.session.maturityResponse;

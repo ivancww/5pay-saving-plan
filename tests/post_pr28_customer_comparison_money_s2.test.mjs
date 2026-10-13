@@ -3,11 +3,12 @@ import test from 'node:test';
 import fs from 'node:fs';
 
 import { normalizeMoneyValue, parseMoney, formatMoneyInput } from '../src/money.js';
-import { calculateSavingPortfolio, currentPath } from '../src/calculation.js';
+import { activeSavingPhases, calculateSavingPortfolio, currentPath } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
 import { normalizeMoneyState } from '../src/state.js';
 import { formatCustomerMoney, render } from '../src/views.js';
 import { getExistingResourceFutureValue } from '../src/views.js';
+import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries } from '../src/scenario2-market-history.js';
 
 const official = {
   strategyMap: { none: 'none' },
@@ -73,6 +74,74 @@ test('money formatting and malformed state never produce NaN customer output', (
   }, { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] });
   assert.ok(!app.innerHTML.includes('NaN'));
   assert.ok(!app.innerHTML.includes('HK$ NaN'));
+});
+
+test('missing phase annual contribution inherits session amount after normalization', () => {
+  const session = {
+    annualContribution: 100000,
+    savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+  };
+  normalizeMoneyState(session);
+  assert.equal(Object.prototype.hasOwnProperty.call(session.savingPhases[0], 'annualContribution'), false);
+  assert.equal(activeSavingPhases(session)[0].annualContribution, 100000);
+});
+
+test('explicit phase override remains independent from inherited Phase 1 amount', () => {
+  const session = {
+    annualContribution: 100000,
+    savingPhases: [
+      { id: 1, strategyCode: null, withdrawalPolicyYear: null },
+      { id: 2, annualContribution: 80000, strategyCode: null, withdrawalPolicyYear: null }
+    ]
+  };
+  normalizeMoneyState(session);
+  const phases = activeSavingPhases(session);
+  assert.equal(phases[0].annualContribution, 100000);
+  assert.equal(phases[1].annualContribution, 80000);
+});
+
+test('Scenario 2 market history is sourced, normalized and finite for all four references', () => {
+  for (const key of ['hsi', 'sp500', 'tracker2800', 'spy']) {
+    const raw = SCENARIO2_MARKET_HISTORY[key];
+    const series = normalizedMarketSeries(key);
+    assert.ok(raw?.primarySource?.name && raw?.primarySource?.url);
+    assert.equal(raw.dataThroughDate, '2025-12-31');
+    assert.equal(raw.verifiedAt, '2026-10-13');
+    assert.equal(series.observations[0].normalized, 100);
+    assert.ok(series.observations.length >= 10);
+    assert.ok(series.observations.every(item => Number.isFinite(item.value) && Number.isFinite(item.normalized)));
+  }
+});
+
+test('market evidence separates data-through date from verification date and matches the displayed basis', () => {
+  const evidence = JSON.parse(fs.readFileSync(new URL('../research/evidence/scenario2-market-history-2026-10-13.json', import.meta.url), 'utf8'));
+  for (const item of evidence.observations) {
+    assert.equal(item.data_through_date, '2025-12-31');
+    assert.equal(item.verified_at, '2026-10-13');
+    assert.equal(item.observations.at(-1)[0], '2025');
+    assert.ok(item.normalization_method);
+    assert.ok(item.dividend_distribution_treatment);
+    assert.ok(item.fx_treatment);
+  }
+  const spyEvidence = evidence.observations.find(item => item.series_id === 'spy');
+  assert.equal(spyEvidence.display_basis, SCENARIO2_MARKET_HISTORY.spy.displayBasis);
+  assert.equal(spyEvidence.raw_data_type, SCENARIO2_MARKET_HISTORY.spy.rawDataType);
+  const trackerEvidence = evidence.observations.find(item => item.series_id === 'tracker2800');
+  assert.match(trackerEvidence.raw_data_type, /derived normalized cumulative/);
+  assert.match(trackerEvidence.normalization_method, /2016 baseline = 100/);
+
+  const app = { innerHTML: '' };
+  render(app, {
+    pageId: 'S2_MARKET',
+    history: [],
+    mode: 'use',
+    customerView: false,
+    session: { scenario: 'scenario2', investmentTools: ['stock'], marketResponse: null, marketHistorySeries: 'hsi' }
+  }, { flow: [{ page_id: 'S2_MARKET', title: '市場', subtitle: '' }], page_content: [] });
+  assert.ok(app.innerHTML.includes('歷史數據至 2025 年底'));
+  assert.ok(app.innerHTML.includes('資料核對日期 2026-10-13'));
+  assert.ok(!app.innerHTML.includes('數據截至 2026-10-13'));
+  assert.ok(!app.innerHTML.includes('2026 年底'));
 });
 
 test('bank P4 keeps existing resource separate from the new-arrangement comparison', () => {
@@ -153,7 +222,12 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(views.includes('同一筆新增安排'));
   assert.ok(views.includes('計劃總投入'));
   assert.ok(views.includes('截至呢個時間點已安排'));
-  assert.ok(views.includes('概念示意'));
+  assert.ok(views.includes('過去約10年，市場實際行過點？'));
+  assert.ok(views.includes('以起點 = 100 作歷史走勢比較'));
+  assert.ok(views.includes('歷史數據至'));
+  assert.ok(views.includes('資料核對日期'));
+  assert.ok(views.includes('select-market-history-series'));
+  assert.ok(views.includes('select-market-history-year'));
   assert.ok(views.includes('select-maturity-horizon'));
   assert.ok(views.includes('data-value="${year}"'));
   const moneyInputs = [...views.matchAll(/<input[^>]*data-money-input[^>]*>/g)].map(match => match[0]);
@@ -167,5 +241,5 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(!styles.includes('overflow-x:hidden'));
   assert.ok(styles.includes('@media (max-width:650px)'));
   assert.ok(styles.includes('@media (max-width:1000px) and (min-width:651px)'));
-  assert.ok(build.includes("APP_VERSION = 'V1.10.1'"));
+  assert.ok(build.includes("APP_VERSION = 'V1.11'"));
 });

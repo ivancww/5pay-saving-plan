@@ -4,7 +4,7 @@
 export const SCENARIO_FLOW = Object.freeze([
   { page_id: 'START', order: 0, page_type: 'scenario', title: '而家想由邊度開始？', subtitle: '揀一個最接近你而家情況的選項。', enabled: true },
   { page_id: 'S2_TOOLS', order: 1.02, page_type: 'scenario', title: '你而家用緊邊啲工具？', subtitle: '可以揀多過一項。', enabled: true },
-  { page_id: 'S2_MARKET', order: 1.03, page_type: 'scenario', title: '如果市場突然出現較大波動，你會點處理呢筆錢？', subtitle: '呢條線只係概念例子，唔係預測或歷史數據。', enabled: true },
+  { page_id: 'S2_MARKET', order: 1.03, page_type: 'scenario', title: '如果市場突然出現較大波動，你會點處理呢筆錢？', subtitle: '以已整理的歷史市場走勢作參考，唔係預測或投資建議。', enabled: true },
   { page_id: 'S2_MATURITY', order: 1.04, page_type: 'scenario', title: '到期之後，你下一步會點？', subtitle: '短中期安排到期時，往往會再出現決定點。', enabled: true },
   { page_id: 'S2_MIXED', order: 1.05, page_type: 'scenario', title: '兩種考慮可以同時存在', subtitle: '市場波動同到期決定，都值得預先諗一諗。', enabled: true },
   { page_id: 'S3_GOALS', order: 1.06, page_type: 'scenario', title: '你希望呢筆錢有咩特點？', subtitle: '揀一項、兩項或者三項。', enabled: true },
