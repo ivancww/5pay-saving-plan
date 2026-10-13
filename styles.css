@@ -146,3 +146,5 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
 .customer-comparison strong{overflow-wrap:anywhere;text-align:right}
 @media (max-width:1000px) and (min-width:651px){.resource-summary{grid-template-columns:1fr}}
 @media (max-width:650px){.resource-summary{grid-template-columns:1fr}.input-section{padding:12px}}
+
+.existing-resource-total{border-top:1px solid var(--border);padding-top:8px;font-weight:700}
