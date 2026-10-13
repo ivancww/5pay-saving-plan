@@ -5,7 +5,8 @@ import { INVESTMENT_TOOLS, SCENARIO_GOALS } from './scenario-flow.js';
 import { formatMoneyInput, normalizeMoneyValue } from './money.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
-const money = value => { const parsed = normalizeMoneyValue(value); return parsed == null ? '—' : `HK$ ${Math.round(parsed).toLocaleString('en-US')}`; };
+export function formatCustomerMoney(value) { const parsed = normalizeMoneyValue(value); return parsed == null ? '—' : `HK$ ${Math.round(parsed).toLocaleString('en-US')}`; }
+const money = formatCustomerMoney;
 const inputMoney = value => formatMoneyInput(value);
 const pct = value => `${(Number(value) * 100).toFixed(Number(value) % 0.01 ? 1 : 0)}%`;
 const pageContent = (official, pageId) => official?.page_content?.filter(item => item.page_id === pageId) || [];
