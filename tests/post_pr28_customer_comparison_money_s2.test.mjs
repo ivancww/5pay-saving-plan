@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
 
-import { parseMoney, formatMoneyInput } from '../src/money.js';
+import { normalizeMoneyValue, parseMoney, formatMoneyInput } from '../src/money.js';
 import { calculateSavingPortfolio, currentPath } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
+import { normalizeMoneyState } from '../src/state.js';
+import { formatCustomerMoney, render } from '../src/views.js';
 import { getExistingResourceFutureValue } from '../src/views.js';
 
 const official = {
@@ -21,6 +23,56 @@ test('money values format, parse, clear and paste without numeric corruption', (
   assert.equal(parseMoney('1,250,000'), 1250000);
   assert.equal(parseMoney('HK$ 1,250,000'), 1250000);
   assert.equal(parseMoney(''), null);
+});
+
+test('money formatting and malformed state never produce NaN customer output', () => {
+  assert.equal(formatMoneyInput(null), '');
+  assert.equal(formatMoneyInput(''), '');
+  assert.equal(formatMoneyInput(NaN), '');
+  assert.equal(formatMoneyInput(Infinity), '');
+  assert.equal(formatMoneyInput(-Infinity), '');
+  assert.equal(formatMoneyInput(100000), '100,000');
+  assert.equal(formatMoneyInput('100,000'), '100,000');
+  assert.equal(formatMoneyInput('HK$ 1,250,000'), '1,250,000');
+  assert.equal(normalizeMoneyValue(''), null);
+  assert.equal(formatCustomerMoney(100000), 'HK$ 100,000');
+  assert.equal(formatCustomerMoney(NaN), '—');
+  assert.equal(formatCustomerMoney(Infinity), '—');
+
+  const session = {
+    annualContribution: NaN,
+    assumptions: {
+      existingDeposit: NaN,
+      existingValue: Infinity,
+      fixedDeposits: [{ principal: NaN, termYears: 2, annualRate: 3.5 }],
+      bonds: [{ principal: -Infinity, termYears: 5, annualRate: 4 }]
+    },
+    savingPhases: [{ id: 1, annualContribution: NaN }]
+  };
+  normalizeMoneyState(session);
+  assert.equal(session.annualContribution, null);
+  assert.equal(session.assumptions.existingDeposit, null);
+  assert.equal(session.assumptions.existingValue, null);
+  assert.equal(session.assumptions.fixedDeposits[0].principal, null);
+  assert.equal(session.assumptions.bonds[0].principal, null);
+  assert.equal(session.savingPhases[0].annualContribution, null);
+
+  const app = { innerHTML: '' };
+  render(app, {
+    pageId: 'P3',
+    history: [],
+    mode: 'use',
+    customerView: false,
+    session: {
+      scenario: 'scenario1',
+      currentMethod: 'cash',
+      annualContribution: NaN,
+      currentAge: 35,
+      assumptions: { existingDeposit: NaN, cashRate: null }
+    }
+  }, { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] });
+  assert.ok(!app.innerHTML.includes('NaN'));
+  assert.ok(!app.innerHTML.includes('HK$ NaN'));
 });
 
 test('bank P4 keeps existing resource separate from the new-arrangement comparison', () => {
@@ -108,10 +160,12 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(moneyInputs.length >= 6);
   assert.ok((views.match(/data-money-input inputmode='numeric' type='text'/g) || []).length >= 4);
   assert.ok(main.includes('formatMoneyInputElement(target)'));
+  assert.ok(main.includes('normalizeMoneyValue(parseMoney(target.value))'));
+  assert.ok(views.includes('formatCustomerMoney'));
   assert.ok(main.includes('updateP3Live()'));
   assert.ok(!main.match(/formatMoneyInputElement\(target\)[\s\S]*render\(/));
   assert.ok(!styles.includes('overflow-x:hidden'));
   assert.ok(styles.includes('@media (max-width:650px)'));
   assert.ok(styles.includes('@media (max-width:1000px) and (min-width:651px)'));
-  assert.ok(build.includes("APP_VERSION = 'V1.10'"));
+  assert.ok(build.includes("APP_VERSION = 'V1.10.1'"));
 });

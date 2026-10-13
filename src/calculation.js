@@ -1,3 +1,5 @@
+import { normalizeMoneyValue } from './money.js';
+
 export const CONTRIBUTION_YEARS = 5;
 
 /**
@@ -7,7 +9,7 @@ export const CONTRIBUTION_YEARS = 5;
  * selected exact row's multiplier. No interpolation or projection is allowed.
  */
 export function calculateOfficial({ annualContribution, policyYear, strategyCode = 'none', official }) {
-  const amount = Number(annualContribution);
+  const amount = normalizeMoneyValue(annualContribution);
   const year = Number(policyYear);
   const configuredStrategy = official?.strategies?.find(item => item.strategy_code === strategyCode);
   const sheetName = official?.strategyMap?.[strategyCode] || configuredStrategy?.sheet_name || strategyCode;
@@ -24,9 +26,11 @@ export function calculateOfficial({ annualContribution, policyYear, strategyCode
   const cumulativeUsed = calculateCumulativeWithdrawal({
     totalContribution, startYear, selectedYear: year, annualRate: Number(strategy?.withdraw_rate) || rate
   });
-  const futureValue = totalContribution * Number(row.multiplier);
+  const multiplier = Number(row.multiplier);
+  if (!Number.isFinite(multiplier)) return unavailable('官方資料暫時無法展示。');
+  const futureValue = totalContribution * multiplier;
   return {
-    available: true, policyYear: year, multiplier: Number(row.multiplier), withdrawalRate: rate,
+    available: true, policyYear: year, multiplier, withdrawalRate: rate,
     totalContribution, futureValue, annualUsable,
     cumulativeUsed,
     // The Official multiplier is already the selected row's post-withdrawal
@@ -72,28 +76,33 @@ export function futureValueWithEndOfYearContributions({ annualContribution, annu
 }
 
 export function calculateBankValue({ principal = 0, annualRate = null, selectedYear = 0 }) {
-  const amount = Number(principal);
+  const amount = normalizeMoneyValue(principal);
   const years = Math.max(0, Math.floor(Number(selectedYear)) || 0);
   const rate = annualRate == null ? null : Number(annualRate);
-  if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(years)) return 0;
+  if (amount == null || amount < 0 || !Number.isFinite(years)) return 0;
+  if (rate != null && !Number.isFinite(rate)) return amount;
   return rate == null ? amount : amount * (1 + rate) ** years;
 }
 
 export function calculateFixedDepositValue({ principal, termYears, annualRate, selectedYear }) {
-  const amount = Number(principal);
-  const term = Math.max(0, Number(termYears));
+  const amount = normalizeMoneyValue(principal);
+  const rawTerm = Number(termYears);
+  const term = Number.isFinite(rawTerm) && rawTerm >= 0 ? rawTerm : 0;
   const years = Math.max(0, Number(selectedYear));
-  const rate = Number(annualRate);
-  if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(term) || !Number.isFinite(rate) || !Number.isFinite(years)) return 0;
+  const rawRate = Number(annualRate);
+  const rate = Number.isFinite(rawRate) ? rawRate : 0;
+  if (amount == null || amount < 0 || !Number.isFinite(years)) return 0;
   return amount * (1 + rate) ** Math.min(years, term);
 }
 
 export function calculateBondValue({ principal, termYears, annualRate, selectedYear }) {
-  const amount = Number(principal);
-  const term = Math.max(0, Number(termYears));
+  const amount = normalizeMoneyValue(principal);
+  const rawTerm = Number(termYears);
+  const term = Number.isFinite(rawTerm) && rawTerm >= 0 ? rawTerm : 0;
   const years = Math.max(0, Number(selectedYear));
-  const rate = Number(annualRate);
-  if (!Number.isFinite(amount) || amount < 0 || !Number.isFinite(term) || !Number.isFinite(rate) || !Number.isFinite(years)) return 0;
+  const rawRate = Number(annualRate);
+  const rate = Number.isFinite(rawRate) ? rawRate : 0;
+  if (amount == null || amount < 0 || !Number.isFinite(years)) return 0;
   return amount * (1 + rate * Math.min(years, term));
 }
 
@@ -103,7 +112,7 @@ function normalizedHoldings(items) {
     principal: Number(item?.principal),
     termYears: Number(item?.termYears),
     annualRate: decimalRate(item?.annualRate)
-  })).filter(item => Number.isFinite(item.principal) && item.principal >= 0 && Number.isFinite(item.termYears) && item.termYears >= 0 && item.annualRate != null);
+  })).filter(item => Number.isFinite(item.principal) && item.principal >= 0 && Number.isFinite(item.termYears) && item.termYears >= 0 && Number.isFinite(item.annualRate));
 }
 
 export function calculateBankProjection({ existingDeposit = 0, cashRate = null, annualContribution = 0, projectionYears = 0 }) {
@@ -127,7 +136,8 @@ function legacyCurrentPath({ method, amount, assumptions, projectionYears, contr
     return { kind: 'assumption', value: futureValueWithEndOfYearContributions({ annualContribution: amount, annualRate: rate, projectionYears, contributionYears }), label: `按你輸入的 ${rawRate}% 假設計算。` };
   }
   if (method === 'long_term' && !assumptions.existingValue) return { kind: 'unknown', label: '等客戶提供現有安排資料後再展示。' };
-  return { kind: 'assumption', value: Number(assumptions.existingValue || amount), label: '按你提供的現有安排資料展示。' };
+  const existingValue = normalizeMoneyValue(assumptions.existingValue);
+  return { kind: 'assumption', value: existingValue ?? amount, label: '按你提供的現有安排資料展示。' };
 }
 
 export function currentPath({ method, amount, assumptions = {}, years = CONTRIBUTION_YEARS, contributionYears = CONTRIBUTION_YEARS, projectionYears = years }) {
@@ -135,7 +145,7 @@ export function currentPath({ method, amount, assumptions = {}, years = CONTRIBU
   if (!Number.isFinite(value) || value <= 0) return { kind: 'unknown', label: '輸入同一筆錢後，可以睇得更具體。' };
   const projection = Math.max(0, Math.floor(Number(projectionYears)) || 0);
   if (method === 'cash' || method === 'none') {
-    const bank = calculateBankProjection({ existingDeposit: assumptions.existingDeposit || 0, cashRate: assumptions.cashRate, annualContribution: value, projectionYears: projection });
+    const bank = calculateBankProjection({ existingDeposit: normalizeMoneyValue(assumptions.existingDeposit) ?? 0, cashRate: assumptions.cashRate, annualContribution: value, projectionYears: projection });
     return { kind: 'known', value: bank.value, label: bank.label, method, breakdown: bank };
   }
   if (method === 'fixed_deposit' || method === 'bond') {

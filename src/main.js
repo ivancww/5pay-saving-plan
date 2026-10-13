@@ -1,5 +1,5 @@
 import { applyLocalOverrides, loadCachedOfficial, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
-import { activateSavingPhase, createState, getCustomerAge, goBack, goTo, removeSavingPhase, selectPhaseWithdrawal, selectPhaseWithdrawalYear } from './state.js';
+import { activateSavingPhase, createState, getCustomerAge, goBack, goTo, normalizeMoneyState, removeSavingPhase, selectPhaseWithdrawal, selectPhaseWithdrawalYear } from './state.js';
 import { exportCustomerView } from './pdf.js';
 import { render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
@@ -8,13 +8,13 @@ import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
 import { exchangeAdminLaunch, handleAdminTabKeydown, publishOfficial, readAdminPayload, renderAdmin, resetAdminTab, switchAdminRecord, switchAdminTab } from './admin.js';
 import { APP_VERSION, BUILD_ID } from './build.js';
 import { currentPath } from './calculation.js';
-import { formatMoneyInputElement, parseMoney } from './money.js';
+import { formatMoneyInputElement, normalizeMoneyValue, parseMoney } from './money.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS, investmentPath, scenarioRoute, toggleChoice } from './scenario-flow.js';
 
 const app = document.querySelector('#app');
 const versionNode = document.querySelector('#app-version');
 if (versionNode) versionNode.textContent = APP_VERSION;
-const formatMoney = value => value == null ? '—' : `HK$ ${Math.round(value).toLocaleString('en-US')}`;
+const formatMoney = value => { const parsed = normalizeMoneyValue(value); return parsed == null ? '—' : `HK$ ${Math.round(parsed).toLocaleString('en-US')}`; };
 window.__AVA_SAVING_BUILD__ = BUILD_ID;
 console.info('[5PAY Saving] build %s', BUILD_ID);
 const state = createState();
@@ -45,6 +45,7 @@ if (entryMode === ENTRY_MODES.user) state.mode = 'edit';
 if (entryMode !== ENTRY_MODES.standalone) document.querySelector('link[rel="manifest"]')?.remove();
 
 function draw(focus = null, resetRails = []) {
+  normalizeMoneyState(state.session);
   if (entryMode === ENTRY_MODES.unsupported) {
     app.innerHTML = '<div class="ava-status ava-status--warning" role="alert"><strong>此 AVA 入口未啟用。</strong><p>Saving 目前只支援 Frontstage 和 User/Edit 入口。</p></div>';
     return;
@@ -110,7 +111,7 @@ function nextPage() {
 }
 function makeHoldingId(method) { return `${method}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function updateField(target) {
-  const value = target.dataset.moneyInput ? parseMoney(target.value) : (target.value === '' ? null : Number(target.value));
+  const value = target.dataset.moneyInput ? normalizeMoneyValue(parseMoney(target.value)) : (target.value === '' ? null : Number(target.value));
   if (target.dataset.field) state.session[target.dataset.field] = value;
   if (target.dataset.field === 'currentAge') state.session.ageError = false;
   if (target.dataset.assumption) {
