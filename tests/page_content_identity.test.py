@@ -10,7 +10,7 @@ assert "page_content: 'content_id'" in gas
 assert 'const identity = copy[identityField_(domain)];' in gas
 assert 'function identityField_(domain)' in gas
 
-# The V1.9 editor keeps the complete original row in data-row-json and only
+# The V1.10 editor keeps the complete original row in data-row-json and only
 # overlays edited controls; it must not synthesize or re-key page_content IDs.
 assert 'data-row-json="${escapeHtml(JSON.stringify(row))}"' in admin
 assert "row = JSON.parse(record.dataset.rowJson || '{}')" in admin
