@@ -236,7 +236,7 @@ export function aggregateWithdrawalResults(phases, annualContribution) {
     remainingValue: sum('remainingValue'), futureValue: sum('futureValue'), totalContribution };
 }
 
-// P7 and Customer View// P7 and Customer View share the exact same independent selections and summary.
+// P7 and Customer View share the exact same independent selections and summary.
 export function withdrawalPortfolio(session, official) {
   const phases = activeSavingPhases(session).map(phase => resolvePhaseWithdrawal(phase, session, official));
   return { phases, result: aggregateWithdrawalResults(phases, session.annualContribution) };
