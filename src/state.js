@@ -1,7 +1,24 @@
 import { activeSavingPhases, resolvePhaseWithdrawal, phaseStrategyChoices } from './calculation.js';
+import { normalizeMoneyValue } from './money.js';
 
 export function createState({ currentAge = null } = {}) {
   return { pageId: 'START', history: [], session: { scenario: null, investmentTools: [], marketResponse: null, maturityResponse: null, maturityHorizon: 5, mixedFocus: null, scenarioGoals: [], currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
+}
+
+export function normalizeMoneyState(session) {
+  if (!session) return session;
+  session.annualContribution = normalizeMoneyValue(session.annualContribution);
+  session.assumptions ||= {};
+  for (const key of ['existingDeposit', 'existingValue']) session.assumptions[key] = normalizeMoneyValue(session.assumptions[key]);
+  for (const key of ['fixedDeposits', 'bonds']) {
+    if (Array.isArray(session.assumptions[key])) {
+      session.assumptions[key] = session.assumptions[key].map(item => ({ ...item, principal: normalizeMoneyValue(item?.principal) }));
+    }
+  }
+  if (Array.isArray(session.savingPhases)) {
+    session.savingPhases = session.savingPhases.map(phase => ({ ...phase, annualContribution: normalizeMoneyValue(phase?.annualContribution) }));
+  }
+  return session;
 }
 
 export function getCustomerAge(state) {
