@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import { parseMoney, formatMoneyInput } from '../src/money.js';
 import { calculateSavingPortfolio, currentPath } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
+import { getExistingResourceFutureValue } from '../src/views.js';
 
 const official = {
   strategyMap: { none: 'none' },
@@ -32,6 +33,16 @@ test('bank P4 keeps existing resource separate from the new-arrangement comparis
   assert.equal(Math.round(current.breakdown.existingDepositFutureValue), 580484);
   assert.equal(current.value, current.breakdown.existingDepositFutureValue + current.breakdown.futureAnnualValue);
   assert.notEqual(current.breakdown.existingDepositFutureValue, current.breakdown.futureAnnualValue);
+});
+
+test('generic existing-resource values support bank, fixed deposit and bond totals', () => {
+  const savingValue = 930000;
+  const bankExisting = getExistingResourceFutureValue({ breakdown: { existingDepositFutureValue: 580484 }, details: [] });
+  const fixedDepositExisting = getExistingResourceFutureValue({ details: [{ value: 430000 }] });
+  const bondExisting = getExistingResourceFutureValue({ details: [{ value: 360000 }] });
+  assert.equal(bankExisting + savingValue, 1510484);
+  assert.equal(fixedDepositExisting + savingValue, 1360000);
+  assert.equal(bondExisting + savingValue, 1290000);
 });
 
 test('P6 preserves planned total and current-time contribution separately', () => {
@@ -73,6 +84,12 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(views.includes('目前已有資源'));
   assert.ok(views.includes('現有資源總額'));
   assert.ok(views.includes('複利儲蓄安排'));
+  assert.ok(views.includes('合計資源'));
+  assert.ok(views.includes("const overallResourceValue = existingResourceFutureValue != null"));
+  assert.ok(views.includes("const currentNew = current.breakdown?.futureAnnualValue != null"));
+  assert.ok(!views.includes('現有方法目前資源'));
+  assert.ok(!views.includes('另一筆 Saving'));
+  assert.ok(!views.includes('Saving 只使用'));
   assert.ok(main.includes('continue-scenario2-to-saving'));
   assert.ok(main.includes('continue-scenario3-to-saving'));
   assert.ok(!main.includes("scenarioRoute(official, 'scenario_to_saving')"));
