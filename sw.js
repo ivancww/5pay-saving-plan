@@ -2,7 +2,11 @@ const DEPLOYMENT_ID = '__AVA_DEPLOYMENT_ID__';
 const CACHE_PREFIX = 'ava-saving-phase1-shell-';
 const LEGACY_CACHES = ['ava-saving-phase1-v2', 'ava-saving-phase1-20260930-p6-rail-v1'];
 const CACHE = `${CACHE_PREFIX}${DEPLOYMENT_ID}`;
-const SHELL = ['./', './index.html', './styles.css', './manifest.webmanifest', './icon.svg', './src/main.js', './src/build.js', './src/calculation.js', './src/data.js', './src/state.js', './src/views.js', './src/media.js', './src/pdf.js', './src/portable.js', './src/integration.js', './src/admin.js'];
+const SHELL = ['./', './index.html', './styles.css', './manifest.webmanifest', './version.json', './icon.svg', './src/main.js', './src/build.js', './src/calculation.js', './src/data.js', './src/state.js', './src/views.js', './src/media.js', './src/pdf.js', './src/portable.js', './src/integration.js', './src/admin.js', './src/money.js', './src/scenario-flow.js', './src/scenario2-market-history.js', './src/update-gate.js'];
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
+});
 
 self.addEventListener('install', event => event.waitUntil(
   caches.open(CACHE).then(cache => cache.addAll(SHELL)).then(() => self.skipWaiting())

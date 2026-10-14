@@ -11,6 +11,7 @@ import { currentPath } from './calculation.js';
 import { formatMoneyInputElement, normalizeMoneyValue, parseMoney } from './money.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS, investmentPath, scenarioRoute, toggleChoice } from './scenario-flow.js';
 import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries, simulateMarketHistory } from './scenario2-market-history.js';
+import { fetchDeploymentMetadata, reloadOnceForBuild, requestSkipWaiting, shouldForceUpdate, updateStatusMarkup } from './update-gate.js';
 
 const app = document.querySelector('#app');
 const versionNode = document.querySelector('#app-version');
@@ -28,6 +29,9 @@ const shouldRegisterServiceWorker = [
 ].includes(entryMode);
 let official = null; let meta = { source: 'loading' }; let overrides = loadOverrides(); let previewOverrides = null;
 let adminAuthorization = null;
+let serviceWorkerRegistration = null;
+let appStarted = false;
+let mandatoryUpdateInProgress = false;
 const avaReturnLink = document.querySelector('#return-ava');
 if (avaReturnLink) {
   let parentHref = '';
@@ -405,24 +409,108 @@ async function startAdmin() {
     renderAdmin(app, official);
   } catch (error) { adminAuthorization = null; renderAdmin(app, {}, { error: error.message }); }
 }
-function registerSavingServiceWorker() {
-  if (!shouldRegisterServiceWorker || !('serviceWorker' in navigator)) return;
-  let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    refreshing = true;
-    window.location.reload();
-  });
-  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
-    .then(registration => registration.update())
-    .catch(() => {});
+async function getSavingServiceWorkerRegistration() {
+  if (!shouldRegisterServiceWorker || !('serviceWorker' in navigator)) return null;
+  if (serviceWorkerRegistration) return serviceWorkerRegistration;
+  try {
+    serviceWorkerRegistration = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+    return serviceWorkerRegistration;
+  } catch {
+    return null;
+  }
 }
 
-if (entryMode === ENTRY_MODES.admin) startAdmin();
-else {
-  draw();
-  const cachedOfficial = loadCachedOfficial();
-  if (cachedOfficial) { official = cachedOfficial; meta = { source: 'local-cache', stale: true }; draw(); }
-  loadOfficialData().then(result => { official = result.official; meta = result; draw(); }).catch(error => { meta = { source: 'error', error }; draw(); });
+function waitForInstallingWorker(registration, timeoutMs = 15000) {
+  if (registration?.waiting) return Promise.resolve(true);
+  const installing = registration?.installing;
+  if (!installing) return Promise.resolve(false);
+  return new Promise(resolve => {
+    let finished = false;
+    const finish = value => {
+      if (finished) return;
+      finished = true;
+      installing.removeEventListener('statechange', onStateChange);
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const onStateChange = () => {
+      if (installing.state === 'installed') {
+        requestSkipWaiting(registration);
+        finish(true);
+      }
+      if (installing.state === 'redundant') finish(false);
+    };
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    installing.addEventListener('statechange', onStateChange);
+  });
 }
-registerSavingServiceWorker();
+
+async function forceMandatoryUpdate(registration, deployedBuildId) {
+  if (mandatoryUpdateInProgress) return false;
+  mandatoryUpdateInProgress = true;
+  app.innerHTML = updateStatusMarkup();
+  let reloadStarted = false;
+  const onControllerChange = () => {
+    reloadStarted = reloadOnceForBuild(deployedBuildId);
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', onControllerChange, { once: true });
+  try {
+    requestSkipWaiting(registration);
+    await registration.update();
+    if (!requestSkipWaiting(registration)) await waitForInstallingWorker(registration);
+    requestSkipWaiting(registration);
+  } catch {
+    navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+    mandatoryUpdateInProgress = false;
+    return false;
+  }
+  await new Promise(resolve => setTimeout(resolve, 15000));
+  if (!reloadStarted) {
+    navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+    mandatoryUpdateInProgress = false;
+  }
+  return reloadStarted;
+}
+
+async function checkLatestShell() {
+  const registration = await getSavingServiceWorkerRegistration();
+  if (!navigator.onLine) return true;
+  let deployed;
+  try {
+    deployed = await fetchDeploymentMetadata();
+  } catch {
+    // An incomplete deployment must not replace a known-good shell.
+    return true;
+  }
+  if (!shouldForceUpdate({ online: true, runningBuildId: BUILD_ID, deployedBuildId: deployed.buildId })) {
+    registration?.update().catch(() => {});
+    return true;
+  }
+  if (!registration) return false;
+  return forceMandatoryUpdate(registration, deployed.buildId);
+}
+
+async function startApplication() {
+  const allowed = await checkLatestShell();
+  if (!allowed) {
+    app.innerHTML = updateStatusMarkup();
+    return;
+  }
+  appStarted = true;
+  if (entryMode === ENTRY_MODES.admin) startAdmin();
+  else {
+    draw();
+    const cachedOfficial = loadCachedOfficial();
+    if (cachedOfficial) { official = cachedOfficial; meta = { source: 'local-cache', stale: true }; draw(); }
+    loadOfficialData().then(result => { official = result.official; meta = result; draw(); }).catch(error => { meta = { source: 'error', error }; draw(); });
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && appStarted) checkLatestShell();
+});
+window.addEventListener('online', () => {
+  if (appStarted) checkLatestShell();
+});
+
+startApplication();

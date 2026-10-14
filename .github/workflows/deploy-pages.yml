@@ -30,6 +30,7 @@ jobs:
           node --input-type=module --check < src/admin.js
           node --input-type=module --check < src/data.js
           node --input-type=module --check < src/main.js
+          node --input-type=module --check < src/update-gate.js
           node --test tests/official_write_confirmation.test.js
           python3 tests/admin_security_contract.test.py
           python3 tests/gas_admin_contract.test.py
@@ -48,7 +49,7 @@ jobs:
 
       - name: Stamp deployment identity
         run: |
-          sed -i "s/__AVA_DEPLOYMENT_ID__/${GITHUB_SHA}/g" sw.js src/build.js
+          sed -i "s/__AVA_DEPLOYMENT_ID__/${GITHUB_SHA}/g" sw.js src/build.js version.json
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
