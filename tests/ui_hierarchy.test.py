@@ -13,7 +13,7 @@ assert "document.querySelector('#reset-session')?.setAttribute('hidden', '')" in
 assert 'ava-button ava-button--secondary back-link' in views
 assert 'ava-main-card' in views and 'flow-body' in views
 assert '.ava-main-card' in styles and 'border:1px solid var(--control)' in styles
-assert "export const APP_VERSION = 'V1.12';" in build
+assert "export const APP_VERSION = 'V1.12.1';" in build
 assert 'overflow-x:hidden' not in styles
 assert '.phase-step{display:grid;grid-template-columns:34px minmax(0,1fr)' in styles
 assert '.phase-step{grid-template-columns:30px minmax(0,1fr)}' in styles
