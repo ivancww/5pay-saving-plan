@@ -3,6 +3,7 @@ from pathlib import Path
 build = Path('src/build.js').read_text()
 service_worker = Path('sw.js').read_text()
 workflow = Path('.github/workflows/deploy-pages.yml').read_text()
+metadata = Path('version.json').read_text()
 
 assert "export const APP_VERSION = 'V1.12.1';" in build
 assert "__AVA_DEPLOYMENT_ID__" in build
