@@ -60,7 +60,7 @@ test('deployment and shell contracts preserve customer data and retire only app-
   assert.match(main, /reloadOnceForBuild/);
   assert.match(sw, /SKIP_WAITING/);
   assert.match(sw, /clients\.claim\(\)/);
-  assert.match(sw, /cache\.delete/);
+  assert.match(sw, /caches\.delete/);
   assert.match(sw, /version\.json/);
   assert.match(sw, /scenario2-market-history\.js/);
   assert.match(workflow, /version\.json/);
