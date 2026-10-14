@@ -97,12 +97,12 @@ function marketSelection(state) {
 
 const signedMoney = value => {
   const parsed = normalizeMoneyValue(Math.abs(Number(value)));
-  return parsed == null ? '—' : ${Number(value) >= 0 ? '+' : '-'}HK$ ${Math.round(parsed).toLocaleString('en-US')};
+  return parsed == null ? '—' : `${Number(value) >= 0 ? '+' : '-'}HK$ ${Math.round(parsed).toLocaleString('en-US')}`;
 };
 
 const signedPercent = value => {
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? ${parsed >= 0 ? '+' : ''}${parsed.toFixed(1)}% : '—';
+  return Number.isFinite(parsed) ? `${parsed >= 0 ? '+' : ''}${parsed.toFixed(1)}%` : '—';
 };
 
 export function marketSimulatorResult(state) {
@@ -143,25 +143,25 @@ function scenario2Market(state) {
   const startPoint = points.find(item => item.year === startYear) || points[0];
   const endPoint = points.find(item => item.year === endYear) || points[points.length - 1];
   const selectorLabel = tools.includes('stock') && tools.includes('etf') ? '市場指數／ETF例子' : tools.includes('etf') ? 'ETF例子' : '股票市場';
-  const disclosure = \`歷史數據至 ${String(series?.dataThroughDate || '—').slice(0, 4)} 年底 · 資料核對日期 ${series?.verifiedAt || '—'} · 歷史表現不代表未來 · 未計匯率影響。 ${series?.displayBasis || ''}\`;
+  const disclosure = `歷史數據至 ${String(series?.dataThroughDate || '—').slice(0, 4)} 年底 · 資料核對日期 ${series?.verifiedAt || '—'} · 歷史表現不代表未來 · 未計匯率影響。 ${series?.displayBasis || ''}`;
   return `<div class="visual-stage visual-stage--market-simulator" data-market-simulator>
     <div class="market-simulator-heading">
       <strong class="visual-kicker">過去10年，實際行過點？</strong>
       <small>${esc(series?.shortLabel || '市場歷史參考')} · 以起點 = 100 作歷史走勢比較</small>
     </div>
     <div class="history-series-tabs market-selector" role="tablist" aria-label="${esc(selectorLabel)}">
-      ${keys.map(key => { const item = normalizedMarketSeries(key); return \`<button class="year-chip ${key === activeKey ? 'is-selected' : ''}" data-action="select-market-history-series" data-value="${key}" type="button" role="tab" aria-selected="${key === activeKey}">${esc(item?.shortLabel || key)}</button>\`; }).join('')}
+      ${keys.map(key => { const item = normalizedMarketSeries(key); return `<button class="year-chip ${key === activeKey ? 'is-selected' : ''}" data-action="select-market-history-series" data-value="${key}" type="button" role="tab" aria-selected="${key === activeKey}">${esc(item?.shortLabel || key)}</button>`; }).join('')}
     </div>
     <svg class="market-path market-path--compact" viewBox="0 0 600 120" role="img" aria-label="${esc(series?.label || '市場歷史走勢')}：以起點等於100">
-      <polyline class="market-path__line" points="${points.map(point => \`${point.x},${point.y}\`).join(' ')}"/>
-      ${points.map(point => \`<circle class="market-point" data-market-point-year="${point.year}" cx="${point.x}" cy="${point.y}" r="3.5"/>\`).join('')}
+      <polyline class="market-path__line" points="${points.map(point => `${point.x},${point.y}`).join(' ')}"/>
+      ${points.map(point => `<circle class="market-point" data-market-point-year="${point.year}" cx="${point.x}" cy="${point.y}" r="3.5"/>`).join('')}
       <circle class="market-marker market-marker--start" data-market-marker="start" cx="${startPoint?.x || 28}" cy="${startPoint?.y || 106}" r="6"/>
       <circle class="market-marker market-marker--end" data-market-marker="end" cx="${endPoint?.x || 572}" cy="${endPoint?.y || 106}" r="6"/>
     </svg>
     <div class="market-simulator-controls">
       <label class="ava-label">本金<div class="money-input"><span>HK$</span><input data-market-principal data-money-input inputmode="numeric" type="text" value="${inputMoney(state.session.marketPrincipal)}" placeholder="100000"></div></label>
-      <label class="ava-label">參與年份<select class="ava-input" data-market-start>${years.map(year => \`<option value="${year}" ${year === startYear ? 'selected' : ''}>${year}</option>\`).join('')}</select></label>
-      <label class="ava-label">需要使用年份<select class="ava-input" data-market-end>${years.map(year => \`<option value="${year}" ${year === endYear ? 'selected' : ''}>${year}</option>\`).join('')}</select></label>
+      <label class="ava-label">參與年份<select class="ava-input" data-market-start>${years.map(year => `<option value="${year}" ${year === startYear ? 'selected' : ''}>${year}</option>`).join('')}</select></label>
+      <label class="ava-label">需要使用年份<select class="ava-input" data-market-end>${years.map(year => `<option value="${year}" ${year === endYear ? 'selected' : ''}>${year}</option>`).join('')}</select></label>
     </div>
     <div data-market-result>${marketSimulatorResult(state)}</div>
     <section class="market-reflection" aria-label="歷史結果反思">
