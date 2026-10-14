@@ -1,7 +1,7 @@
 import { applyLocalOverrides, loadCachedOfficial, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
 import { activateSavingPhase, createState, effectiveAnnualContribution, getCustomerAge, goBack, goTo, normalizeMoneyState, removeSavingPhase, selectPhaseWithdrawal, selectPhaseWithdrawalYear } from './state.js';
 import { exportCustomerView } from './pdf.js';
-import { render } from './views.js';
+import { marketSimulatorResult, render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
 import { downloadPortableBackup, validatePortableBackup } from './portable.js';
 import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
@@ -165,11 +165,6 @@ function marketSimulationReady() {
 }
 
 function updateMarketSimulatorLive() {
-  const result = document.querySelector('[data-market-result]');
-  if (result) {
-    const event = new CustomEvent('ava-market-result-request');
-    document.dispatchEvent(event);
-  }
   const series = normalizedMarketSeries(state.session.marketHistorySeries);
   const points = series?.observations || [];
   const start = points.find(item => item.year === String(state.session.marketStartYear));
@@ -183,21 +178,7 @@ function updateMarketSimulatorLive() {
     }
   }
   const summary = document.querySelector('[data-market-result]');
-  if (summary) {
-    const startYear = state.session.marketStartYear;
-    const endYear = state.session.marketEndYear;
-    const amount = state.session.marketPrincipal;
-    const simulated = simulateMarketHistory({ seriesKey: state.session.marketHistorySeries, principal: amount, startYear, endYear });
-    const format = value => Number.isFinite(value) ? `HK$ ${Math.round(value).toLocaleString('en-US')}` : '—';
-    summary.querySelector('.market-simulator-result__main strong')?.replaceChildren(document.createTextNode(simulated.available ? format(simulated.simulatedValue) : '—'));
-    const rows = summary.querySelectorAll('.market-result-list dd');
-    if (simulated.available && rows.length >= 4) {
-      rows[0].textContent = format(simulated.principal);
-      rows[1].textContent = `${simulated.startYear} → ${simulated.endYear}`;
-      rows[2].textContent = `${simulated.profitLoss >= 0 ? '+' : '-'}${format(Math.abs(simulated.profitLoss))}`;
-      rows[3].textContent = `${simulated.returnPercent >= 0 ? '+' : ''}${simulated.returnPercent.toFixed(1)}%`;
-    }
-  }
+  if (summary) summary.innerHTML = marketSimulatorResult(state);
 }
 
 function updateP5Live() {
