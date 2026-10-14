@@ -1,9 +1,9 @@
 import { activeSavingPhases, calculateSavingPortfolio, currentPath, supportedYears, phaseStrategyChoices, withdrawalPortfolio } from './calculation.js';
-import { ageAtPolicyYear, getCustomerAge } from './state.js';
+import { ageAtPolicyYear, effectiveAnnualContribution, getCustomerAge } from './state.js';
 import { MEDIA_TYPES, mediaCanRender, mediaFallbackLabel, normalizeMediaList } from './media.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS } from './scenario-flow.js';
 import { formatMoneyInput, normalizeMoneyValue } from './money.js';
-import { marketHistoryKeys, normalizedMarketSeries } from './scenario2-market-history.js';
+import { marketHistoryKeys, normalizedMarketSeries, simulateMarketHistory } from './scenario2-market-history.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[char]));
 export function formatCustomerMoney(value) { const parsed = normalizeMoneyValue(value); return parsed == null ? '—' : `HK$ ${Math.round(parsed).toLocaleString('en-US')}`; }
@@ -84,46 +84,95 @@ function scenario2Tools(state, official) {
   return `<div class="tool-grid">${INVESTMENT_TOOLS.map(([key, label, note]) => { const card = cards.find(item => item.action_key === key); return `<button class="tool-card ${selected.includes(key) ? 'is-selected' : ''}" data-action="toggle-investment-tool" data-value="${key}" data-card-id="${esc(card?.content_id || key)}" type="button" aria-pressed="${selected.includes(key)}"><span class="tool-symbol" aria-hidden="true">${selected.includes(key) ? '✓' : '○'}</span><strong>${esc(card?.headline || label)}</strong><small>${esc(card?.subtext || note)}</small></button>`; }).join('')}</div><p class="selection-count">${selected.length ? `已選 ${selected.length} 項` : '可以揀多過一項'}</p><div class="actions"><button class="ava-button ava-button--primary" data-action="continue-investment-tools" type="button" ${selected.length ? '' : 'disabled'}>睇下時間同市場會帶來咩考慮 →</button></div>`;
 }
 
-function scenario2Market(state) {
-  const selected = state.session.marketResponse;
+function marketSelection(state) {
   const tools = state.session.investmentTools || [];
-  const mixed = tools.some(key => key === 'stock' || key === 'etf') && tools.some(key => key === 'fixed_deposit' || key === 'bond');
   const keys = marketHistoryKeys({ stocks: tools.includes('stock'), etfs: tools.includes('etf') });
   const activeKey = keys.includes(state.session.marketHistorySeries) ? state.session.marketHistorySeries : keys[0];
   const series = normalizedMarketSeries(activeKey);
-  const marketLabels = tools.filter(key => key === 'stock' || key === 'etf').map(toolLabel).join(' ＋ ');
-  const responses = [['hold','繼續持有','繼續參與市場'],['reduce','減低持倉','先降低一部分市場參與'],['wait','等穩定啲再決定','將決定留到另一個時間點']];
+  const years = series?.observations.map(item => item.year) || [];
+  const startYear = years.includes(String(state.session.marketStartYear)) ? String(state.session.marketStartYear) : years[0];
+  const endYear = years.includes(String(state.session.marketEndYear)) ? String(state.session.marketEndYear) : years[years.length - 1];
+  return { tools, keys, activeKey, series, years, startYear, endYear };
+}
+
+const signedMoney = value => {
+  const parsed = normalizeMoneyValue(Math.abs(Number(value)));
+  return parsed == null ? '—' : `${Number(value) >= 0 ? '+' : '-'}HK$ ${Math.round(parsed).toLocaleString('en-US')}`;
+};
+
+const signedPercent = value => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? `${parsed >= 0 ? '+' : ''}${parsed.toFixed(1)}%` : '—';
+};
+
+export function marketSimulatorResult(state) {
+  const { activeKey, series, startYear, endYear } = marketSelection(state);
+  const result = simulateMarketHistory({
+    seriesKey: activeKey,
+    principal: state.session.marketPrincipal,
+    startYear,
+    endYear
+  });
+  if (!result.available) {
+    return `<div class="market-simulator-result__empty" role="status">請輸入本金，並選擇較後的需要使用年份，先睇歷史模擬結果。</div>`;
+  }
+  const basis = series?.kind === 'index'
+    ? '按歷史指數變化模擬，不代表實際基金回報。'
+    : '按現有歷史價格／價格回報資料模擬；不包括未納入資料基礎的派息。';
+  return `<div class="market-simulator-result__main"><span>歷史模擬結果</span><strong>${money(result.simulatedValue)}</strong></div>
+    <dl class="market-result-list">
+      <div><dt>投入本金</dt><dd>${money(result.principal)}</dd></div>
+      <div><dt>由</dt><dd>${esc(result.startYear)} → ${esc(result.endYear)}</dd></div>
+      <div><dt>盈利／虧損</dt><dd>${signedMoney(result.profitLoss)}</dd></div>
+      <div><dt>歷史變化</dt><dd>${signedPercent(result.returnPercent)}</dd></div>
+    </dl>
+    <p class="market-result-basis">${esc(basis)}</p>`;
+}
+
+function scenario2Market(state) {
+  const { tools, keys, activeKey, series, years, startYear, endYear } = marketSelection(state);
+  const mixed = tools.some(key => key === 'stock' || key === 'etf') && tools.some(key => key === 'fixed_deposit' || key === 'bond');
   const values = series?.observations || [];
   const min = Math.min(...values.map(item => item.normalized));
   const max = Math.max(...values.map(item => item.normalized));
   const points = values.map((item, index) => {
     const x = 28 + (index * 544 / Math.max(1, values.length - 1));
-    const y = 142 - ((item.normalized - min) / Math.max(1, max - min)) * 104;
-    return [x.toFixed(1), y.toFixed(1)];
+    const y = 106 - ((item.normalized - min) / Math.max(1, max - min)) * 78;
+    return { ...item, x: x.toFixed(1), y: y.toFixed(1) };
   });
-  const selectedYear = state.session.marketHistoryYear || values[values.length - 1]?.year;
-  const selectedPoint = values.find(item => item.year === String(selectedYear)) || values[values.length - 1];
-  return `<div class="visual-stage">
-    <strong class="visual-kicker">${esc(marketLabels)} · 過去約10年，市場實際行過點？</strong>
-    <div class="history-series-tabs" role="tablist" aria-label="市場歷史參考">
+  const startPoint = points.find(item => item.year === startYear) || points[0];
+  const endPoint = points.find(item => item.year === endYear) || points[points.length - 1];
+  const selectorLabel = tools.includes('stock') && tools.includes('etf') ? '市場指數／ETF例子' : tools.includes('etf') ? 'ETF例子' : '股票市場';
+  const disclosure = `歷史數據至 ${String(series?.dataThroughDate || '—').slice(0, 4)} 年底 · 資料核對日期 ${series?.verifiedAt || '—'} · 歷史表現不代表未來 · 未計匯率影響。 ${series?.displayBasis || ''}`;
+  return `<div class="visual-stage visual-stage--market-simulator" data-market-simulator>
+    <div class="market-simulator-heading">
+      <strong class="visual-kicker">過去10年，實際行過點？</strong>
+      <small>${esc(series?.shortLabel || '市場歷史參考')} · 以起點 = 100 作歷史走勢比較</small>
+    </div>
+    <div class="history-series-tabs market-selector" role="tablist" aria-label="${esc(selectorLabel)}">
       ${keys.map(key => { const item = normalizedMarketSeries(key); return `<button class="year-chip ${key === activeKey ? 'is-selected' : ''}" data-action="select-market-history-series" data-value="${key}" type="button" role="tab" aria-selected="${key === activeKey}">${esc(item?.shortLabel || key)}</button>`; }).join('')}
     </div>
-    <svg class="market-path" viewBox="0 0 600 180" role="img" aria-label="${esc(series?.label || '市場歷史走勢')}：以起點等於100">
-      <polyline class="market-path__line" points="${points.map(point => point.join(',')).join(' ')}"/>
-      ${points.map(([x,y]) => `<circle cx="${x}" cy="${y}" r="5"/>`).join('')}
+    <svg class="market-path market-path--compact" viewBox="0 0 600 120" role="img" aria-label="${esc(series?.label || '市場歷史走勢')}：以起點等於100">
+      <polyline class="market-path__line" points="${points.map(point => `${point.x},${point.y}`).join(' ')}"/>
+      ${points.map(point => `<circle class="market-point" data-market-point-year="${point.year}" cx="${point.x}" cy="${point.y}" r="3.5"/>`).join('')}
+      <circle class="market-marker market-marker--start" data-market-marker="start" cx="${startPoint?.x || 28}" cy="${startPoint?.y || 106}" r="6"/>
+      <circle class="market-marker market-marker--end" data-market-marker="end" cx="${endPoint?.x || 572}" cy="${endPoint?.y || 106}" r="6"/>
     </svg>
-    <div class="market-values" aria-hidden="true">${values.map(item => `<span>${item.year} · ${item.normalized.toFixed(1)}</span>`).join('')}</div>
-    <p class="visual-caption">以起點 = 100 作歷史走勢比較。已選 ${esc(selectedPoint?.year || '')}：${selectedPoint?.normalized.toFixed(1) || '—'}。</p>
-    <div class="horizon-line" aria-label="選擇歷史年份">
-      ${values.map(item => `<button class="year-chip ${item.year === String(selectedYear) ? 'is-selected' : ''}" data-action="select-market-history-year" data-value="${item.year}" type="button" aria-pressed="${item.year === String(selectedYear)}">${item.year}</button>`).join('')}
+    <div class="market-simulator-controls">
+      <label class="ava-label">本金<div class="money-input"><span>HK$</span><input data-market-principal data-money-input inputmode="numeric" type="text" value="${inputMoney(state.session.marketPrincipal)}" placeholder="100000"></div></label>
+      <label class="ava-label">參與年份<select class="ava-input" data-market-start>${years.map(year => `<option value="${year}" ${year === startYear ? 'selected' : ''}>${year}</option>`).join('')}</select></label>
+      <label class="ava-label">需要使用年份<select class="ava-input" data-market-end>${years.map(year => `<option value="${year}" ${year === endYear ? 'selected' : ''}>${year}</option>`).join('')}</select></label>
     </div>
-    <p class="history-disclosure">資料期間 ${values[0]?.year || '—'}–${values[values.length - 1]?.year || '—'} · ${esc(series?.primarySource?.name || series?.sourceName || '資料來源')} · 歷史數據至 ${esc(String(series?.dataThroughDate || '—').slice(0, 4))} 年底 · 資料核對日期 ${esc(series?.verifiedAt || '—')}。索引／價格只作歷史參考，不代表未來回報；${esc(series?.displayBasis || series?.basis || '未計股息或分派')}，亦未計費用、稅項或匯率影響。代表性市場例子，並非投資建議。</p>
-  </div>
-  <div class="response-grid" aria-label="市場波動時的想法">${responses.map(([key,label,note]) => `<button class="response-card ${selected === key ? 'is-selected' : ''}" data-action="select-market-response" data-value="${key}" type="button" aria-pressed="${selected === key}"><strong>${label}</strong><small>${note}</small></button>`).join('')}</div>
-  <p class="selection-note" role="status">${marketResponse(selected)}</p>
-  ${selected ? scenario2ResourceBridge(state, mixed ? 'continue-market-to-maturity' : 'continue-scenario2-to-saving') : ''}`;
+    <div data-market-result>${marketSimulatorResult(state)}</div>
+    <section class="market-reflection" aria-label="歷史結果反思">
+      <strong>歷史行完，我哋可以睇到結果；但如果今日開始，未來需要用錢嗰一年，結果又可唔可以預先知道？</strong>
+      <p>歷史數據可以計算過去，但未來市場結果無法預先確定。</p>
+    </section>
+    <details class="market-source"><summary>資料來源 ⓘ</summary><small>${esc(series?.primarySource?.name || '已核對的歷史資料')} · 資料期間 ${years[0] || '—'}–${years[years.length - 1] || '—'}</small></details>
+    <p class="history-disclosure">${esc(disclosure)}</p>
+    ${simulateMarketHistory({ seriesKey: activeKey, principal: state.session.marketPrincipal, startYear, endYear }).available ? scenario2ResourceBridge(state, mixed ? 'continue-market-to-maturity' : 'continue-scenario2-to-saving') : ''}
+  </div>`;
 }
-function marketResponse(value) { return value ? '呢度沒有正確答案。你需要用錢的時間，未必配合當時市場狀況。' : '揀一個你較自然的反應，感受一下時間點的影響。'; }
 function scenario2Maturity(state) {
   const selected = state.session.maturityResponse;
   const bondOnly = state.session.investmentTools?.includes('bond') && !state.session.investmentTools.includes('fixed_deposit');
@@ -176,12 +225,14 @@ function mediaUnavailable() { return `<div class="ava-media-fallback" role="stat
 function p3(state, official) {
   if (state.session.scenario === 'scenario2' || state.session.scenario === 'scenario3') return p3Scenario(state);
   const method = official.current_methods?.find(item => item.method_key === state.session.currentMethod);
-  const path = currentPath({ method: state.session.currentMethod, amount: state.session.annualContribution, assumptions: state.session.assumptions });
-  return `<div class='path-card'><div class='card-kicker'>${esc(method?.display_name || '而家嘅做法')}</div><h2>${esc(method?.visual_title || '同一筆錢，時間耐咗會點？')}</h2><div class='metric-row'><div class='ava-metric'><span class='ava-label'>每年複利儲蓄安排</span><strong id='p3-annual-contribution-value' class='ava-metric__value'>${money(state.session.annualContribution)}</strong><span class='ava-metric__unit'>之後每年再安排的金額</span></div><div class='ava-metric'><span class='ava-label'>5年後現有方法預計有幾多</span><strong id='p3-current-path-value' class='ava-metric__value'>${path.value == null ? '—' : money(path.value)}</strong><span id='p3-current-path-unit' class='ava-metric__unit'>${path.kind === 'known' ? '按現有資料展示' : '按你輸入的假設'}</span></div><div id='p3-current-path-status' class='path-status path-status--${path.kind}'>${esc(path.label)}</div></div></div><div class='ava-card input-card'><div class='input-section input-section--new'><h3>之後新增安排</h3><label class='ava-label' for='annual-contribution'>之後每年大概安排幾多？</label><div class='money-input'><span>HK$</span><input id='annual-contribution' data-field='annualContribution' data-money-input inputmode='numeric' type='text' value='${inputMoney(state.session.annualContribution)}' placeholder='例如 100000'></div></div><label class='ava-label field-inline' for='customer-age'>你而家幾多歲？<input id='customer-age' data-field='currentAge' inputmode='numeric' type='number' min='0' max='120' step='1' value='${state.session.currentAge ?? ''}' placeholder='例如 40' required></label><p class='ava-help'>只用於將時間點翻譯成歲數。</p>${state.session.ageError ? '<p class="ava-status ava-status--warning" role="alert">請先輸入目前歲數，時間軸才可以顯示正確歲數。</p>' : ''}${assumptionFields(state)}</div><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>加入時間後會係點 →</button></div>`;
+  const annualContribution = effectiveAnnualContribution(state.session);
+  const path = currentPath({ method: state.session.currentMethod, amount: annualContribution, assumptions: state.session.assumptions });
+  return `<div class='path-card'><div class='card-kicker'>${esc(method?.display_name || '而家嘅做法')}</div><h2>${esc(method?.visual_title || '同一筆錢，時間耐咗會點？')}</h2><div class='metric-row'><div class='ava-metric'><span class='ava-label'>每年複利儲蓄安排</span><strong id='p3-annual-contribution-value' class='ava-metric__value'>${money(annualContribution)}</strong><span class='ava-metric__unit'>之後每年再安排的金額</span></div><div class='ava-metric'><span class='ava-label'>5年後現有方法預計有幾多</span><strong id='p3-current-path-value' class='ava-metric__value'>${path.value == null ? '—' : money(path.value)}</strong><span id='p3-current-path-unit' class='ava-metric__unit'>${path.kind === 'known' ? '按現有資料展示' : '按你輸入的假設'}</span></div><div id='p3-current-path-status' class='path-status path-status--${path.kind}'>${esc(path.label)}</div></div></div><div class='ava-card input-card'><div class='input-section input-section--new'><h3>之後新增安排</h3><label class='ava-label' for='annual-contribution'>之後每年大概安排幾多？</label><div class='money-input'><span>HK$</span><input id='annual-contribution' data-field='annualContribution' data-money-input inputmode='numeric' type='text' value='${inputMoney(state.session.annualContribution)}' placeholder='例如 100000'></div></div><label class='ava-label field-inline' for='customer-age'>你而家幾多歲？<input id='customer-age' data-field='currentAge' inputmode='numeric' type='number' min='0' max='120' step='1' value='${state.session.currentAge ?? ''}' placeholder='例如 40' required></label><p class='ava-help'>只用於將時間點翻譯成歲數。</p>${state.session.ageError ? '<p class="ava-status ava-status--warning" role="alert">請先輸入目前歲數，時間軸才可以顯示正確歲數。</p>' : ''}${assumptionFields(state)}</div><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>加入時間後會係點 →</button></div>`;
 }
 function p3Scenario(state) {
+  const annualContribution = effectiveAnnualContribution(state.session);
   const context = state.session.scenario === 'scenario2' ? `你原有的 ${(state.session.investmentTools || []).map(toolLabel).map(esc).join(' ＋ ')} 可以保留；而家只輸入另一筆複利儲蓄安排的每年安排。` : '你已經整理好重視的特點；而家可以睇另一筆複利儲蓄安排的實際安排。';
-  return `<div class='path-card'><div class='card-kicker'>另一筆預先規劃的資源</div><h2>如果每年安排一筆錢，5 年之後點樣延伸？</h2><div class='ava-metric'><span class='ava-label'>每年複利儲蓄安排</span><strong id='p3-annual-contribution-value' class='ava-metric__value'>${money(state.session.annualContribution)}</strong><span class='ava-metric__unit'>你輸入的金額；未作市場推算</span></div></div><p class='calculation-note'>${context}</p><div class='ava-card input-card'><div class='input-section input-section--new'><h3>之後新增安排</h3><label class='ava-label' for='annual-contribution'>每年大概安排幾多？</label><div class='money-input'><span>HK$</span><input id='annual-contribution' data-field='annualContribution' data-money-input inputmode='numeric' type='text' value='${inputMoney(state.session.annualContribution)}' placeholder='例如 100000'></div></div><label class='ava-label field-inline' for='customer-age'>你而家幾多歲？<input id='customer-age' data-field='currentAge' inputmode='numeric' type='number' min='0' max='120' step='1' value='${state.session.currentAge ?? ''}' placeholder='例如 40' required></label><p class='ava-help'>只用於將時間點翻譯成歲數。</p>${state.session.ageError ? '<p class="ava-status ava-status--warning" role="alert">請先輸入目前歲數，時間軸才可以顯示正確歲數。</p>' : ''}</div><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>睇下複利儲蓄安排時間線 →</button></div>`;
+  return `<div class='path-card'><div class='card-kicker'>另一筆預先規劃的資源</div><h2>如果每年安排一筆錢，5 年之後點樣延伸？</h2><div class='ava-metric'><span class='ava-label'>每年複利儲蓄安排</span><strong id='p3-annual-contribution-value' class='ava-metric__value'>${money(annualContribution)}</strong><span class='ava-metric__unit'>你輸入的金額；未作市場推算</span></div></div><p class='calculation-note'>${context}</p><div class='ava-card input-card'><div class='input-section input-section--new'><h3>之後新增安排</h3><label class='ava-label' for='annual-contribution'>每年大概安排幾多？</label><div class='money-input'><span>HK$</span><input id='annual-contribution' data-field='annualContribution' data-money-input inputmode='numeric' type='text' value='${inputMoney(state.session.annualContribution)}' placeholder='例如 100000'></div></div><label class='ava-label field-inline' for='customer-age'>你而家幾多歲？<input id='customer-age' data-field='currentAge' inputmode='numeric' type='number' min='0' max='120' step='1' value='${state.session.currentAge ?? ''}' placeholder='例如 40' required></label><p class='ava-help'>只用於將時間點翻譯成歲數。</p>${state.session.ageError ? '<p class="ava-status ava-status--warning" role="alert">請先輸入目前歲數，時間軸才可以顯示正確歲數。</p>' : ''}</div><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>睇下複利儲蓄安排時間線 →</button></div>`;
 }
 function assumptionFields(state) {
   const assumptions = state.session.assumptions || {};

@@ -1,3 +1,5 @@
+import { normalizeMoneyValue } from './money.js';
+
 // Static, reviewed Scenario 2 reference data. Customer runtime has no finance API dependency.
 // Each series is a reviewed annual reference snapshot normalized to its first point = 100.
 // 2800.HK is explicitly derived from published annual price-return percentages.
@@ -110,4 +112,33 @@ export function normalizedMarketSeries(key) {
     .map(([year, value]) => ({ year, value: Number(value), normalized: Number(value) / first * 100 }))
     .filter(item => Number.isFinite(item.value) && Number.isFinite(item.normalized));
   return observations.length === series.observations.length ? { ...series, observations } : null;
+}
+
+
+export function simulateMarketHistory({ seriesKey, principal, startYear, endYear } = {}) {
+  const amount = normalizeMoneyValue(principal);
+  const series = normalizedMarketSeries(seriesKey);
+  const start = series?.observations.find(item => item.year === String(startYear));
+  const end = series?.observations.find(item => item.year === String(endYear));
+  if (amount == null || amount <= 0) return { available: false, reason: 'principal' };
+  if (!start || !end || Number(end.year) <= Number(start.year)) return { available: false, reason: 'years' };
+  const historicalChange = end.normalized / start.normalized;
+  if (!Number.isFinite(historicalChange)) return { available: false, reason: 'data' };
+  const simulatedValue = amount * historicalChange;
+  return {
+    available: true,
+    seriesKey,
+    startYear: start.year,
+    endYear: end.year,
+    principal: amount,
+    startValue: start.value,
+    endValue: end.value,
+    historicalChange,
+    simulatedValue,
+    profitLoss: simulatedValue - amount,
+    returnPercent: (historicalChange - 1) * 100,
+    displayBasis: series.displayBasis,
+    dataThroughDate: series.dataThroughDate,
+    verifiedAt: series.verifiedAt
+  };
 }

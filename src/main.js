@@ -1,7 +1,7 @@
 import { applyLocalOverrides, loadCachedOfficial, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
-import { activateSavingPhase, createState, getCustomerAge, goBack, goTo, normalizeMoneyState, removeSavingPhase, selectPhaseWithdrawal, selectPhaseWithdrawalYear } from './state.js';
+import { activateSavingPhase, createState, effectiveAnnualContribution, getCustomerAge, goBack, goTo, normalizeMoneyState, removeSavingPhase, selectPhaseWithdrawal, selectPhaseWithdrawalYear } from './state.js';
 import { exportCustomerView } from './pdf.js';
-import { render } from './views.js';
+import { marketSimulatorResult, render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
 import { downloadPortableBackup, validatePortableBackup } from './portable.js';
 import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
@@ -10,7 +10,7 @@ import { APP_VERSION, BUILD_ID } from './build.js';
 import { currentPath } from './calculation.js';
 import { formatMoneyInputElement, normalizeMoneyValue, parseMoney } from './money.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS, investmentPath, scenarioRoute, toggleChoice } from './scenario-flow.js';
-import { SCENARIO2_MARKET_HISTORY } from './scenario2-market-history.js';
+import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries, simulateMarketHistory } from './scenario2-market-history.js';
 
 const app = document.querySelector('#app');
 const versionNode = document.querySelector('#app-version');
@@ -128,6 +128,7 @@ function updateField(target) {
     items[index][key] = value;
     state.session.assumptions[method] = items;
   }
+  if (target.dataset.marketPrincipal) state.session.marketPrincipal = value;
   if (target.dataset.phaseAnnual) {
     const id = Number(target.dataset.phaseAnnual);
     const items = Array.isArray(state.session.savingPhases) ? state.session.savingPhases.map(item => ({ ...item })) : [{ id: 1, annualContribution: state.session.annualContribution, strategyCode: null, withdrawalPolicyYear: null }];
@@ -138,18 +139,46 @@ function updateField(target) {
 }
 
 function updateP3Live() {
-  const path = currentPath({ method: state.session.currentMethod, amount: state.session.annualContribution, assumptions: state.session.assumptions });
+  const annualContribution = effectiveAnnualContribution(state.session);
+  const path = currentPath({ method: state.session.currentMethod, amount: annualContribution, assumptions: state.session.assumptions });
   const annualValue = document.querySelector('#p3-annual-contribution-value');
   const pathValue = document.querySelector('#p3-current-path-value');
   const pathUnit = document.querySelector('#p3-current-path-unit');
   const pathStatus = document.querySelector('#p3-current-path-status');
-  if (annualValue) annualValue.textContent = formatMoney(state.session.annualContribution);
+  if (annualValue) annualValue.textContent = formatMoney(annualContribution);
   if (pathValue) pathValue.textContent = path.value == null ? '—' : formatMoney(path.value);
   if (pathUnit) pathUnit.textContent = path.kind === 'known' ? '按每年安排累積' : '按你輸入的假設';
   if (pathStatus) {
     pathStatus.className = `path-status path-status--${path.kind}`;
     pathStatus.textContent = path.label;
   }
+}
+
+function marketSimulationReady() {
+  const keys = [...new Set((state.session.investmentTools || []).flatMap(tool => tool === 'stock' ? ['hsi', 'sp500'] : tool === 'etf' ? ['tracker2800', 'spy'] : []))];
+  const key = keys.includes(state.session.marketHistorySeries) ? state.session.marketHistorySeries : keys[0];
+  const series = normalizedMarketSeries(key);
+  const years = series?.observations.map(item => item.year) || [];
+  const startYear = years.includes(String(state.session.marketStartYear)) ? String(state.session.marketStartYear) : years[0];
+  const endYear = years.includes(String(state.session.marketEndYear)) ? String(state.session.marketEndYear) : years[years.length - 1];
+  return Boolean(simulateMarketHistory({ seriesKey: key, principal: state.session.marketPrincipal, startYear, endYear }).available);
+}
+
+function updateMarketSimulatorLive() {
+  const series = normalizedMarketSeries(state.session.marketHistorySeries);
+  const points = series?.observations || [];
+  const start = points.find(item => item.year === String(state.session.marketStartYear));
+  const end = points.find(item => item.year === String(state.session.marketEndYear));
+  for (const [role, point] of [['start', start], ['end', end]]) {
+    const marker = document.querySelector(`[data-market-marker="${role}"]`);
+    const plotted = point && document.querySelector(`[data-market-point-year="${point.year}"]`);
+    if (marker && plotted) {
+      marker.setAttribute('cx', plotted.getAttribute('cx'));
+      marker.setAttribute('cy', plotted.getAttribute('cy'));
+    }
+  }
+  const summary = document.querySelector('[data-market-result]');
+  if (summary) summary.innerHTML = marketSimulatorResult(state);
 }
 
 function updateP5Live() {
@@ -187,13 +216,15 @@ app.addEventListener('input', event => {
     if (target.matches('[data-admin-field]')) app.dataset.adminDirty = 'true';
     return;
   }
-  const liveField = target.matches('[data-field], [data-assumption], [data-holding-field], [data-phase-annual]');
+  const liveField = target.matches('[data-field], [data-assumption], [data-holding-field], [data-phase-annual], [data-market-principal]');
   const p3Editing = state.pageId === 'P3' && liveField;
   const p5Editing = state.pageId === 'P5' && target.matches('[data-phase-annual]');
+  const marketEditing = state.pageId === 'S2_MARKET' && target.matches('[data-market-principal]');
   if (target.matches('[data-money-input]')) formatMoneyInputElement(target);
   updateField(target);
   if (p3Editing) { updateP3Live(); return; }
   if (p5Editing) { updateP5Live(); return; }
+  if (marketEditing) { updateMarketSimulatorLive(); return; }
   if (!liveField) return;
 });
 app.addEventListener('click', event => {
@@ -216,6 +247,9 @@ app.addEventListener('click', event => {
       state.session.mixedFocus = null;
       state.session.marketHistorySeries = 'hsi';
       state.session.marketHistoryYear = null;
+      state.session.marketPrincipal = 100000;
+      state.session.marketStartYear = '2016';
+      state.session.marketEndYear = '2025';
       goTo(state, destination);
     }
   }
@@ -224,7 +258,12 @@ app.addEventListener('click', event => {
     const path = investmentPath(state.session.investmentTools);
     if (path) goTo(state, scenarioRoute(official, path === 'S2_MIXED' ? 'scenario2_market' : `scenario2_${path.slice(3).toLowerCase()}`));
   }
-  if (action === 'select-market-history-series' && state.pageId === 'S2_MARKET' && SCENARIO2_MARKET_HISTORY[control.dataset.value]) state.session.marketHistorySeries = control.dataset.value;
+  if (action === 'select-market-history-series' && state.pageId === 'S2_MARKET' && SCENARIO2_MARKET_HISTORY[control.dataset.value]) {
+    state.session.marketHistorySeries = control.dataset.value;
+    const series = normalizedMarketSeries(control.dataset.value);
+    state.session.marketStartYear = series?.observations[0]?.year || null;
+    state.session.marketEndYear = series?.observations.at(-1)?.year || null;
+  }
   if (action === 'select-market-history-year' && state.pageId === 'S2_MARKET' && /^20\d{2}$/.test(control.dataset.value)) state.session.marketHistoryYear = control.dataset.value;
   if (action === 'select-market-response' && state.pageId === 'S2_MARKET' && ['hold', 'reduce', 'wait'].includes(control.dataset.value)) state.session.marketResponse = control.dataset.value;
   if (action === 'select-maturity-response' && state.pageId === 'S2_MATURITY' && ['renew', 'compare', 'switch', 'later'].includes(control.dataset.value)) state.session.maturityResponse = control.dataset.value;
@@ -232,9 +271,9 @@ app.addEventListener('click', event => {
   if (action === 'select-mixed-focus' && state.pageId === 'S2_MIXED' && ['market', 'maturity'].includes(control.dataset.value)) state.session.mixedFocus = control.dataset.value;
   if (action === 'toggle-goal' && state.pageId === 'S3_GOALS') state.session.scenarioGoals = toggleChoice(state.session.scenarioGoals, control.dataset.value, SCENARIO_GOALS);
   if (action === 'continue-goals' && state.pageId === 'S3_GOALS' && state.session.scenarioGoals.length) goTo(state, scenarioRoute(official, 'scenario3_goals'));
-  if (action === 'continue-market-to-maturity' && state.pageId === 'S2_MARKET' && state.session.marketResponse) goTo(state, scenarioRoute(official, 'scenario2_maturity'));
+  if (action === 'continue-market-to-maturity' && state.pageId === 'S2_MARKET' && marketSimulationReady()) goTo(state, scenarioRoute(official, 'scenario2_maturity'));
   if (action === 'continue-maturity-to-mixed' && state.pageId === 'S2_MATURITY' && state.session.maturityResponse) goTo(state, scenarioRoute(official, 'scenario2_mixed'));
-  if (action === 'continue-scenario2-to-saving' && ((state.pageId === 'S2_MARKET' && state.session.marketResponse && !state.session.investmentTools.some(key => key === 'fixed_deposit' || key === 'bond')) || (state.pageId === 'S2_MATURITY' && state.session.maturityResponse && !state.session.investmentTools.some(key => key === 'stock' || key === 'etf')) || (state.pageId === 'S2_MIXED' && state.session.mixedFocus))) goTo(state, scenarioRoute(official, 'scenario2_to_saving'));
+  if (action === 'continue-scenario2-to-saving' && ((state.pageId === 'S2_MARKET' && marketSimulationReady() && !state.session.investmentTools.some(key => key === 'fixed_deposit' || key === 'bond')) || (state.pageId === 'S2_MATURITY' && state.session.maturityResponse && !state.session.investmentTools.some(key => key === 'stock' || key === 'etf')) || (state.pageId === 'S2_MIXED' && state.session.mixedFocus))) goTo(state, scenarioRoute(official, 'scenario2_to_saving'));
   if (action === 'continue-scenario3-to-saving' && state.pageId === 'S3_TRADEOFF') goTo(state, scenarioRoute(official, 'scenario3_to_saving'));
   if (action === 'select-method') { state.session.currentMethod = control.dataset.value; goTo(state, 'P2'); }
   if (action === 'select-purpose') { state.session.purpose = control.dataset.value; goTo(state, 'P3'); }
@@ -320,6 +359,9 @@ app.addEventListener('click', event => {
 });
 
 app.addEventListener('change', event => {
+  if (event.target.matches('[data-market-start]')) state.session.marketStartYear = event.target.value;
+  if (event.target.matches('[data-market-end]')) state.session.marketEndYear = event.target.value;
+  if (event.target.matches('[data-market-start], [data-market-end]') && state.pageId === 'S2_MARKET') updateMarketSimulatorLive();
   if (entryMode === ENTRY_MODES.admin && event.target.matches('[data-admin-record-select]')) {
     switchAdminRecord(app, event.target.dataset.adminRecordSelect, event.target.value);
   }

@@ -5,10 +5,10 @@ import fs from 'node:fs';
 import { normalizeMoneyValue, parseMoney, formatMoneyInput } from '../src/money.js';
 import { activeSavingPhases, calculateSavingPortfolio, currentPath } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
-import { normalizeMoneyState } from '../src/state.js';
-import { formatCustomerMoney, render } from '../src/views.js';
+import { effectiveAnnualContribution, normalizeMoneyState } from '../src/state.js';
+import { formatCustomerMoney, marketSimulatorResult, render } from '../src/views.js';
 import { getExistingResourceFutureValue } from '../src/views.js';
-import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries } from '../src/scenario2-market-history.js';
+import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries, simulateMarketHistory } from '../src/scenario2-market-history.js';
 
 const official = {
   strategyMap: { none: 'none' },
@@ -84,6 +84,44 @@ test('missing phase annual contribution inherits session amount after normalizat
   normalizeMoneyState(session);
   assert.equal(Object.prototype.hasOwnProperty.call(session.savingPhases[0], 'annualContribution'), false);
   assert.equal(activeSavingPhases(session)[0].annualContribution, 100000);
+});
+
+test('P3 renders inherited Phase 1 contribution and preserves it when age changes', () => {
+  const state = {
+    pageId: 'P3', history: [], mode: 'use', customerView: false,
+    session: {
+      scenario: 'scenario1', currentMethod: 'cash', annualContribution: 100000,
+      currentAge: 30, assumptions: { existingDeposit: null, cashRate: null },
+      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+    }
+  };
+  const app = { innerHTML: '' };
+  const officialP3 = { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] };
+  render(app, state, officialP3);
+  assert.equal(effectiveAnnualContribution(state.session), 100000);
+  assert.ok(app.innerHTML.includes('HK$ 100,000'));
+  state.session.currentAge = 31;
+  render(app, state, officialP3);
+  assert.ok(app.innerHTML.includes('HK$ 100,000'));
+});
+
+test('exact-observation market simulator covers all series without interpolation', () => {
+  for (const key of ['hsi', 'sp500', 'tracker2800', 'spy']) {
+    const series = normalizedMarketSeries(key);
+    const first = series.observations[0];
+    const last = series.observations.at(-1);
+    const result = simulateMarketHistory({ seriesKey: key, principal: 100000, startYear: first.year, endYear: last.year });
+    assert.equal(result.available, true);
+    assert.equal(result.simulatedValue, 100000 * (last.normalized / first.normalized));
+    assert.equal(result.profitLoss, result.simulatedValue - 100000);
+    assert.equal(result.returnPercent, (last.normalized / first.normalized - 1) * 100);
+    assert.equal(simulateMarketHistory({ seriesKey: key, principal: 100000, startYear: first.year, endYear: first.year }).available, false);
+    assert.equal(simulateMarketHistory({ seriesKey: key, principal: 100000, startYear: last.year, endYear: first.year }).available, false);
+    assert.equal(simulateMarketHistory({ seriesKey: key, principal: 100000, startYear: '2015', endYear: last.year }).available, false);
+    assert.ok(!marketSimulatorResult({
+      session: { investmentTools: key === 'hsi' || key === 'sp500' ? ['stock'] : ['etf'], marketHistorySeries: key, marketPrincipal: 100000, marketStartYear: first.year, marketEndYear: last.year }
+    }).includes('NaN'));
+  }
 });
 
 test('explicit phase override remains independent from inherited Phase 1 amount', () => {
@@ -222,12 +260,15 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(views.includes('同一筆新增安排'));
   assert.ok(views.includes('計劃總投入'));
   assert.ok(views.includes('截至呢個時間點已安排'));
-  assert.ok(views.includes('過去約10年，市場實際行過點？'));
+  assert.ok(views.includes('過去10年，實際行過點？'));
   assert.ok(views.includes('以起點 = 100 作歷史走勢比較'));
   assert.ok(views.includes('歷史數據至'));
   assert.ok(views.includes('資料核對日期'));
   assert.ok(views.includes('select-market-history-series'));
-  assert.ok(views.includes('select-market-history-year'));
+  assert.ok(views.includes('market-simulator-controls'));
+  assert.ok(views.includes('marketSimulatorResult'));
+  assert.ok(views.includes('data-market-start'));
+  assert.ok(views.includes('歷史行完，我哋可以睇到結果'));
   assert.ok(views.includes('select-maturity-horizon'));
   assert.ok(views.includes('data-value="${year}"'));
   const moneyInputs = [...views.matchAll(/<input[^>]*data-money-input[^>]*>/g)].map(match => match[0]);
@@ -241,5 +282,5 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(!styles.includes('overflow-x:hidden'));
   assert.ok(styles.includes('@media (max-width:650px)'));
   assert.ok(styles.includes('@media (max-width:1000px) and (min-width:651px)'));
-  assert.ok(build.includes("APP_VERSION = 'V1.11'"));
+  assert.ok(build.includes("APP_VERSION = 'V1.12'"));
 });
