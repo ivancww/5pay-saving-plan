@@ -2,7 +2,7 @@ import { activeSavingPhases, resolvePhaseWithdrawal, phaseStrategyChoices } from
 import { normalizeMoneyValue } from './money.js';
 
 export function createState({ currentAge = null } = {}) {
-  return { pageId: 'START', history: [], session: { scenario: null, investmentTools: [], marketResponse: null, maturityResponse: null, maturityHorizon: 5, mixedFocus: null, scenarioGoals: [], currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
+  return { pageId: 'START', history: [], session: { scenario: null, investmentTools: [], marketResponse: null, marketHistorySeries: 'hsi', marketPrincipal: 100000, marketStartYear: '2016', marketEndYear: '2025', maturityResponse: null, maturityHorizon: 5, mixedFocus: null, scenarioGoals: [], currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
 }
 
 export function normalizeMoneyState(session) {
@@ -29,6 +29,16 @@ export function normalizeMoneyState(session) {
     });
   }
   return session;
+}
+
+export function effectiveAnnualContribution(session = {}) {
+  const phaseOne = Array.isArray(session.savingPhases)
+    ? session.savingPhases.find(phase => phase?.id === 1)
+    : null;
+  if (phaseOne && Object.prototype.hasOwnProperty.call(phaseOne, 'annualContribution')) {
+    return normalizeMoneyValue(phaseOne.annualContribution);
+  }
+  return normalizeMoneyValue(session.annualContribution);
 }
 
 export function getCustomerAge(state) {
