@@ -24,6 +24,7 @@ jobs:
           node --input-type=module --check < src/state.js
           node --input-type=module --check < src/views.js
           node --input-type=module --check < src/main.js
+          node --input-type=module --check < src/scenario2-market-history.js
           node --test tests/official_write_confirmation.test.js
           node --test tests/gas_publish_simulation.test.js
           node --test tests/scenario1_calculation.test.mjs
