@@ -30,6 +30,7 @@ jobs:
           node --input-type=module --check < src/admin.js
           node --input-type=module --check < src/data.js
           node --input-type=module --check < src/main.js
+          node --input-type=module --check < src/update-gate.js
           node --test tests/official_write_confirmation.test.js
           python3 tests/admin_security_contract.test.py
           python3 tests/gas_admin_contract.test.py
