@@ -48,7 +48,7 @@ jobs:
 
       - name: Stamp deployment identity
         run: |
-          sed -i "s/__AVA_DEPLOYMENT_ID__/${GITHUB_SHA}/g" sw.js src/build.js
+          sed -i "s/__AVA_DEPLOYMENT_ID__/${GITHUB_SHA}/g" sw.js src/build.js version.json
 
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
