@@ -98,7 +98,7 @@ assert.match(page,/現有方法/); assert.match(page,/複利儲蓄安排/);
 assert.doesNotMatch(page,/class="result-card"|由 .* 開始 · .* 當時|整體效果 · .*歲/);
 // Phase 2 local 25 is actual age 40 + offset 5 + 25 = 70.
 assert.match(page,/data-action="select-withdrawal-year" data-value="25" data-phase-id="2"><strong>70歲<\/strong><small>第 25年/);
-for(const label of ['每年可使用','累積已使用','戶口價值']) assert.ok(page.includes(label));
+for(const label of ['每年可使用','累積已使用','總額']) assert.ok(page.includes(label));
 const metricValues=value=>[...value.matchAll(/data-portfolio-metric="([^"]+)">([^<]+)</g)].map(m=>[m[1],m[2]]);
 state.customerView=true; const customerApp={innerHTML:''}; render(customerApp,state,official);
 assert.match(customerApp.innerHTML,/HK\$ 48,500/);
