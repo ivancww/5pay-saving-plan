@@ -143,8 +143,12 @@ function updateField(target) {
 }
 
 function updateP3Live() {
+  // Keep the live card on the same normalized session that the next page will use.
+  // This is especially important when an existing bank deposit is cleared: null
+  // must replace the prior value before recalculating the comparison.
+  normalizeMoneyState(state.session);
   const annualContribution = effectiveAnnualContribution(state.session);
-  const path = currentPath({ method: state.session.currentMethod, amount: annualContribution, assumptions: state.session.assumptions });
+  const path = currentPath({ method: state.session.currentMethod, amount: annualContribution, assumptions: state.session.assumptions, projectionYears: 8 });
   const annualValue = document.querySelector('#p3-annual-contribution-value');
   const pathValue = document.querySelector('#p3-current-path-value');
   const pathUnit = document.querySelector('#p3-current-path-unit');
