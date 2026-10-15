@@ -71,7 +71,25 @@ test('new annual arrangement remains valid without an existing FD resource', () 
   const app = { innerHTML: '' };
   render(app, state, { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] });
   assert.match(app.innerHTML, /HK\$ 100,000/);
-  assert.doesNotMatch(app.innerHTML, /每年複利儲蓄安排[\s\S]{0,200}—/);
+  assert.doesNotMatch(app.innerHTML, /每年存款安排[\s\S]{0,200}—/);
+});
+
+test('clearing existing bank deposit immediately removes it from the comparison state', () => {
+  const session = {
+    scenario: 'scenario1', currentMethod: 'cash', annualContribution: 100000,
+    currentAge: 40, assumptions: { existingDeposit: 700000, cashRate: 1 },
+    savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+  };
+  // This mirrors the canonical value produced by the real blank money input.
+  session.assumptions.existingDeposit = readInputValue({ value: '', matches: selector => selector === '[data-money-input]' });
+  normalizeMoneyState(session);
+  assert.equal(session.assumptions.existingDeposit, null);
+  const app = { innerHTML: '' };
+  render(app, { pageId: 'P4', history: [], mode: 'use', customerView: false, session }, {
+    flow: [{ page_id: 'P4', title: 'P4', subtitle: '' }], current_methods: [], return_tables: { none: [{ policy_year: 8, multiplier: 1 }] }
+  });
+  assert.doesNotMatch(app.innerHTML, /HK\$ 700,000/);
+  assert.match(app.innerHTML, /現有存款[\s\S]*—/);
 });
 
 test('money formatting and malformed state never produce NaN customer output', () => {
@@ -298,6 +316,9 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(views.includes('p4-simple-comparison'));
   assert.ok(views.includes('p7-simple-comparison'));
   assert.ok(views.includes('截至呢個時間點已安排'));
+  assert.ok(views.includes('累積增長'));
+  assert.ok(views.includes('每年存款安排'));
+  assert.ok(views.includes('8年後現有方法預計有幾多'));
   assert.ok(!views.includes('現有方法目前資源'));
   assert.ok(!views.includes('另一筆 Saving'));
   assert.ok(!views.includes('Saving 只使用'));
@@ -350,7 +371,9 @@ test('P4, P6 and Scenario 1 P7 use simplified result layouts without changing va
   assert.equal((app.innerHTML.match(/resource-card--current/g) || []).length, 1);
   assert.equal((app.innerHTML.match(/resource-card--new/g) || []).length, 1);
   assert.match(app.innerHTML, /現有存款/);
-  assert.match(app.innerHTML, /之後每年安排/);
+  assert.match(app.innerHTML, /每年安排/);
+  assert.match(app.innerHTML, /累積增長/);
+  assert.match(app.innerHTML, /總額/);
   assert.doesNotMatch(app.innerHTML, /resource-summary|resource-section--overall/);
 
   state.pageId = 'P6';
