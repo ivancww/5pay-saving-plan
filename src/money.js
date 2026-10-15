@@ -11,6 +11,17 @@ export function normalizeMoneyValue(value) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+// data-money-input is a boolean HTML attribute, so dataset.moneyInput is an
+// empty string when the attribute is present. Use the DOM contract itself
+// rather than truthiness to keep formatted values out of Number().
+export function readInputValue(target) {
+  const isMoneyInput = target?.matches?.('[data-money-input]')
+    || target?.hasAttribute?.('data-money-input');
+  return isMoneyInput
+    ? normalizeMoneyValue(parseMoney(target?.value))
+    : (target?.value === '' ? null : Number(target?.value));
+}
+
 export function formatMoneyInput(value) {
   const parsed = normalizeMoneyValue(value);
   return parsed == null ? '' : Math.round(parsed).toLocaleString('en-US');
