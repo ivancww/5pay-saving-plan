@@ -8,7 +8,7 @@ import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
 import { exchangeAdminLaunch, handleAdminTabKeydown, publishOfficial, readAdminPayload, renderAdmin, resetAdminTab, switchAdminRecord, switchAdminTab } from './admin.js';
 import { APP_VERSION, BUILD_ID } from './build.js';
 import { currentPath } from './calculation.js';
-import { formatMoneyInputElement, normalizeMoneyValue, parseMoney } from './money.js';
+import { formatMoneyInputElement, readInputValue } from './money.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS, investmentPath, scenarioRoute, toggleChoice } from './scenario-flow.js';
 import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries, simulateMarketHistory } from './scenario2-market-history.js';
 import { fetchDeploymentMetadata, reloadOnceForBuild, requestSkipWaiting, shouldForceUpdate, updateStatusMarkup } from './update-gate.js';
@@ -116,7 +116,7 @@ function nextPage() {
 }
 function makeHoldingId(method) { return `${method}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function updateField(target) {
-  const value = target.dataset.moneyInput ? normalizeMoneyValue(parseMoney(target.value)) : (target.value === '' ? null : Number(target.value));
+  const value = readInputValue(target);
   if (target.dataset.field) state.session[target.dataset.field] = value;
   if (target.dataset.field === 'currentAge') state.session.ageError = false;
   if (target.dataset.assumption) {
