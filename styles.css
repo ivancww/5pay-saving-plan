@@ -144,6 +144,12 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
 .customer-comparison{display:grid;gap:10px;margin:0 0 18px}
 .customer-comparison .customer-block>div{display:flex;justify-content:space-between;gap:12px;padding-top:8px}
 .customer-comparison strong{overflow-wrap:anywhere;text-align:right}
+.comparison-detail,.comparison-card-total{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;min-width:0}
+.comparison-detail{padding-top:8px;border-top:1px solid var(--border)}
+.comparison-detail strong,.comparison-card-total strong{overflow-wrap:anywhere;text-align:right}
+.comparison-card-total{margin-top:4px;padding-top:12px;border-top:1px solid var(--border);font-weight:700}
+.comparison-card-total strong{font-size:clamp(24px,4vw,36px);font-variant-numeric:tabular-nums}
+.p4-comparison-card,.p7-comparison-card{min-width:0}
 @media (max-width:1000px) and (min-width:651px){.resource-summary{grid-template-columns:1fr}}
 @media (max-width:650px){.resource-summary{grid-template-columns:1fr}.input-section{padding:12px}}
 
