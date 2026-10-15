@@ -17,9 +17,9 @@ test('older online build is mandatory while current build is allowed', () => {
 });
 
 test('deployment metadata must contain a real build identity', () => {
-  assert.equal(isValidDeploymentMetadata({ version: 'V1.12.1', buildId: 'build-b' }), true);
-  assert.equal(isValidDeploymentMetadata({ version: 'V1.12.1', buildId: '__AVA_DEPLOYMENT_ID__' }), false);
-  assert.equal(isValidDeploymentMetadata({ version: 'V1.12.1' }), false);
+  assert.equal(isValidDeploymentMetadata({ version: 'V0.0.0', buildId: 'build-b' }), true);
+  assert.equal(isValidDeploymentMetadata({ version: 'V0.0.0', buildId: '__AVA_DEPLOYMENT_ID__' }), false);
+  assert.equal(isValidDeploymentMetadata({ version: 'V0.0.0' }), false);
 });
 
 test('waiting worker receives SKIP_WAITING', () => {
