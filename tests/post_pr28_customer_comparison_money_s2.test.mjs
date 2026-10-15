@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import fs from 'node:fs';
 
-import { normalizeMoneyValue, parseMoney, formatMoneyInput } from '../src/money.js';
+import { normalizeMoneyValue, parseMoney, formatMoneyInput, readInputValue } from '../src/money.js';
 import { activeSavingPhases, calculateSavingPortfolio, currentPath } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
 import { effectiveAnnualContribution, normalizeMoneyState } from '../src/state.js';
@@ -24,6 +24,54 @@ test('money values format, parse, clear and paste without numeric corruption', (
   assert.equal(parseMoney('1,250,000'), 1250000);
   assert.equal(parseMoney('HK$ 1,250,000'), 1250000);
   assert.equal(parseMoney(''), null);
+});
+
+test('formatted money input updates canonical state before P3 render', () => {
+  const session = {
+    scenario: 'scenario1', currentMethod: 'cash', annualContribution: null,
+    currentAge: 40, assumptions: { existingDeposit: null, cashRate: null },
+    savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+  };
+  const target = {
+    value: '100,000',
+    matches: selector => selector === '[data-money-input]',
+    hasAttribute: name => name === 'data-money-input'
+  };
+  session.annualContribution = readInputValue(target);
+  normalizeMoneyState(session);
+  assert.equal(session.annualContribution, 100000);
+  assert.equal(effectiveAnnualContribution(session), 100000);
+
+  const app = { innerHTML: '' };
+  render(app, { pageId: 'P3', history: [], mode: 'use', customerView: false, session }, {
+    flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: []
+  });
+  assert.match(app.innerHTML, /HK\$ 100,000/);
+  assert.doesNotMatch(app.innerHTML, /NaN/);
+
+  session.currentAge = 30;
+  session.currentAge = 40;
+  render(app, { pageId: 'P3', history: [], mode: 'use', customerView: false, session }, {
+    flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: []
+  });
+  assert.match(app.innerHTML, /HK\$ 100,000/);
+});
+
+test('new annual arrangement remains valid without an existing FD resource', () => {
+  const state = {
+    pageId: 'P3', history: [], mode: 'use', customerView: false,
+    session: {
+      scenario: 'scenario1', currentMethod: 'fixed_deposit', annualContribution: null,
+      currentAge: 40, assumptions: { fixedDeposits: [] },
+      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+    }
+  };
+  state.session.annualContribution = readInputValue({ value: '100,000', matches: s => s === '[data-money-input]' });
+  normalizeMoneyState(state.session);
+  const app = { innerHTML: '' };
+  render(app, state, { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] });
+  assert.match(app.innerHTML, /HK\$ 100,000/);
+  assert.doesNotMatch(app.innerHTML, /每年複利儲蓄安排[\s\S]{0,200}—/);
 });
 
 test('money formatting and malformed state never produce NaN customer output', () => {
@@ -275,12 +323,12 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(moneyInputs.length >= 6);
   assert.ok((views.match(/data-money-input inputmode='numeric' type='text'/g) || []).length >= 4);
   assert.ok(main.includes('formatMoneyInputElement(target)'));
-  assert.ok(main.includes('normalizeMoneyValue(parseMoney(target.value))'));
+  assert.ok(main.includes('readInputValue(target)'));
   assert.ok(views.includes('formatCustomerMoney'));
   assert.ok(main.includes('updateP3Live()'));
   assert.ok(!main.match(/formatMoneyInputElement\(target\)[\s\S]*render\(/));
   assert.ok(!styles.includes('overflow-x:hidden'));
   assert.ok(styles.includes('@media (max-width:650px)'));
   assert.ok(styles.includes('@media (max-width:1000px) and (min-width:651px)'));
-  assert.ok(build.includes("APP_VERSION = 'V1.12.1'"));
+  assert.match(build, /APP_VERSION = 'V\d+\.\d+\.\d+'/);
 });
