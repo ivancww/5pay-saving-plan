@@ -295,9 +295,9 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(customerViewSource.includes('${scenario1Resources}'));
   assert.ok(views.includes('現有資源總額'));
   assert.ok(views.includes('複利儲蓄安排'));
-  assert.ok(views.includes('合計資源'));
-  assert.ok(views.includes("const overallResourceValue = existingResourceFutureValue != null"));
-  assert.ok(views.includes("const currentNew = current.breakdown?.futureAnnualValue != null"));
+  assert.ok(views.includes('p4-simple-comparison'));
+  assert.ok(views.includes('p7-simple-comparison'));
+  assert.ok(views.includes('截至呢個時間點已安排'));
   assert.ok(!views.includes('現有方法目前資源'));
   assert.ok(!views.includes('另一筆 Saving'));
   assert.ok(!views.includes('Saving 只使用'));
@@ -306,8 +306,6 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(main.includes('continue-scenario3-to-saving'));
   assert.ok(!main.includes("scenarioRoute(official, 'scenario_to_saving')"));
   assert.ok(views.includes('同一筆新增安排'));
-  assert.ok(views.includes('計劃總投入'));
-  assert.ok(views.includes('截至呢個時間點已安排'));
   assert.ok(views.includes('過去10年，實際行過點？'));
   assert.ok(views.includes('以起點 = 100 作歷史走勢比較'));
   assert.ok(views.includes('歷史數據至'));
@@ -331,4 +329,42 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(styles.includes('@media (max-width:650px)'));
   assert.ok(styles.includes('@media (max-width:1000px) and (min-width:651px)'));
   assert.match(build, /APP_VERSION = 'V\d+\.\d+\.\d+'/);
+});
+
+test('P4, P6 and Scenario 1 P7 use simplified result layouts without changing values', () => {
+  const officialForPages = {
+    ...official,
+    current_methods: [{ method_key: 'cash', display_name: '銀行／現金' }]
+  };
+  const state = {
+    pageId: 'P4', history: [], mode: 'use', customerView: false,
+    session: {
+      scenario: 'scenario1', currentMethod: 'cash', annualContribution: 100000,
+      currentAge: 40, policyYear: 5,
+      assumptions: { existingDeposit: 500000, cashRate: 1 },
+      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+    }
+  };
+  const app = { innerHTML: '' };
+  render(app, state, officialForPages);
+  assert.equal((app.innerHTML.match(/resource-card--current/g) || []).length, 1);
+  assert.equal((app.innerHTML.match(/resource-card--new/g) || []).length, 1);
+  assert.match(app.innerHTML, /現有存款/);
+  assert.match(app.innerHTML, /之後每年安排/);
+  assert.doesNotMatch(app.innerHTML, /resource-summary|resource-section--overall/);
+
+  state.pageId = 'P6';
+  state.session.policyYear = 3;
+  render(app, state, officialForPages);
+  assert.match(app.innerHTML, /截至呢個時間點已安排/);
+  assert.match(app.innerHTML, /HK\$ 300,000/);
+  assert.doesNotMatch(app.innerHTML, /anchor-metric--secondary|計劃總投入/);
+
+  state.pageId = 'P7';
+  state.session.savingPhases = [{ id: 1, annualContribution: 100000, strategyCode: 'none', withdrawalPolicyYear: 5 }];
+  render(app, state, officialForPages);
+  assert.equal((app.innerHTML.match(/p7-comparison-card/g) || []).length, 2);
+  assert.doesNotMatch(app.innerHTML, /withdrawal-summary|data-phase-metric/);
+  assert.match(app.innerHTML, /現有方法/);
+  assert.match(app.innerHTML, /複利儲蓄安排/);
 });
