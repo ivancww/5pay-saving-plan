@@ -1,5 +1,5 @@
 import { activeSavingPhases, currentPath, resolvePhaseWithdrawal, phaseStrategyChoices } from './calculation.js';
-import { normalizeMoneyValue } from './money.js';
+import { formatMoneyInputElement, normalizeMoneyValue, readInputValue } from './money.js';
 
 export function createState({ currentAge = null } = {}) {
   return { pageId: 'START', history: [], session: { scenario: null, investmentTools: [], marketResponse: null, marketHistorySeries: 'hsi', marketPrincipal: 100000, marketStartYear: '2016', marketEndYear: '2025', maturityResponse: null, maturityHorizon: 5, mixedFocus: null, scenarioGoals: [], currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
@@ -92,6 +92,16 @@ export function updateP3LiveDom(session, querySelector, projectionYears = 8) {
     pathStatus.textContent = path.label;
   }
   return { annualContribution, path };
+}
+
+// Production P3 input-event path. The browser listener and regression tests
+// both enter here so formatting, parsing, canonical mutation and live DOM
+// refresh cannot diverge.
+export function handleP3InputEvent({ session, target, querySelector }) {
+  if (target?.matches?.('[data-money-input]')) formatMoneyInputElement(target);
+  const value = readInputValue(target);
+  applySessionInput(session, target, value);
+  return updateP3LiveDom(session, querySelector);
 }
 
 export function getCustomerAge(state) {
