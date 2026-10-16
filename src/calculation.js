@@ -61,7 +61,7 @@ function decimalRate(rawRate) {
   return Number.isFinite(value) ? value / 100 : null;
 }
 
-export function futureValueWithEndOfYearContributions({ annualContribution, annualRate = 0, projectionYears, contributionYears = CONTRIBUTION_YEARS }) {
+export function futureValueWithEndOfYearContributions({ annualContribution, annualRate = 0, projectionYears, contributionYears = CONTRIBUTION_YEARS, contributionStartYear = 1 }) {
   const amount = Number(annualContribution);
   const rate = Number(annualRate);
   const years = Math.max(0, Math.floor(Number(projectionYears)) || 0);
@@ -70,7 +70,7 @@ export function futureValueWithEndOfYearContributions({ annualContribution, annu
   let value = 0;
   for (let year = 1; year <= years; year += 1) {
     value *= 1 + rate;
-    if (year <= yearsWithContributions) value += amount;
+    if (year >= contributionStartYear && year <= yearsWithContributions) value += amount;
   }
   return value;
 }
@@ -118,12 +118,73 @@ function normalizedHoldings(items) {
 export function calculateBankProjection({ existingDeposit = 0, cashRate = null, annualContribution = 0, projectionYears = 0 }) {
   const rate = decimalRate(cashRate);
   const existingDepositFutureValue = calculateBankValue({ principal: existingDeposit, annualRate: rate, selectedYear: projectionYears });
-  const futureAnnualValue = futureValueWithEndOfYearContributions({ annualContribution, annualRate: rate ?? 0, projectionYears });
+  // Bank/Cash receives the annual arrangement for every selected year. The
+  // five-year limit belongs only to the compound-saving account component.
+  const futureAnnualValue = futureValueWithEndOfYearContributions({ annualContribution, annualRate: rate ?? 0, projectionYears, contributionYears: projectionYears });
   return {
     value: existingDepositFutureValue + futureAnnualValue,
     existingDepositFutureValue, futureAnnualValue, rate,
     rateKnown: rate != null,
     label: rate == null ? '未加入利息假設；按現有本金及每年安排展示。' : '按你輸入的銀行年息計算。'
+  };
+}
+
+function bankDepositsAfterSaving({ annualContribution, annualRate, projectionYears, savingYears = CONTRIBUTION_YEARS }) {
+  return futureValueWithEndOfYearContributions({
+    annualContribution,
+    annualRate,
+    projectionYears,
+    contributionYears: projectionYears,
+    contributionStartYear: savingYears + 1
+  });
+}
+
+/**
+ * Fair Scenario 1 comparison: both sides contribute the same principal.
+ * Bank receives every annual arrangement; the compound-saving side sends the
+ * first five to the Official account and the remainder back to Bank/Cash.
+ */
+export function calculateFairPrincipalComparison({ existingDeposit = null, cashRate = null, annualContribution, projectionYears, official }) {
+  const amount = normalizeMoneyValue(annualContribution);
+  const year = Math.max(0, Math.floor(Number(projectionYears)) || 0);
+  if (amount == null || amount <= 0 || !Number.isFinite(year) || year <= 0) return { available: false, policyYear: year };
+
+  const existing = normalizeMoneyValue(existingDeposit);
+  const existingPrincipal = existing ?? 0;
+  const rate = decimalRate(cashRate);
+  const bank = calculateBankProjection({ existingDeposit: existingPrincipal, cashRate, annualContribution: amount, projectionYears: year });
+  const bankAnnualPrincipal = amount * year;
+  const bankPrincipal = existingPrincipal + bankAnnualPrincipal;
+
+  const savingContributionPrincipal = amount * Math.min(CONTRIBUTION_YEARS, year);
+  const postSavingYears = Math.max(0, year - CONTRIBUTION_YEARS);
+  const savingBankPrincipal = existingPrincipal + amount * postSavingYears;
+  const savingBankValue = calculateBankValue({ principal: existingPrincipal, annualRate: rate, selectedYear: year })
+    + bankDepositsAfterSaving({ annualContribution: amount, annualRate: rate ?? 0, projectionYears: year });
+  const officialResult = calculateOfficial({ annualContribution: amount, policyYear: year, strategyCode: 'none', official });
+  const savingPlanValue = officialResult.available ? officialResult.futureValue : null;
+  const savingTotal = savingPlanValue == null ? null : savingBankValue + savingPlanValue;
+  const savingPrincipal = savingBankPrincipal + savingContributionPrincipal;
+
+  return {
+    available: savingTotal != null,
+    policyYear: year,
+    annualContribution: amount,
+    existingPrincipal,
+    bankExistingPrincipal: existingPrincipal,
+    bankAnnualPrincipal,
+    bankPrincipal,
+    bankTotal: bank.value,
+    bankGrowth: bank.value - bankPrincipal,
+    savingContributionPrincipal,
+    savingBankPrincipal,
+    savingBankValue,
+    savingPlanValue,
+    savingPrincipal,
+    savingTotal,
+    savingGrowth: savingTotal == null ? null : savingTotal - savingPrincipal,
+    official: officialResult,
+    bank
   };
 }
 
