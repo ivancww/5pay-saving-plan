@@ -3,7 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 
 import { normalizeMoneyValue, parseMoney, formatMoneyInput, readInputValue } from '../src/money.js';
-import { activeSavingPhases, calculateFairPrincipalComparison, calculateSavingPortfolio, currentPath } from '../src/calculation.js';
+import { activeSavingPhases, calculateFairPrincipalComparison, calculateSavingPortfolio, currentPath, withdrawalPortfolio } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
 import { applySessionInput, effectiveAnnualContribution, normalizeMoneyState, updateP3LiveDom } from '../src/state.js';
 import { formatCustomerMoney, marketSimulatorResult, render } from '../src/views.js';
@@ -457,4 +457,25 @@ test('P4, P6 and Scenario 1 P7 use simplified result layouts without changing va
   assert.match(app.innerHTML, /合計每年可使用/);
   assert.match(app.innerHTML, /合計累積已使用/);
   assert.match(app.innerHTML, /合計戶口價值/);
+});
+
+test('Customer View keeps the blue combined account-value card clear and aggregate-backed', () => {
+  const state = {
+    pageId: 'P7', history: [], mode: 'use', customerView: true,
+    session: {
+      scenario: 'scenario1', currentMethod: 'cash', annualContribution: 100000,
+      currentAge: 40, assumptions: { existingDeposit: 200000, cashRate: 2 },
+      savingPhases: [
+        { id: 1, annualContribution: 100000, strategyCode: 'none', withdrawalPolicyYear: 8 },
+        { id: 2, annualContribution: 100000, strategyCode: 'none', withdrawalPolicyYear: 8 }
+      ]
+    }
+  };
+  const app = { innerHTML: '' };
+  render(app, state, official);
+  const aggregate = withdrawalPortfolio(state.session, official).result;
+  assert.match(app.innerHTML, /複利儲蓄安排 · 2 期/);
+  assert.match(app.innerHTML, /2期合計戶口價值 · 按各期目前使用設定/);
+  assert.match(app.innerHTML, new RegExp(formatCustomerMoney(aggregate.remainingValue).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(app.innerHTML, /withdrawal-summary|整體效果/);
 });
