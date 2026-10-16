@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { normalizeMoneyValue, parseMoney, formatMoneyInput, readInputValue } from '../src/money.js';
 import { activeSavingPhases, calculateFairPrincipalComparison, calculateSavingPortfolio, currentPath, withdrawalPortfolio } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
-import { applySessionInput, effectiveAnnualContribution, normalizeMoneyState, updateP3LiveDom } from '../src/state.js';
+import { applySessionInput, effectiveAnnualContribution, handleP3InputEvent, normalizeMoneyState } from '../src/state.js';
 import { formatCustomerMoney, marketSimulatorResult, render } from '../src/views.js';
 import { getExistingResourceFutureValue } from '../src/views.js';
 import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries, simulateMarketHistory } from '../src/scenario2-market-history.js';
@@ -260,31 +260,47 @@ test('bank P4 keeps existing resource separate from the new-arrangement comparis
   assert.notEqual(current.breakdown.existingDepositFutureValue, current.breakdown.futureAnnualValue);
 });
 
-test('P3 cash rate and existing deposit changes recalculate the rendered live path immediately', () => {
+test('real P3 input-event path updates cash rate, deposit and annual contribution immediately', () => {
   const state = {
     pageId: 'P3', history: [], mode: 'use', customerView: false,
     session: {
-      scenario: 'scenario1', currentMethod: 'cash', annualContribution: 100000,
-      currentAge: 40, assumptions: { existingDeposit: 200000, cashRate: 1 },
+      scenario: 'scenario1', currentMethod: 'cash', annualContribution: null,
+      currentAge: 40, assumptions: { existingDeposit: 200000, cashRate: null },
       savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
     }
   };
   const nodes = new Map(['#p3-annual-contribution-value', '#p3-current-path-value', '#p3-current-path-unit', '#p3-current-path-status'].map(selector => [selector, { textContent: '', className: '' }]));
   const querySelector = selector => nodes.get(selector);
-  applySessionInput(state.session, { dataset: { field: 'annualContribution' } }, 100000);
-  updateP3LiveDom(state.session, querySelector);
+  const input = (dataset, value, money = false) => ({
+    dataset, value, selectionStart: String(value).length, selectionEnd: String(value).length,
+    matches: selector => money && selector === '[data-money-input]'
+  });
+  handleP3InputEvent({ session: state.session, target: input({ field: 'annualContribution' }, '100,000', true), querySelector });
   assert.equal(nodes.get('#p3-annual-contribution-value').textContent, 'HK$ 100,000');
+  assert.equal(state.session.annualContribution, 100000);
   const before = nodes.get('#p3-current-path-value').textContent;
-  applySessionInput(state.session, { dataset: { assumption: 'cash-rate' } }, 2);
-  updateP3LiveDom(state.session, querySelector);
-  const afterRate = nodes.get('#p3-current-path-value').textContent;
-  assert.notEqual(afterRate, before);
+  handleP3InputEvent({ session: state.session, target: input({ assumption: 'cash-rate' }, '1'), querySelector });
+  const afterOne = nodes.get('#p3-current-path-value').textContent;
+  assert.notEqual(afterOne, before);
+  assert.equal(state.session.assumptions.cashRate, 1);
+
+  handleP3InputEvent({ session: state.session, target: input({ assumption: 'cash-rate' }, '2'), querySelector });
+  const afterTwo = nodes.get('#p3-current-path-value').textContent;
+  assert.notEqual(afterTwo, afterOne);
   assert.equal(state.session.assumptions.cashRate, 2);
 
-  applySessionInput(state.session, { dataset: { assumption: 'existing-deposit' } }, null);
-  updateP3LiveDom(state.session, querySelector);
+  handleP3InputEvent({ session: state.session, target: input({ assumption: 'existing-deposit' }, '', true), querySelector });
   assert.equal(state.session.assumptions.existingDeposit, null);
-  assert.notEqual(nodes.get('#p3-current-path-value').textContent, afterRate);
+  const afterClear = nodes.get('#p3-current-path-value').textContent;
+  assert.notEqual(afterClear, afterTwo);
+
+  handleP3InputEvent({ session: state.session, target: input({ assumption: 'existing-deposit' }, '300,000', true), querySelector });
+  assert.equal(state.session.assumptions.existingDeposit, 300000);
+  assert.notEqual(nodes.get('#p3-current-path-value').textContent, afterClear);
+
+  handleP3InputEvent({ session: state.session, target: input({ field: 'annualContribution' }, '120,000', true), querySelector });
+  assert.equal(state.session.annualContribution, 120000);
+  assert.equal(nodes.get('#p3-annual-contribution-value').textContent, 'HK$ 120,000');
   assert.ok(![...nodes.values()].some(node => String(node.textContent).includes('NaN')));
 });
 
@@ -379,6 +395,8 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(!views.includes('Saving 只使用'));
   assert.ok(!views.includes('exact Official value'));
   assert.ok(main.includes('updateP3LiveDom'));
+  assert.ok(main.includes('handleP3InputEvent({'));
+  assert.ok(main.includes('p3Editing && !target.dataset.holdingField'));
   assert.ok(main.includes('continue-scenario2-to-saving'));
   assert.ok(main.includes('continue-scenario3-to-saving'));
   assert.ok(!main.includes("scenarioRoute(official, 'scenario_to_saving')"));
