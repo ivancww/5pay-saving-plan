@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { normalizeMoneyValue, parseMoney, formatMoneyInput, readInputValue } from '../src/money.js';
 import { activeSavingPhases, calculateFairPrincipalComparison, calculateSavingPortfolio, currentPath } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
-import { applySessionInput, effectiveAnnualContribution, normalizeMoneyState } from '../src/state.js';
+import { applySessionInput, effectiveAnnualContribution, normalizeMoneyState, updateP3LiveDom } from '../src/state.js';
 import { formatCustomerMoney, marketSimulatorResult, render } from '../src/views.js';
 import { getExistingResourceFutureValue } from '../src/views.js';
 import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries, simulateMarketHistory } from '../src/scenario2-market-history.js';
@@ -269,21 +269,23 @@ test('P3 cash rate and existing deposit changes recalculate the rendered live pa
       savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
     }
   };
-  const officialP3 = { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] };
-  const app = { innerHTML: '' };
-  render(app, state, officialP3);
-  const before = app.innerHTML.match(/id='p3-current-path-value' class='ava-metric__value'>([^<]+)/)?.[1];
+  const nodes = new Map(['#p3-annual-contribution-value', '#p3-current-path-value', '#p3-current-path-unit', '#p3-current-path-status'].map(selector => [selector, { textContent: '', className: '' }]));
+  const querySelector = selector => nodes.get(selector);
+  applySessionInput(state.session, { dataset: { field: 'annualContribution' } }, 100000);
+  updateP3LiveDom(state.session, querySelector);
+  assert.equal(nodes.get('#p3-annual-contribution-value').textContent, 'HK$ 100,000');
+  const before = nodes.get('#p3-current-path-value').textContent;
   applySessionInput(state.session, { dataset: { assumption: 'cash-rate' } }, 2);
-  render(app, state, officialP3);
-  const afterRate = app.innerHTML.match(/id='p3-current-path-value' class='ava-metric__value'>([^<]+)/)?.[1];
+  updateP3LiveDom(state.session, querySelector);
+  const afterRate = nodes.get('#p3-current-path-value').textContent;
   assert.notEqual(afterRate, before);
   assert.equal(state.session.assumptions.cashRate, 2);
 
   applySessionInput(state.session, { dataset: { assumption: 'existing-deposit' } }, null);
-  render(app, state, officialP3);
+  updateP3LiveDom(state.session, querySelector);
   assert.equal(state.session.assumptions.existingDeposit, null);
-  assert.notEqual(app.innerHTML.match(/id='p3-current-path-value' class='ava-metric__value'>([^<]+)/)?.[1], afterRate);
-  assert.ok(!app.innerHTML.includes('NaN'));
+  assert.notEqual(nodes.get('#p3-current-path-value').textContent, afterRate);
+  assert.ok(![...nodes.values()].some(node => String(node.textContent).includes('NaN')));
 });
 
 test('fair P4 values expose cumulative Bank principal and split post-saving Bank principal', () => {
@@ -306,7 +308,7 @@ test('P4 rendered cards switch fair principal rows with the selected year', () =
     }
   };
   const app = { innerHTML: '' };
-  for (const [year, bankAnnual, savingBank] of [[8, '800,000', '500,000'], [9, '900,000', '600,000'], [10, '1,000,000', '700,000']]) {
+  for (const [year, bankAnnual, savingBank] of [[8, '800,000', '500,000'], [9, '900,000', '600,000'], [10, '1,000,000', '700,000'], [13, '1,300,000', '1,000,000']]) {
     state.session.policyYear = year;
     render(app, state, official);
     assert.match(app.innerHTML, new RegExp(`每年安排</span><strong>HK\\$ ${bankAnnual}`));
@@ -364,9 +366,7 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(views.includes('目前已有資源'));
   const customerViewStart = views.indexOf('function customerView');
   const customerViewSource = views.slice(customerViewStart, views.indexOf('function unavailable', customerViewStart));
-  assert.ok(customerViewSource.includes("scenario === 'scenario1' ? customerScenario1Resources(state, official, phases) : ''"));
-  assert.ok(customerViewSource.includes('${scenario1Resources}'));
-  assert.ok(views.includes('現有資源總額'));
+  assert.doesNotMatch(customerViewSource, /customerScenario1Resources|scenario1Resources/);
   assert.ok(views.includes('複利儲蓄安排'));
   assert.ok(views.includes('p4-simple-comparison'));
   assert.ok(views.includes('p7-simple-comparison'));
@@ -378,10 +378,10 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(!views.includes('另一筆 Saving'));
   assert.ok(!views.includes('Saving 只使用'));
   assert.ok(!views.includes('exact Official value'));
+  assert.ok(main.includes('updateP3LiveDom'));
   assert.ok(main.includes('continue-scenario2-to-saving'));
   assert.ok(main.includes('continue-scenario3-to-saving'));
   assert.ok(!main.includes("scenarioRoute(official, 'scenario_to_saving')"));
-  assert.ok(views.includes('同一筆新增安排'));
   assert.ok(views.includes('過去10年，實際行過點？'));
   assert.ok(views.includes('以起點 = 100 作歷史走勢比較'));
   assert.ok(views.includes('歷史數據至'));
@@ -442,7 +442,19 @@ test('P4, P6 and Scenario 1 P7 use simplified result layouts without changing va
   state.session.savingPhases = [{ id: 1, annualContribution: 100000, strategyCode: 'none', withdrawalPolicyYear: 5 }];
   render(app, state, officialForPages);
   assert.equal((app.innerHTML.match(/p7-comparison-card/g) || []).length, 2);
-  assert.doesNotMatch(app.innerHTML, /withdrawal-summary|data-phase-metric/);
+  assert.doesNotMatch(app.innerHTML, /withdrawal-summary/);
+  assert.match(app.innerHTML, /data-phase-metric/);
   assert.match(app.innerHTML, /現有方法/);
   assert.match(app.innerHTML, /複利儲蓄安排/);
+
+  state.session.savingPhases = [
+    { id: 1, annualContribution: 100000, strategyCode: 'none', withdrawalPolicyYear: 5 },
+    { id: 2, annualContribution: 80000, strategyCode: 'none', withdrawalPolicyYear: 5 }
+  ];
+  render(app, state, officialForPages);
+  assert.equal((app.innerHTML.match(/data-phase-metric/g) || []).length >= 2, true);
+  assert.match(app.innerHTML, /withdrawal-summary/);
+  assert.match(app.innerHTML, /合計每年可使用/);
+  assert.match(app.innerHTML, /合計累積已使用/);
+  assert.match(app.innerHTML, /合計戶口價值/);
 });
