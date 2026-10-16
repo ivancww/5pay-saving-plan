@@ -1,5 +1,5 @@
 import { applyLocalOverrides, loadCachedOfficial, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
-import { activateSavingPhase, applySessionInput, createState, effectiveAnnualContribution, getCustomerAge, goBack, goTo, normalizeMoneyState, removeSavingPhase, selectPhaseWithdrawal, selectPhaseWithdrawalYear, updateP3LiveDom } from './state.js';
+import { activateSavingPhase, applySessionInput, createState, effectiveAnnualContribution, getCustomerAge, goBack, goTo, handleP3InputEvent, normalizeMoneyState, removeSavingPhase, selectPhaseWithdrawal, selectPhaseWithdrawalYear, updateP3LiveDom } from './state.js';
 import { exportCustomerView } from './pdf.js';
 import { marketSimulatorResult, render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
@@ -207,6 +207,10 @@ app.addEventListener('input', event => {
   const p3Editing = state.pageId === 'P3' && liveField;
   const p5Editing = state.pageId === 'P5' && target.matches('[data-phase-annual]');
   const marketEditing = state.pageId === 'S2_MARKET' && target.matches('[data-market-principal]');
+  if (p3Editing && !target.dataset.holdingField) {
+    handleP3InputEvent({ state: state.session, session: state.session, target, querySelector: selector => document.querySelector(selector) });
+    return;
+  }
   if (target.matches('[data-money-input]')) formatMoneyInputElement(target);
   updateField(target);
   if (p3Editing) { updateP3Live(); return; }
