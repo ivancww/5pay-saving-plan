@@ -1,5 +1,5 @@
-import { activeSavingPhases, resolvePhaseWithdrawal, phaseStrategyChoices } from './calculation.js';
-import { normalizeMoneyValue } from './money.js';
+import { activeSavingPhases, currentPath, resolvePhaseWithdrawal, phaseStrategyChoices } from './calculation.js';
+import { formatMoneyInputElement, normalizeMoneyValue, readInputValue } from './money.js';
 
 export function createState({ currentAge = null } = {}) {
   return { pageId: 'START', history: [], session: { scenario: null, investmentTools: [], marketResponse: null, marketHistorySeries: 'hsi', marketPrincipal: 100000, marketStartYear: '2016', marketEndYear: '2025', maturityResponse: null, maturityHorizon: 5, mixedFocus: null, scenarioGoals: [], currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
@@ -62,6 +62,46 @@ export function applySessionInput(session, target, value) {
   }
   normalizeMoneyState(session);
   return session;
+}
+
+// The P3 live card consumes the same normalized session that P4 uses. Keep
+// this DOM update contract next to the canonical input mutation so a live
+// input event cannot drift from the value used after navigation.
+export function updateP3LiveDom(session, querySelector, projectionYears = 8) {
+  normalizeMoneyState(session);
+  const annualContribution = effectiveAnnualContribution(session);
+  const path = currentPath({
+    method: session.currentMethod,
+    amount: annualContribution,
+    assumptions: session.assumptions,
+    projectionYears
+  });
+  const format = value => {
+    const parsed = normalizeMoneyValue(value);
+    return parsed == null ? '—' : `HK$ ${Math.round(parsed).toLocaleString('en-US')}`;
+  };
+  const annualValue = querySelector?.('#p3-annual-contribution-value');
+  const pathValue = querySelector?.('#p3-current-path-value');
+  const pathUnit = querySelector?.('#p3-current-path-unit');
+  const pathStatus = querySelector?.('#p3-current-path-status');
+  if (annualValue) annualValue.textContent = format(annualContribution);
+  if (pathValue) pathValue.textContent = path.value == null ? '—' : format(path.value);
+  if (pathUnit) pathUnit.textContent = path.kind === 'known' ? '按每年安排累積' : '按你輸入的假設';
+  if (pathStatus) {
+    pathStatus.className = `path-status path-status--${path.kind}`;
+    pathStatus.textContent = path.label;
+  }
+  return { annualContribution, path };
+}
+
+// Production P3 input-event path. The browser listener and regression tests
+// both enter here so formatting, parsing, canonical mutation and live DOM
+// refresh cannot diverge.
+export function handleP3InputEvent({ session, target, querySelector }) {
+  if (target?.matches?.('[data-money-input]')) formatMoneyInputElement(target);
+  const value = readInputValue(target);
+  applySessionInput(session, target, value);
+  return updateP3LiveDom(session, querySelector);
 }
 
 export function getCustomerAge(state) {
