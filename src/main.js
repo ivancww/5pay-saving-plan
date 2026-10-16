@@ -1,5 +1,5 @@
 import { applyLocalOverrides, loadCachedOfficial, loadOfficialData, loadOverrides, saveOverrides } from './data.js';
-import { activateSavingPhase, createState, effectiveAnnualContribution, getCustomerAge, goBack, goTo, normalizeMoneyState, removeSavingPhase, selectPhaseWithdrawal, selectPhaseWithdrawalYear } from './state.js';
+import { activateSavingPhase, applySessionInput, createState, effectiveAnnualContribution, getCustomerAge, goBack, goTo, normalizeMoneyState, removeSavingPhase, selectPhaseWithdrawal, selectPhaseWithdrawalYear } from './state.js';
 import { exportCustomerView } from './pdf.js';
 import { marketSimulatorResult, render } from './views.js';
 import { MEDIA_TYPES, MEDIA_LIMITS, normalizeMedia } from './media.js';
@@ -117,12 +117,7 @@ function nextPage() {
 function makeHoldingId(method) { return `${method}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function updateField(target) {
   const value = readInputValue(target);
-  if (target.dataset.field) state.session[target.dataset.field] = value;
-  if (target.dataset.field === 'currentAge') state.session.ageError = false;
-  if (target.dataset.assumption) {
-    const key = { 'customer-return-rate':'returnRate', 'current-rate':'currentRate', 'maturity-rate':'maturityRate', 'existing-value':'existingValue', 'existing-deposit':'existingDeposit', 'cash-rate':'cashRate' }[target.dataset.assumption];
-    if (key) state.session.assumptions[key] = value;
-  }
+  applySessionInput(state.session, target, value);
   if (target.dataset.holdingField) {
     const method = target.dataset.holdingMethod;
     const items = Array.isArray(state.session.assumptions[method]) ? state.session.assumptions[method].map(item => ({ ...item })) : [];
