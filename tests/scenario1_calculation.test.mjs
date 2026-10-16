@@ -39,9 +39,9 @@ test('Bank/Cash annual arrangements continue through the selected year', () => {
 test('fair principal comparison keeps Bank and compound-saving principal equal', () => {
   const fairOfficial = {
     strategyMap: { none: 'none' },
-    return_tables: { none: [5, 8, 9, 10].map(policy_year => ({ policy_year, multiplier: 1.2 })) }
+    return_tables: { none: [5, 8, 9, 10, 13].map(policy_year => ({ policy_year, multiplier: 1.2 })) }
   };
-  for (const year of [8, 9, 10]) {
+  for (const year of [8, 9, 10, 13]) {
     const result = calculateFairPrincipalComparison({
       existingDeposit: 200000, cashRate: 2, annualContribution: 100000,
       projectionYears: year, official: fairOfficial
