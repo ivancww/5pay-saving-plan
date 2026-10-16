@@ -41,6 +41,29 @@ export function effectiveAnnualContribution(session = {}) {
   return normalizeMoneyValue(session.annualContribution);
 }
 
+// Shared input mutation for the live P3 path. Keeping field and assumption
+// writes here ensures every input event reaches the same canonical session
+// before a live calculation or render consumes it.
+export function applySessionInput(session, target, value) {
+  if (!session) return session;
+  session.assumptions ||= {};
+  if (target?.dataset?.field) session[target.dataset.field] = value;
+  if (target?.dataset?.field === 'currentAge') session.ageError = false;
+  if (target?.dataset?.assumption) {
+    const key = {
+      'customer-return-rate': 'returnRate',
+      'current-rate': 'currentRate',
+      'maturity-rate': 'maturityRate',
+      'existing-value': 'existingValue',
+      'existing-deposit': 'existingDeposit',
+      'cash-rate': 'cashRate'
+    }[target.dataset.assumption];
+    if (key) session.assumptions[key] = value;
+  }
+  normalizeMoneyState(session);
+  return session;
+}
+
 export function getCustomerAge(state) {
   const value = state?.session?.currentAge;
   if (value == null || value === '') return null;

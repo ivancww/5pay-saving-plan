@@ -1,4 +1,4 @@
-import { activeSavingPhases, calculateSavingPortfolio, currentPath, supportedYears, phaseStrategyChoices, withdrawalPortfolio } from './calculation.js';
+import { activeSavingPhases, calculateFairPrincipalComparison, calculateSavingPortfolio, currentPath, supportedYears, phaseStrategyChoices, withdrawalPortfolio } from './calculation.js';
 import { ageAtPolicyYear, effectiveAnnualContribution, getCustomerAge } from './state.js';
 import { MEDIA_TYPES, mediaCanRender, mediaFallbackLabel, normalizeMediaList } from './media.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS } from './scenario-flow.js';
@@ -10,22 +10,13 @@ export function formatCustomerMoney(value) { const parsed = normalizeMoneyValue(
 const money = formatCustomerMoney;
 const inputMoney = value => formatMoneyInput(value);
 const pct = value => `${(Number(value) * 100).toFixed(Number(value) % 0.01 ? 1 : 0)}%`;
-function scheduledPrincipal(annualContribution, policyYear) {
-  const annual = normalizeMoneyValue(annualContribution);
-  const year = Number(policyYear);
-  if (annual == null || !Number.isFinite(year)) return 0;
-  return annual * Math.min(5, Math.max(0, Math.floor(year)));
-}
 function growthAbovePrincipal(total, principal) {
   const value = normalizeMoneyValue(total);
   const base = normalizeMoneyValue(principal);
   return value == null || base == null ? null : value - base;
 }
-function comparisonRows({ existingLabel, existingValue, annualContribution, total, policyYear, includeAnnualPrincipal = true }) {
-  const annualPrincipal = includeAnnualPrincipal ? scheduledPrincipal(annualContribution, policyYear) : 0;
-  const principal = (existingValue == null ? 0 : existingValue) + annualPrincipal;
-  const growth = growthAbovePrincipal(total, principal);
-  return `<div class='comparison-detail'><span>${existingLabel}</span><strong>${existingValue == null ? '—' : money(existingValue)}</strong></div><div class='comparison-detail'><span>每年安排</span><strong>${money(annualContribution)}</strong></div><div class='comparison-detail'><span>累積增長</span><strong>${growth == null ? '—' : money(growth)}</strong></div><div class='comparison-card-total'><span>總額</span><strong>${total == null ? '—' : money(total)}</strong></div>`;
+function comparisonRows({ existingLabel, existingValue, annualArrangement, growth, total }) {
+  return `<div class='comparison-detail'><span>${existingLabel}</span><strong>${existingValue == null ? '—' : money(existingValue)}</strong></div><div class='comparison-detail'><span>每年安排</span><strong>${annualArrangement == null ? '—' : money(annualArrangement)}</strong></div><div class='comparison-detail'><span>累積增長</span><strong>${growth == null ? '—' : money(growth)}</strong></div><div class='comparison-card-total'><span>總額</span><strong>${total == null ? '—' : money(total)}</strong></div>`;
 }
 const pageContent = (official, pageId) => official?.page_content?.filter(item => item.page_id === pageId) || [];
 
@@ -289,8 +280,15 @@ function p4(state, official) {
   const methodName = method?.display_name || '現有方法';
   const existingDeposit = normalizeMoneyValue(state.session.assumptions?.existingDeposit);
   const currentExisting = existingDeposit ?? (current.details?.reduce((sum, item) => sum + (normalizeMoneyValue(item.principal) || 0), 0) || null);
-  const currentRows = comparisonRows({ existingLabel: state.session.currentMethod === 'cash' ? '現有存款' : '現有資源', existingValue: currentExisting, annualContribution, total: current.value, policyYear: selectedYear, includeAnnualPrincipal: state.session.currentMethod === 'cash' });
-  const savingRows = comparisonRows({ existingLabel: '現有存款', existingValue: saving.totalContribution, annualContribution, total: saving.available ? saving.futureValue : null, policyYear: selectedYear, includeAnnualPrincipal: false });
+  const fair = state.session.currentMethod === 'cash'
+    ? calculateFairPrincipalComparison({ existingDeposit, cashRate: state.session.assumptions?.cashRate, annualContribution, projectionYears: selectedYear, official })
+    : null;
+  const currentRows = fair
+    ? comparisonRows({ existingLabel: '現有存款', existingValue: existingDeposit == null ? null : fair.bankExistingPrincipal, annualArrangement: fair.bankAnnualPrincipal, growth: fair.bankGrowth, total: fair.bankTotal })
+    : comparisonRows({ existingLabel: '現有資源', existingValue: currentExisting, annualArrangement: annualContribution, growth: growthAbovePrincipal(current.value, (currentExisting || 0) + (annualContribution || 0)), total: current.value });
+  const savingRows = fair
+    ? comparisonRows({ existingLabel: '現有存款', existingValue: fair.savingBankPrincipal, annualArrangement: fair.savingContributionPrincipal, growth: fair.savingGrowth, total: fair.savingTotal })
+    : comparisonRows({ existingLabel: '現有存款', existingValue: saving.totalContribution, annualArrangement: annualContribution, growth: growthAbovePrincipal(saving.available ? saving.futureValue : null, saving.totalContribution || 0), total: saving.available ? saving.futureValue : null });
   const currentCard = `<div class='resource-card resource-card--current p4-comparison-card'><span class='card-kicker'>現有方法 · ${esc(methodName)}</span>${currentRows}<small>${esc(current.label || '按目前輸入資料展示。')}</small></div>`;
   const savingCard = `<div class='resource-card resource-card--new p4-comparison-card'><span class='card-kicker'>複利儲蓄安排</span>${savingRows}<small>${saving.available ? '按官方已有數值展示，沒有插值。' : esc(saving.message)}</small></div>`;
   return `<div class='comparison-intro'><strong>以 ${horizon} 作比較</strong></div><div class='time-bar-card timeline-rail-card'><div class='time-bar-heading'><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div><div class='comparison-stack p4-simple-comparison'>${currentCard}<div class='plus'>對比</div>${savingCard}</div><p class='calculation-note'>現有資源及新增安排分開展示；複利儲蓄安排只使用官方已有數值。</p><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>了解點樣運作 →</button></div>`;
@@ -353,8 +351,15 @@ function p7(state, official) {
   const currentExisting = state.session.currentMethod === 'cash'
     ? normalizeMoneyValue(state.session.assumptions?.existingDeposit)
     : (current.details?.reduce((sum, item) => sum + (normalizeMoneyValue(item.principal) || 0), 0) || null);
-  const currentRows = comparisonRows({ existingLabel: state.session.currentMethod === 'cash' ? '現有存款' : '現有資源', existingValue: currentExisting, annualContribution, total: current.value, policyYear: comparisonYear, includeAnnualPrincipal: state.session.currentMethod === 'cash' });
-  const savingRows = comparisonRows({ existingLabel: '現有存款', existingValue: result.totalContribution, annualContribution, total: result.available ? result.remainingValue : null, policyYear: comparisonYear, includeAnnualPrincipal: false });
+  const fair = state.session.currentMethod === 'cash' && comparisonYear > 0
+    ? calculateFairPrincipalComparison({ existingDeposit: currentExisting, cashRate: state.session.assumptions?.cashRate, annualContribution, projectionYears: comparisonYear, official })
+    : null;
+  const currentRows = fair
+    ? comparisonRows({ existingLabel: '現有存款', existingValue: fair.bankExistingPrincipal, annualArrangement: fair.bankAnnualPrincipal, growth: fair.bankGrowth, total: fair.bankTotal })
+    : comparisonRows({ existingLabel: '現有資源', existingValue: currentExisting, annualArrangement: annualContribution, growth: growthAbovePrincipal(current.value, (currentExisting || 0) + (annualContribution || 0)), total: current.value });
+  const savingRows = fair
+    ? comparisonRows({ existingLabel: '現有存款', existingValue: fair.savingBankPrincipal, annualArrangement: fair.savingContributionPrincipal, growth: fair.savingGrowth, total: fair.savingTotal })
+    : comparisonRows({ existingLabel: '現有存款', existingValue: result.totalContribution, annualArrangement: annualContribution, growth: growthAbovePrincipal(result.available ? result.remainingValue : null, result.totalContribution || 0), total: result.available ? result.remainingValue : null });
   const currentCard = `<div class='resource-card resource-card--current p7-comparison-card'><span class='card-kicker'>現有方法 · ${esc(methodName)}</span>${currentRows}</div>`;
   const savingCard = `<div class='resource-card resource-card--new p7-comparison-card'><span class='card-kicker'>複利儲蓄安排</span>${savingRows}<div class='withdrawal-result'>${['annualUsable', 'cumulativeUsed'].map(key => `<div><span>${key === 'annualUsable' ? '每年可使用' : '累積已使用'}</span><strong>${result.available ? money(result[key]) : '—'}</strong></div>`).join('')}</div><small>${result.available ? basis : esc(result.message)}</small></div>`;
   return `${sections}<div class='comparison-intro p7-comparison-basis'><strong>${basis}</strong></div><div class='comparison-stack p7-simple-comparison'>${currentCard}<div class='plus'>對比</div>${savingCard}</div><div class='actions'><button class='ava-button ava-button--primary' data-action='customer-view' type='button'>一 click 睇客戶頁 →</button></div>`;

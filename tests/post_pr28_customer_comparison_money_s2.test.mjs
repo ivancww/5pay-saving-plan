@@ -3,9 +3,9 @@ import test from 'node:test';
 import fs from 'node:fs';
 
 import { normalizeMoneyValue, parseMoney, formatMoneyInput, readInputValue } from '../src/money.js';
-import { activeSavingPhases, calculateSavingPortfolio, currentPath } from '../src/calculation.js';
+import { activeSavingPhases, calculateFairPrincipalComparison, calculateSavingPortfolio, currentPath } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
-import { effectiveAnnualContribution, normalizeMoneyState } from '../src/state.js';
+import { applySessionInput, effectiveAnnualContribution, normalizeMoneyState } from '../src/state.js';
 import { formatCustomerMoney, marketSimulatorResult, render } from '../src/views.js';
 import { getExistingResourceFutureValue } from '../src/views.js';
 import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries, simulateMarketHistory } from '../src/scenario2-market-history.js';
@@ -258,6 +258,61 @@ test('bank P4 keeps existing resource separate from the new-arrangement comparis
   assert.equal(Math.round(current.breakdown.existingDepositFutureValue), 580484);
   assert.equal(current.value, current.breakdown.existingDepositFutureValue + current.breakdown.futureAnnualValue);
   assert.notEqual(current.breakdown.existingDepositFutureValue, current.breakdown.futureAnnualValue);
+});
+
+test('P3 cash rate and existing deposit changes recalculate the rendered live path immediately', () => {
+  const state = {
+    pageId: 'P3', history: [], mode: 'use', customerView: false,
+    session: {
+      scenario: 'scenario1', currentMethod: 'cash', annualContribution: 100000,
+      currentAge: 40, assumptions: { existingDeposit: 200000, cashRate: 1 },
+      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+    }
+  };
+  const officialP3 = { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] };
+  const app = { innerHTML: '' };
+  render(app, state, officialP3);
+  const before = app.innerHTML.match(/id='p3-current-path-value' class='ava-metric__value'>([^<]+)/)?.[1];
+  applySessionInput(state.session, { dataset: { assumption: 'cash-rate' } }, 2);
+  render(app, state, officialP3);
+  const afterRate = app.innerHTML.match(/id='p3-current-path-value' class='ava-metric__value'>([^<]+)/)?.[1];
+  assert.notEqual(afterRate, before);
+  assert.equal(state.session.assumptions.cashRate, 2);
+
+  applySessionInput(state.session, { dataset: { assumption: 'existing-deposit' } }, null);
+  render(app, state, officialP3);
+  assert.equal(state.session.assumptions.existingDeposit, null);
+  assert.notEqual(app.innerHTML.match(/id='p3-current-path-value' class='ava-metric__value'>([^<]+)/)?.[1], afterRate);
+  assert.ok(!app.innerHTML.includes('NaN'));
+});
+
+test('fair P4 values expose cumulative Bank principal and split post-saving Bank principal', () => {
+  const fair = calculateFairPrincipalComparison({
+    existingDeposit: 200000, cashRate: 2, annualContribution: 100000, projectionYears: 8, official
+  });
+  assert.equal(fair.bankAnnualPrincipal, 800000);
+  assert.equal(fair.savingBankPrincipal, 500000);
+  assert.equal(fair.savingContributionPrincipal, 500000);
+  assert.equal(fair.bankPrincipal, fair.savingPrincipal);
+});
+
+test('P4 rendered cards switch fair principal rows with the selected year', () => {
+  const state = {
+    pageId: 'P4', history: [], mode: 'use', customerView: false,
+    session: {
+      scenario: 'scenario1', currentMethod: 'cash', annualContribution: 100000,
+      currentAge: 40, policyYear: 8, assumptions: { existingDeposit: 200000, cashRate: 2 },
+      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+    }
+  };
+  const app = { innerHTML: '' };
+  for (const [year, bankAnnual, savingBank] of [[8, '800,000', '500,000'], [9, '900,000', '600,000'], [10, '1,000,000', '700,000']]) {
+    state.session.policyYear = year;
+    render(app, state, official);
+    assert.match(app.innerHTML, new RegExp(`每年安排</span><strong>HK\\$ ${bankAnnual}`));
+    assert.match(app.innerHTML, new RegExp(`現有存款</span><strong>HK\\$ ${savingBank}`));
+    assert.doesNotMatch(app.innerHTML, /NaN/);
+  }
 });
 
 test('generic existing-resource values support bank, fixed deposit and bond totals', () => {

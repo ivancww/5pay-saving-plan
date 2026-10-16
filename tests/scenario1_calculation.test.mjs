@@ -3,7 +3,7 @@ import test from 'node:test';
 import {
   calculateBankValue, futureValueWithEndOfYearContributions,
   calculateFixedDepositValue, calculateBondValue, currentPath, calculateSavingPortfolio,
-  withdrawalPortfolio
+  calculateFairPrincipalComparison, withdrawalPortfolio
 } from '../src/calculation.js';
 
 const approx = (actual, expected, tolerance = 0.5) => assert.ok(Math.abs(actual - expected) <= tolerance, `${actual} is not within ${tolerance} of ${expected}`);
@@ -25,6 +25,36 @@ test('annual contributions use end-of-year timing', () => {
   approx(futureValueWithEndOfYearContributions({ annualContribution: 100000, annualRate: 0.05, projectionYears: 5 }), 552563.125);
   assert.notEqual(Math.round(futureValueWithEndOfYearContributions({ annualContribution: 100000, annualRate: 0.05, projectionYears: 5 })), 580191);
   approx(futureValueWithEndOfYearContributions({ annualContribution: 100000, annualRate: 0.05, projectionYears: 10 }), 552563.125 * 1.05 ** 5);
+});
+
+test('Bank/Cash annual arrangements continue through the selected year', () => {
+  const current = currentPath({
+    method: 'cash', amount: 100000, projectionYears: 8,
+    assumptions: { existingDeposit: 200000, cashRate: 0 }
+  });
+  assert.equal(current.breakdown.futureAnnualValue, 800000);
+  assert.equal(current.value, 1000000);
+});
+
+test('fair principal comparison keeps Bank and compound-saving principal equal', () => {
+  const fairOfficial = {
+    strategyMap: { none: 'none' },
+    return_tables: { none: [5, 8, 9, 10].map(policy_year => ({ policy_year, multiplier: 1.2 })) }
+  };
+  for (const year of [8, 9, 10]) {
+    const result = calculateFairPrincipalComparison({
+      existingDeposit: 200000, cashRate: 2, annualContribution: 100000,
+      projectionYears: year, official: fairOfficial
+    });
+    assert.equal(result.bankAnnualPrincipal, 100000 * year);
+    assert.equal(result.savingContributionPrincipal, 500000);
+    assert.equal(result.savingBankPrincipal, 200000 + 100000 * (year - 5));
+    assert.equal(result.bankPrincipal, result.savingPrincipal);
+    assert.equal(result.savingTotal, result.savingBankValue + result.savingPlanValue);
+    assert.equal(result.bankGrowth, result.bankTotal - result.bankPrincipal);
+    assert.equal(result.savingGrowth, result.savingTotal - result.savingPrincipal);
+  }
+  assert.equal(calculateFairPrincipalComparison({ existingDeposit: 200000, cashRate: 2, annualContribution: 100000, projectionYears: 7, official: fairOfficial }).available, false);
 });
 
 test('fixed deposits mature once and remain flat', () => {
