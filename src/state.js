@@ -1,4 +1,4 @@
-import { activeSavingPhases, currentPath, resolvePhaseWithdrawal, phaseStrategyChoices } from './calculation.js';
+import { activeSavingPhases, calculateExistingResourceProjection, currentInstrumentSummary, currentPath, resolvePhaseWithdrawal, phaseStrategyChoices } from './calculation.js';
 import { formatMoneyInputElement, normalizeMoneyValue, readInputValue } from './money.js';
 
 export function createState({ currentAge = null } = {}) {
@@ -60,6 +60,18 @@ export function applySessionInput(session, target, value) {
     }[target.dataset.assumption];
     if (key) session.assumptions[key] = value;
   }
+  if (target?.dataset?.holdingField) {
+    const method = target.dataset.holdingMethod;
+    const index = Number(target.dataset.holdingIndex);
+    if (method && Number.isInteger(index) && index >= 0) {
+      const items = Array.isArray(session.assumptions[method])
+        ? session.assumptions[method].map(item => ({ ...item }))
+        : [];
+      while (items.length <= index) items.push({ id: `${method}-${items.length + 1}`, principal: null, termYears: null, annualRate: null });
+      items[index][target.dataset.holdingField] = value;
+      session.assumptions[method] = items;
+    }
+  }
   normalizeMoneyState(session);
   return session;
 }
@@ -70,12 +82,16 @@ export function applySessionInput(session, target, value) {
 export function updateP3LiveDom(session, querySelector, projectionYears = 8) {
   normalizeMoneyState(session);
   const annualContribution = effectiveAnnualContribution(session);
-  const path = currentPath({
-    method: session.currentMethod,
-    amount: annualContribution,
-    assumptions: session.assumptions,
+  const instrument = currentInstrumentSummary({ method: session.currentMethod, assumptions: session.assumptions });
+  const existingResource = calculateExistingResourceProjection({
+    existingDeposit: session.assumptions?.existingDeposit,
+    cashRate: session.assumptions?.cashRate,
+    annualContribution,
     projectionYears
   });
+  const path = instrument.available
+    ? { kind: 'known', value: instrument.value, label: '今期到期金額按目前本金、年期及年息計算。' }
+    : currentPath({ method: session.currentMethod, amount: annualContribution, assumptions: session.assumptions, projectionYears });
   const format = value => {
     const parsed = normalizeMoneyValue(value);
     return parsed == null ? '—' : `HK$ ${Math.round(parsed).toLocaleString('en-US')}`;
@@ -84,14 +100,28 @@ export function updateP3LiveDom(session, querySelector, projectionYears = 8) {
   const pathValue = querySelector?.('#p3-current-path-value');
   const pathUnit = querySelector?.('#p3-current-path-unit');
   const pathStatus = querySelector?.('#p3-current-path-status');
+  const instrumentPrincipal = querySelector?.('#p3-instrument-principal-value');
+  const instrumentTerm = querySelector?.('#p3-instrument-term-value');
+  const instrumentRate = querySelector?.('#p3-instrument-rate-value');
+  const existingResourcePrincipal = querySelector?.('#p3-existing-resource-principal-value');
+  const existingResourceAnnual = querySelector?.('#p3-existing-resource-annual-value');
+  const existingResourceRate = querySelector?.('#p3-existing-resource-rate-value');
+  const existingResourceValue = querySelector?.('#p3-existing-resource-value');
   if (annualValue) annualValue.textContent = format(annualContribution);
   if (pathValue) pathValue.textContent = path.value == null ? '—' : format(path.value);
-  if (pathUnit) pathUnit.textContent = path.kind === 'known' ? '按每年安排累積' : '按你輸入的假設';
+  if (pathUnit) pathUnit.textContent = instrument.available ? '今期到期金額；到期後條件要到時再知道。' : path.kind === 'known' ? '按每年安排累積' : '按你輸入的假設';
   if (pathStatus) {
     pathStatus.className = `path-status path-status--${path.kind}`;
     pathStatus.textContent = path.label;
   }
-  return { annualContribution, path };
+  if (instrumentPrincipal) instrumentPrincipal.textContent = instrument.principal == null ? '—' : format(instrument.principal);
+  if (instrumentTerm) instrumentTerm.textContent = instrument.termYears == null ? (instrument.details.length > 1 ? '各筆按輸入' : '—') : `${instrument.termYears}年`;
+  if (instrumentRate) instrumentRate.textContent = instrument.annualRate == null ? (instrument.details.length > 1 ? '各筆按輸入' : '—') : `${(instrument.annualRate * 100).toLocaleString('zh-HK')}%`;
+  if (existingResourcePrincipal) existingResourcePrincipal.textContent = existingResource.existingDeposit == null ? '—' : format(existingResource.existingDeposit);
+  if (existingResourceAnnual) existingResourceAnnual.textContent = existingResource.annualContribution == null ? '—' : format(existingResource.annualContribution);
+  if (existingResourceRate) existingResourceRate.textContent = session.assumptions?.cashRate == null || session.assumptions.cashRate === '' ? '未輸入' : `${session.assumptions.cashRate}%`;
+  if (existingResourceValue) existingResourceValue.textContent = existingResource.available ? format(existingResource.value) : '—';
+  return { annualContribution, path, existingResource };
 }
 
 // Production P3 input-event path. The browser listener and regression tests

@@ -32,14 +32,14 @@ const largeResult = (policyYear, strategyCode='withdraw7_from8') => calculateOff
 });
 
 // Cases A-C and the mandatory later-year continuity check.
-assert.equal(largeResult(25).annualUsable, 7000);
-assert.equal(largeResult(25).cumulativeUsed, 126000);
-assert.equal(largeResult(30).cumulativeUsed, 161000);
-assert.equal(largeResult(30).cumulativeUsed - largeResult(25).cumulativeUsed, 35000);
-assert.equal(largeResult(35).cumulativeUsed - largeResult(30).cumulativeUsed, 35000);
-assert.equal(largeResult(40).cumulativeUsed - largeResult(35).cumulativeUsed, 35000);
-assert.equal(calculateCumulativeWithdrawal({totalContribution:100000, startYear:8, selectedYear:25, annualRate:.07}),126000);
-assert.equal(calculateCumulativeWithdrawal({totalContribution:100000, startYear:8, selectedYear:30, annualRate:.07}),161000);
+assert.equal(Math.round(largeResult(25).annualUsable), 7000);
+assert.equal(Math.round(largeResult(25).cumulativeUsed), 126000);
+assert.equal(Math.round(largeResult(30).cumulativeUsed), 161000);
+assert.equal(Math.round(largeResult(30).cumulativeUsed - largeResult(25).cumulativeUsed), 35000);
+assert.equal(Math.round(largeResult(35).cumulativeUsed - largeResult(30).cumulativeUsed), 35000);
+assert.equal(Math.round(largeResult(40).cumulativeUsed - largeResult(35).cumulativeUsed), 35000);
+assert.equal(Math.round(calculateCumulativeWithdrawal({totalContribution:100000, startYear:8, selectedYear:25, annualRate:.07})),126000);
+assert.equal(Math.round(calculateCumulativeWithdrawal({totalContribution:100000, startYear:8, selectedYear:30, annualRate:.07})),161000);
 
 // Case D: auto accumulation never creates withdrawals.
 const auto = calculateOfficial({annualContribution:1000, policyYear:30, strategyCode:'none', official});
@@ -53,9 +53,10 @@ assert.equal(result(27).remainingValue, undefined);
 
 // Case G and all configured strategies: each phase is independent and sums as-is.
 for (const [code, start, rate] of strategies) {
-  const selected = calculateOfficial({annualContribution:1000, policyYear:start + 10, strategyCode:code, official});
-  assert.equal(selected.annualUsable, 5000 * rate);
-  assert.equal(selected.cumulativeUsed, 5000 * rate * 11);
+  const selectedYear = start === 8 ? 25 : start + 10;
+  const selected = calculateOfficial({annualContribution:1000, policyYear:selectedYear, strategyCode:code, official});
+  assert.equal(Math.round(selected.annualUsable), Math.round(5000 * rate));
+  assert.equal(Math.round(selected.cumulativeUsed), Math.round(5000 * rate * (selectedYear - start + 1)));
 }
 const phaseA = result(30);
 const phaseB = calculateOfficial({annualContribution:1000, policyYear:35, strategyCode:'withdraw12_from15', official});

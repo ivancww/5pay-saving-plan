@@ -12,7 +12,7 @@ assert 'front-topline' not in render_template
 assert 'flow-footer' not in render_template
 
 # P3 inputs update only the live result nodes; timeline cards update on tap.
-assert "target.matches('[data-field], [data-assumption]')" in main
+assert "target.matches('[data-field], [data-assumption], [data-holding-field]" in main
 assert 'updateP3Live' in main
 assert 'if (p3Editing) { updateP3Live(); return; }' in main
 assert 'currentPath({ method' in views
@@ -24,7 +24,7 @@ assert 'currentAge' in state
 assert 'ageAtPolicyYear' in state
 assert '目前歲數' in views and '完成供款時歲數' in views
 assert 'ageYearRail' in views
-assert 'id="customer-age" data-field="currentAge"' in views
+assert "id='customer-age' data-field='currentAge'" in views
 assert "state.pageId === 'P3' && getCustomerAge(state) == null" in main
 assert ".get('customerAge')" not in main and ".get('age')" not in main
 

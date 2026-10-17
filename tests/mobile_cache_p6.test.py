@@ -22,7 +22,7 @@ assert "'自動滾存' : age == null ?" in views
 assert '`第 ${item.localYear ?? item.year}年' in views
 assert "supportedYears(official, 'none')" in p6
 assert 'calculateSavingPortfolio({ session: state.session, overallPolicyYear: selectedYear, official })' in p6
-assert 'html,body{overflow-x:hidden}' in styles
+assert 'overflow-x:hidden' not in styles
 
 # The app shell receives its deployment identity automatically from the Pages
 # workflow; no source edit is needed for a release.
@@ -48,9 +48,9 @@ assert 'new URL(event.request.url).origin !== self.location.origin' in sw
 assert "updateViaCache: 'none'" in main
 assert 'registration.update()' in main
 assert 'controllerchange' in main
-assert 'let refreshing = false' in main
-assert main.count('window.location.reload()') == 1
-assert 'if (refreshing) return' in main
+assert 'let mandatoryUpdateInProgress = false' in main
+assert 'reloadOnceForBuild' in main
+assert 'if (mandatoryUpdateInProgress) return false' in main
 assert 'localStorage.clear' not in sw + main
 assert 'indexedDB.deleteDatabase' not in sw + main
 assert 'window.__AVA_SAVING_BUILD__ = BUILD_ID' in main

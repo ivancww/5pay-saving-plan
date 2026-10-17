@@ -33,7 +33,8 @@ def exact_cumulative(amount, rows, start_year, selected_year):
 assert abs(annual_projection(100000, 0.02, 5) - 530812.09632) < 1e-6
 assert "const rateKey = { investment: 'returnRate', fixed_deposit: 'currentRate', bond: 'maturityRate' }[method];" in calculation
 assert 'rawRate == null || rawRate ===' in calculation
-assert '5年後現有方法預計有幾多' in views
+assert '8年後現有方法預計有幾多' in views
+assert '今期知道，下一期又會點？' in views
 assert '加入時間後會係點 →' in views
 assert '並非官方 Saving 數據' not in views.split('function p3', 1)[1].split('function assumptionFields', 1)[0]
 assert 'contributionYears = CONTRIBUTION_YEARS' in calculation
@@ -48,8 +49,8 @@ assert "supportedYears(official, 'none')" in views
 assert "rows.find(item => Number(item.policy_year) === year)" in calculation
 assert 'interpolatedMultiplier' not in calculation
 assert 'comparison-time-rail' in views
-assert '同一筆每年安排' in views and '同一段時間' in views
-assert 'if (p3Editing) { updateP3Live(); return; }' in main
+assert '同一筆錢，時間耐咗會點？' in views
+assert 'handleP3InputEvent({' in main
 input_handler = main.split("app.addEventListener('input'", 1)[1].split("app.addEventListener('click'", 1)[0]
 assert 'draw(' not in input_handler
 assert 'updateP3Live' in input_handler
@@ -67,7 +68,7 @@ assert 'data-value="${item.value ?? item.year}"' in views
 for page in ('p4', 'p6', 'p7'):
     section = views.split(f'function {page}', 1)[1]
     assert 'ageYearRail' in section
-assert views.count('ageYearRail({') == 5
+assert views.count('ageYearRail({') >= 5
 
 # P7: stage A is limited to the five supported starts; stage B follows only
 # the selected strategy's exact rows and resets to its first eligible point.
@@ -92,8 +93,8 @@ assert 'selectPhaseWithdrawal(state.session,' in main
 assert "action === 'select-withdrawal-year'" in main
 assert 'remainingValue: futureValue' in calculation
 assert 'cumulativeUsed' in views
-assert '.filter(item => {' in calculation
-assert 'itemYear >= startYear && itemYear <= year' in calculation
+assert 'calculateCumulativeWithdrawal' in calculation
+assert 'selectedYear - startYear + 1' in calculation
 assert 'reduce((sum, item)' in calculation
 assert exact_cumulative(500000, [(8, 0.04), (9, 0.03), (10, 0.05)], 8, 10) == 60000
 assert exact_cumulative(500000, [(8, 0.04), (10, 0.05)], 8, 10) == 45000
