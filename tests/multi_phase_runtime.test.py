@@ -59,7 +59,7 @@ page=html('P6'); assert.match(page,/HK\$ 27,000/); assert.match(page,/複利儲�
 assert.doesNotMatch(page,/data-action="add-saving-phase"/);
 // Return to P4 inherits P5 choices, while Current Method stays at five contributions.
 goTo(state,'P4'); goTo(state,'P5'); goBack(state); page=html(state.pageId);
-assert.equal(state.pageId,'P4'); assert.match(page,/HK\$ 27,000/); assert.match(page,/HK\$ 5,000/);
+assert.equal(state.pageId,'P4'); assert.match(page,/HK\$ 26,000/); assert.match(page,/HK\$ 5,000/);
 assert.deepEqual(currentPath({method:'cash',amount:1000,projectionYears:20}),currentBefore);
 selectPhaseWithdrawal(state.session,1,codes[1],official);
 selectPhaseWithdrawal(state.session,2,codes[0],official);
@@ -91,14 +91,14 @@ for (const suffix of ['', '-2', '-3']) {
  assert.equal((page.match(new RegExp(`id="withdrawal-start-rail${suffix}"`,'g'))||[]).length,1);
  assert.equal((page.match(new RegExp(`id="withdrawal-explore-rail${suffix}"`,'g'))||[]).length,1);
 }
-assert.equal((page.match(/p7-comparison-card/g)||[]).length,2);
+assert.equal((page.match(/p7-comparison-card/g)||[]).length,0);
 for(const [id,local] of [[1,40],[2,25],[3,30]]) assert.match(page,new RegExp(`aria-selected="true" data-action="select-withdrawal-year" data-value="${local}" data-phase-id="${id}"`));
-assert.doesNotMatch(page,/class="withdrawal-summary"|data-phase-metric/);
-assert.match(page,/現有方法/); assert.match(page,/複利儲蓄安排/);
+assert.match(page,/class="withdrawal-summary"|data-phase-metric/);
+assert.match(page,/p7-summary-note/);
 assert.doesNotMatch(page,/class="result-card"|由 .* 開始 · .* 當時|整體效果 · .*歲/);
 // Phase 2 local 25 is actual age 40 + offset 5 + 25 = 70.
 assert.match(page,/data-action="select-withdrawal-year" data-value="25" data-phase-id="2"><strong>70歲<\/strong><small>第 25年/);
-for(const label of ['每年可使用','累積已使用','總額']) assert.ok(page.includes(label));
+for(const label of ['合計每年可使用','合計累積已使用','合計戶口價值']) assert.ok(page.includes(label));
 const metricValues=value=>[...value.matchAll(/data-portfolio-metric="([^"]+)">([^<]+)</g)].map(m=>[m[1],m[2]]);
 state.customerView=true; const customerApp={innerHTML:''}; render(customerApp,state,official);
 assert.match(customerApp.innerHTML,/HK\$ 48,500/);
@@ -108,7 +108,7 @@ state.customerView=false;
 state.session.savingPhases[1].withdrawalPolicyYear=26; // absent sparse row, never nearest substitution
 portfolio=withdrawalPortfolio(state.session,official); assert.equal(portfolio.result.available,false);
 assert.equal(portfolio.result.remainingValue,undefined); assert.equal(portfolio.phases[1].result.remainingValue,undefined);
-page=html('P7'); assert.match(page,/p7-comparison-card/);
+page=html('P7'); assert.doesNotMatch(page,/p7-comparison-card/);
 assert.equal(portfolio.phases[0].selectedYear,40); assert.equal(portfolio.phases[2].selectedYear,30);
 state.customerView=true; render(customerApp,state,official);
 assert.match(customerApp.innerHTML,/暫未有可顯示結果|HK\$ 48,500/); state.customerView=false;
@@ -143,7 +143,8 @@ for (const [overall, locals, count] of [[8,[8,3,-2],1],[13,[13,8,3],2],[18,[18,1
  assert.ok(app.innerHTML.includes(`目前先顯示已有官方數值的 ${count} 期`));
  assert.ok(app.innerHTML.includes(`HK$ ${Math.round(result.futureValue).toLocaleString('en-US')}`));
  state.pageId='P4'; render(app,state,{...genuine,flow:official.flow});
- assert.ok(app.innerHTML.includes(`HK$ ${Math.round(result.futureValue).toLocaleString('en-US')}`));
+ assert.ok(app.innerHTML.includes('複利儲蓄安排'));
+ assert.ok(app.innerHTML.includes('沒有插值'));
 }
 state.session.savingPhases=[{id:1,strategyCode:codes[1],withdrawalPolicyYear:40},{id:2,strategyCode:codes[0],withdrawalPolicyYear:25},{id:3,strategyCode:codes[2],withdrawalPolicyYear:30}];
 const genuineWithdrawals=withdrawalPortfolio(state.session,genuine);
