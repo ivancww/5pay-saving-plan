@@ -12,7 +12,7 @@ assert 'navigator.userAgent' not in main + views
 assert 'setTimeout' not in draw
 assert 'scrollIntoView' not in draw
 assert 'behavior:' not in draw
-assert 'if (p3Editing) { updateP3Live(); return; }' in main
+assert 'if (p3Editing) {' in main and 'handleP3InputEvent' in main
 assert 'draw(' not in main.split("app.addEventListener('input'", 1)[1].split("app.addEventListener('click'", 1)[0]
 
 script = r'''
@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { render } from './src/views.js';
-import { createState, selectPhaseWithdrawal, selectPhaseWithdrawalYear, activateSavingPhase } from './src/state.js';
+import { createState, normalizeMoneyState, selectPhaseWithdrawal, selectPhaseWithdrawalYear, activateSavingPhase } from './src/state.js';
 
 const main = readFileSync('src/main.js', 'utf8');
 const signature = 'function draw(focus = null, resetRails = [])';
@@ -52,7 +52,7 @@ const app = {
     reads = [];
   }
 };
-const sandbox = {app,state,official,overrides:{},previewOverrides:null,meta:{},render,applyLocalOverrides:base=>base,entryMode:'standalone',ENTRY_MODES:{unsupported:'unsupported'},document:{getElementById:()=>null},selectPhaseWithdrawal};
+const sandbox = {app,state,official,overrides:{},previewOverrides:null,meta:{},render,applyLocalOverrides:base=>base,entryMode:'standalone',ENTRY_MODES:{unsupported:'unsupported'},document:{getElementById:()=>null},selectPhaseWithdrawal,normalizeMoneyState};
 vm.createContext(sandbox);
 vm.runInContext(drawSource, sandbox);
 const redraw = () => { reads = []; sandbox.draw(); };

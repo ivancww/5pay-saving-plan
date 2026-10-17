@@ -13,7 +13,7 @@ const official=normalize({data:{return_tables:evidence.return_tables,withdrawal_
 official.flow=['P5','P7'].map(page_id=>({page_id,title:page_id,subtitle:''}));
 const codes=['none','withdraw7_from8','withdraw12_from15','withdraw18_from20','withdraw23_from25','withdraw29_from30'];
 assert.deepEqual(phaseStrategyChoices(official).map(p=>p.strategy_code),codes);
-const make=count=>{const s=createState({currentAge:40});s.session.annualContribution=50000;for(let i=1;i<count;i++)activateSavingPhase(s.session);return s;};
+const make=(count, annual=50000)=>{const s=createState({currentAge:40});s.session.annualContribution=annual;for(let i=1;i<count;i++)activateSavingPhase(s.session);return s;};
 const html=(state,customer=false)=>{state.pageId='P7';state.customerView=customer;const app={innerHTML:''};render(app,state,official);return app.innerHTML;};
 const count=(text,pattern)=>(text.match(pattern)||[]).length;
 // Adding the explicit option must not change null/default or activate legacy phases.
@@ -71,7 +71,7 @@ assert.equal(missing.result.available,false);assert.equal(missing.result.remaini
 assert.ok(metrics(html(s)).every(([,v])=>v==='—'));
 // Single/multi summaries and individual contribution rows derive from customer input.
 for(const n of [1,2,3]) for(const annual of [50000,12345]) {
- const state=make(n);state.session.annualContribution=annual;
+ const state=make(n, annual);
  const page=html(state), report=html(state,true);
  assert.equal(count(page,/data-withdrawal-phase=/g),n);
  assert.equal(count(page,/data-phase-metric=/g),n*3);

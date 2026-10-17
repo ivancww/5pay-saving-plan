@@ -189,4 +189,4 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
   .market-path--compact{height:100px;max-height:100px}
 }
 /* Keep summary actions together at the right edge on presentation pages. */
-.presentation-actions{justify-content:flex-end}
+.presentation-actions,.customer-summary-actions{justify-content:flex-end}

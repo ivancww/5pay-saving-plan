@@ -154,6 +154,34 @@ export function calculateBankProjection({ existingDeposit = 0, cashRate = null, 
   };
 }
 
+/**
+ * Resource A for the FD/Bond conversation: existing deposit plus the annual
+ * amount that remains in cash. It deliberately uses the Bank/Cash timing
+ * contract and never reads the current instrument's rate.
+ */
+export function calculateExistingResourceProjection({ existingDeposit = null, cashRate = null, annualContribution = null, projectionYears = 8 }) {
+  const existing = normalizeMoneyValue(existingDeposit);
+  const annual = normalizeMoneyValue(annualContribution);
+  const year = Math.max(0, Math.floor(Number(projectionYears)) || 0);
+  if (existing == null && annual == null) return { available: false, projectionYears: year, value: null, growth: null, rate: decimalRate(cashRate) };
+  const bank = calculateBankProjection({
+    existingDeposit: existing ?? 0,
+    cashRate,
+    annualContribution: annual ?? 0,
+    projectionYears: year
+  });
+  const principal = (existing ?? 0) + (annual ?? 0) * year;
+  return {
+    ...bank,
+    available: true,
+    projectionYears: year,
+    existingDeposit: existing,
+    annualContribution: annual,
+    principal,
+    growth: bank.value - principal
+  };
+}
+
 function bankDepositsAfterSaving({ annualContribution, annualRate, projectionYears, savingYears = CONTRIBUTION_YEARS }) {
   return futureValueWithEndOfYearContributions({
     annualContribution,
