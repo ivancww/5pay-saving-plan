@@ -323,6 +323,7 @@ test('fixed deposit P3 shows only the known current maturity and updates through
   assert.doesNotMatch(app.innerHTML, /8年後現有方法預計有幾多/);
   assert.match(app.innerHTML, /現有存款/);
   assert.match(app.innerHTML, /每年存放/);
+  assert.doesNotMatch(app.innerHTML.split('ava-card input-card')[0], /每年存放/);
 
   const nodes = new Map(['#p3-current-path-value', '#p3-instrument-principal-value', '#p3-instrument-term-value', '#p3-instrument-rate-value', '#p3-annual-contribution-value', '#p3-current-path-unit', '#p3-current-path-status'].map(selector => [selector, { textContent: '', className: '' }]));
   const querySelector = selector => nodes.get(selector);
@@ -415,6 +416,7 @@ test('bond P3 uses current known maturity data without an artificial long-term p
   assert.doesNotMatch(app.innerHTML, /8年後現有方法預計有幾多/);
   assert.match(app.innerHTML, /現有存款/);
   assert.match(app.innerHTML, /每年存放/);
+  assert.doesNotMatch(app.innerHTML.split('ava-card input-card')[0], /每年存放/);
 
   const nodes = new Map(['#p3-current-path-value', '#p3-instrument-principal-value', '#p3-instrument-term-value', '#p3-instrument-rate-value', '#p3-annual-contribution-value', '#p3-existing-resource-value', '#p3-current-path-unit', '#p3-current-path-status'].map(selector => [selector, { textContent: '', className: '' }]));
   const querySelector = selector => nodes.get(selector);
@@ -433,6 +435,44 @@ test('fair P4 values expose cumulative Bank principal and split post-saving Bank
   assert.equal(fair.savingBankPrincipal, 500000);
   assert.equal(fair.savingContributionPrincipal, 500000);
   assert.equal(fair.bankPrincipal, fair.savingPrincipal);
+});
+
+test('FD/Bond P4 keeps Resource A at the selected year and never derives false instrument growth', () => {
+  const state = {
+    pageId: 'P4', history: [], mode: 'use', customerView: false,
+    session: {
+      scenario: 'scenario1', currentMethod: 'fixed_deposit', annualContribution: 100000,
+      currentAge: 40, policyYear: 12,
+      assumptions: { existingDeposit: 300000, cashRate: 1, fixedDeposits: [{ id: 'fd-1', principal: 200000, termYears: 1, annualRate: 3 }] },
+      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+    }
+  };
+  const app = { innerHTML: '' };
+  const p4Official = { ...official, current_methods: [{ method_key: 'fixed_deposit', display_name: '定期存款' }] };
+  render(app, state, p4Official);
+  assert.match(app.innerHTML, /現有存款安排 · 以第12年計算/);
+  assert.match(app.innerHTML, /定期金額<\/span><strong>HK\$ 200,000/);
+  assert.match(app.innerHTML, /今期累積增長<\/span><strong>HK\$ 6,000/);
+  assert.match(app.innerHTML, /今期到期金額<\/span><strong>HK\$ 206,000/);
+  assert.doesNotMatch(app.innerHTML, /HK\$ -194,000/);
+  assert.doesNotMatch(app.innerHTML, /累積增長<\/span><strong>HK\$ -/);
+  const resourceAt12 = calculateExistingResourceProjection({ existingDeposit: 300000, annualContribution: 100000, cashRate: 1, projectionYears: 12 });
+  assert.match(app.innerHTML, new RegExp(`累積結果<\/span><strong>HK\\$ ${Math.round(resourceAt12.value).toLocaleString('en-US')}`));
+
+  state.session.policyYear = 13;
+  render(app, state, p4Official);
+  const resourceAt13 = calculateExistingResourceProjection({ existingDeposit: 300000, annualContribution: 100000, cashRate: 1, projectionYears: 13 });
+  assert.match(app.innerHTML, /現有存款安排 · 以第13年計算/);
+  assert.match(app.innerHTML, new RegExp(`累積結果<\/span><strong>HK\\$ ${Math.round(resourceAt13.value).toLocaleString('en-US')}`));
+  assert.match(app.innerHTML, /今期到期金額<\/span><strong>HK\$ 206,000/);
+
+  state.session.currentMethod = 'bond';
+  state.session.assumptions = { existingDeposit: 300000, cashRate: 1, bonds: [{ id: 'bond-1', principal: 300000, termYears: 5, annualRate: 4 }] };
+  render(app, state, { ...official, current_methods: [{ method_key: 'bond', display_name: '債券' }] });
+  assert.match(app.innerHTML, /債券金額<\/span><strong>HK\$ 300,000/);
+  assert.match(app.innerHTML, /今期累積增長<\/span><strong>HK\$ 60,000/);
+  assert.match(app.innerHTML, /今期到期金額<\/span><strong>HK\$ 360,000/);
+  assert.doesNotMatch(app.innerHTML, /HK\$ -/);
 });
 
 test('P4 rendered cards switch fair principal rows with the selected year', () => {
