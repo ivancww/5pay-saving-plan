@@ -3,7 +3,7 @@ import test from 'node:test';
 import fs from 'node:fs';
 
 import { normalizeMoneyValue, parseMoney, formatMoneyInput, readInputValue } from '../src/money.js';
-import { activeSavingPhases, calculateFairPrincipalComparison, calculateSavingPortfolio, currentPath, withdrawalPortfolio } from '../src/calculation.js';
+import { activeSavingPhases, calculateExistingResourceProjection, calculateFairPrincipalComparison, calculateSavingPortfolio, currentInstrumentSummary, currentPath, withdrawalPortfolio } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
 import { applySessionInput, effectiveAnnualContribution, handleP3InputEvent, normalizeMoneyState } from '../src/state.js';
 import { formatCustomerMoney, marketSimulatorResult, render } from '../src/views.js';
@@ -304,6 +304,127 @@ test('real P3 input-event path updates cash rate, deposit and annual contributio
   assert.ok(![...nodes.values()].some(node => String(node.textContent).includes('NaN')));
 });
 
+test('fixed deposit P3 shows only the known current maturity and updates through the live holding-input path', () => {
+  const state = {
+    pageId: 'P3', history: [], mode: 'use', customerView: false,
+    session: {
+      scenario: 'scenario1', currentMethod: 'fixed_deposit', annualContribution: 100000,
+      currentAge: 40, assumptions: {
+        existingDeposit: 200000,
+        fixedDeposits: [{ id: 'fd-1', principal: 500000, termYears: 2, annualRate: 2.5 }]
+      }, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+    }
+  };
+  const app = { innerHTML: '' };
+  render(app, state, { ...official, current_methods: [{ method_key: 'fixed_deposit', display_name: '定期存款' }] });
+  assert.match(app.innerHTML, /今期知道，下一期又會點？/);
+  assert.match(app.innerHTML, /定期金額/);
+  assert.match(app.innerHTML, /HK\$ 525,313/);
+  assert.doesNotMatch(app.innerHTML, /8年後現有方法預計有幾多/);
+  assert.match(app.innerHTML, /現有存款/);
+  assert.match(app.innerHTML, /每年存放/);
+
+  const nodes = new Map(['#p3-current-path-value', '#p3-instrument-principal-value', '#p3-instrument-term-value', '#p3-instrument-rate-value', '#p3-annual-contribution-value', '#p3-current-path-unit', '#p3-current-path-status'].map(selector => [selector, { textContent: '', className: '' }]));
+  const querySelector = selector => nodes.get(selector);
+  const input = (dataset, value, money = false) => ({ dataset, value, selectionStart: String(value).length, selectionEnd: String(value).length, matches: selector => money && selector === '[data-money-input]' });
+  handleP3InputEvent({ session: state.session, target: input({ holdingMethod: 'fixedDeposits', holdingIndex: '0', holdingField: 'principal' }, '600,000', true), querySelector });
+  assert.equal(state.session.assumptions.fixedDeposits[0].principal, 600000);
+  assert.equal(nodes.get('#p3-current-path-value').textContent, 'HK$ 630,375');
+  handleP3InputEvent({ session: state.session, target: input({ holdingMethod: 'fixedDeposits', holdingIndex: '0', holdingField: 'termYears' }, '3'), querySelector });
+  assert.equal(nodes.get('#p3-current-path-value').textContent, 'HK$ 646,134');
+  handleP3InputEvent({ session: state.session, target: input({ holdingMethod: 'fixedDeposits', holdingIndex: '0', holdingField: 'annualRate' }, '3'), querySelector });
+  assert.equal(nodes.get('#p3-current-path-value').textContent, 'HK$ 655,636');
+  assert.equal(currentInstrumentSummary({ method: 'fixed_deposit', assumptions: state.session.assumptions }).value, 600000 * 1.03 ** 3);
+});
+
+test('FD/Bond P3 keeps Resource A separate from the current instrument rate', () => {
+  const state = {
+    pageId: 'P3', history: [], mode: 'use', customerView: false,
+    session: {
+      scenario: 'scenario1', currentMethod: 'fixed_deposit', annualContribution: 100000,
+      currentAge: 40,
+      assumptions: {
+        existingDeposit: 200000, cashRate: 1,
+        fixedDeposits: [{ id: 'fd-1', principal: 500000, termYears: 2, annualRate: 2.5 }]
+      },
+      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+    }
+  };
+  const resourceAtOne = calculateExistingResourceProjection({ existingDeposit: 200000, annualContribution: 100000, cashRate: 1, projectionYears: 8 });
+  const maturityAtTwoPointFive = currentInstrumentSummary({ method: 'fixed_deposit', assumptions: state.session.assumptions }).value;
+  assert.equal(Math.round(maturityAtTwoPointFive), 525313);
+  state.session.assumptions.cashRate = 2;
+  const resourceAtTwo = calculateExistingResourceProjection({ existingDeposit: 200000, annualContribution: 100000, cashRate: 2, projectionYears: 8 });
+  assert.notEqual(resourceAtOne.value, resourceAtTwo.value);
+  assert.equal(Math.round(currentInstrumentSummary({ method: 'fixed_deposit', assumptions: state.session.assumptions }).value), 525313);
+  state.session.assumptions.fixedDeposits[0].annualRate = 3;
+  const maturityAtThree = currentInstrumentSummary({ method: 'fixed_deposit', assumptions: state.session.assumptions }).value;
+  assert.equal(Math.round(maturityAtThree), 530450);
+  assert.equal(resourceAtTwo.value, calculateExistingResourceProjection({ existingDeposit: 200000, annualContribution: 100000, cashRate: 2, projectionYears: 8 }).value);
+
+  const app = { innerHTML: '' };
+  render(app, state, { ...official, current_methods: [{ method_key: 'fixed_deposit', display_name: '定期存款' }] });
+  assert.match(app.innerHTML, /現有存款安排/);
+  assert.match(app.innerHTML, /p3-existing-resource-value/);
+  assert.match(app.innerHTML, /現有存款利息/);
+  assert.doesNotMatch(app.innerHTML, /8年後現有方法預計有幾多/);
+});
+
+test('FD/Bond P3 live input events update the corresponding resource and maturity DOM', () => {
+  const session = {
+    scenario: 'scenario1', currentMethod: 'fixed_deposit', annualContribution: 100000,
+    currentAge: 40,
+    assumptions: { existingDeposit: 200000, cashRate: null, fixedDeposits: [{ id: 'fd-1', principal: 500000, termYears: 2, annualRate: 2.5 }] },
+    savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+  };
+  const selectors = ['#p3-current-path-value', '#p3-instrument-principal-value', '#p3-instrument-term-value', '#p3-instrument-rate-value', '#p3-annual-contribution-value', '#p3-existing-resource-value', '#p3-current-path-unit', '#p3-current-path-status'];
+  const nodes = new Map(selectors.map(selector => [selector, { textContent: '', className: '' }]));
+  const querySelector = selector => nodes.get(selector);
+  const input = (dataset, value, money = false) => ({ dataset, value, selectionStart: String(value).length, selectionEnd: String(value).length, matches: selector => money && selector === '[data-money-input]' });
+
+  handleP3InputEvent({ session, target: input({ assumption: 'cash-rate' }, '1'), querySelector });
+  const resourceAtOne = nodes.get('#p3-existing-resource-value').textContent;
+  handleP3InputEvent({ session, target: input({ assumption: 'cash-rate' }, '2'), querySelector });
+  assert.notEqual(nodes.get('#p3-existing-resource-value').textContent, resourceAtOne);
+  handleP3InputEvent({ session, target: input({ assumption: 'existing-deposit' }, '', true), querySelector });
+  assert.equal(session.assumptions.existingDeposit, null);
+  assert.match(nodes.get('#p3-existing-resource-value').textContent, /^HK\$ /);
+  handleP3InputEvent({ session, target: input({ field: 'annualContribution' }, '120,000', true), querySelector });
+  assert.equal(session.annualContribution, 120000);
+  handleP3InputEvent({ session, target: input({ holdingMethod: 'fixedDeposits', holdingIndex: '0', holdingField: 'principal' }, '600,000', true), querySelector });
+  assert.equal(nodes.get('#p3-current-path-value').textContent, 'HK$ 630,375');
+  handleP3InputEvent({ session, target: input({ holdingMethod: 'fixedDeposits', holdingIndex: '0', holdingField: 'termYears' }, '3'), querySelector });
+  handleP3InputEvent({ session, target: input({ holdingMethod: 'fixedDeposits', holdingIndex: '0', holdingField: 'annualRate' }, '3'), querySelector });
+  assert.equal(nodes.get('#p3-current-path-value').textContent, 'HK$ 655,636');
+});
+
+test('bond P3 uses current known maturity data without an artificial long-term projection', () => {
+  const state = {
+    pageId: 'P3', history: [], mode: 'use', customerView: false,
+    session: {
+      scenario: 'scenario1', currentMethod: 'bond', annualContribution: 80000,
+      currentAge: 40, assumptions: { existingDeposit: null, bonds: [{ id: 'bond-1', principal: 300000, termYears: 5, annualRate: 4 }] },
+      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
+    }
+  };
+  const app = { innerHTML: '' };
+  render(app, state, { ...official, current_methods: [{ method_key: 'bond', display_name: '債券' }] });
+  assert.match(app.innerHTML, /債券金額/);
+  assert.match(app.innerHTML, /HK\$ 360,000/);
+  assert.match(app.innerHTML, /今期到期金額/);
+  assert.doesNotMatch(app.innerHTML, /8年後現有方法預計有幾多/);
+  assert.match(app.innerHTML, /現有存款/);
+  assert.match(app.innerHTML, /每年存放/);
+
+  const nodes = new Map(['#p3-current-path-value', '#p3-instrument-principal-value', '#p3-instrument-term-value', '#p3-instrument-rate-value', '#p3-annual-contribution-value', '#p3-existing-resource-value', '#p3-current-path-unit', '#p3-current-path-status'].map(selector => [selector, { textContent: '', className: '' }]));
+  const querySelector = selector => nodes.get(selector);
+  const input = (dataset, value, money = false) => ({ dataset, value, selectionStart: String(value).length, selectionEnd: String(value).length, matches: selector => money && selector === '[data-money-input]' });
+  handleP3InputEvent({ session: state.session, target: input({ holdingMethod: 'bonds', holdingIndex: '0', holdingField: 'annualRate' }, '5'), querySelector });
+  assert.equal(nodes.get('#p3-current-path-value').textContent, 'HK$ 375,000');
+  handleP3InputEvent({ session: state.session, target: input({ holdingMethod: 'bonds', holdingIndex: '0', holdingField: 'termYears' }, '3'), querySelector });
+  assert.equal(nodes.get('#p3-current-path-value').textContent, 'HK$ 345,000');
+});
+
 test('fair P4 values expose cumulative Bank principal and split post-saving Bank principal', () => {
   const fair = calculateFairPrincipalComparison({
     existingDeposit: 200000, cashRate: 2, annualContribution: 100000, projectionYears: 8, official
@@ -385,7 +506,8 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.doesNotMatch(customerViewSource, /customerScenario1Resources|scenario1Resources/);
   assert.ok(views.includes('複利儲蓄安排'));
   assert.ok(views.includes('p4-simple-comparison'));
-  assert.ok(views.includes('p7-simple-comparison'));
+  assert.ok(views.includes('p7-summary-note'));
+  assert.ok(!views.includes('p7-comparison-card'));
   assert.ok(views.includes('截至呢個時間點已安排'));
   assert.ok(views.includes('累積增長'));
   assert.ok(views.includes('每年存款安排'));
@@ -396,7 +518,7 @@ test('customer-facing source contracts preserve focus-safe live update and respo
   assert.ok(!views.includes('exact Official value'));
   assert.ok(main.includes('updateP3LiveDom'));
   assert.ok(main.includes('handleP3InputEvent({'));
-  assert.ok(main.includes('p3Editing && !target.dataset.holdingField'));
+  assert.ok(main.includes('if (p3Editing) {'));
   assert.ok(main.includes('continue-scenario2-to-saving'));
   assert.ok(main.includes('continue-scenario3-to-saving'));
   assert.ok(!main.includes("scenarioRoute(official, 'scenario_to_saving')"));
@@ -459,11 +581,9 @@ test('P4, P6 and Scenario 1 P7 use simplified result layouts without changing va
   state.pageId = 'P7';
   state.session.savingPhases = [{ id: 1, annualContribution: 100000, strategyCode: 'none', withdrawalPolicyYear: 5 }];
   render(app, state, officialForPages);
-  assert.equal((app.innerHTML.match(/p7-comparison-card/g) || []).length, 2);
-  assert.doesNotMatch(app.innerHTML, /withdrawal-summary/);
-  assert.match(app.innerHTML, /data-phase-metric/);
-  assert.match(app.innerHTML, /現有方法/);
-  assert.match(app.innerHTML, /複利儲蓄安排/);
+  assert.equal((app.innerHTML.match(/p7-comparison-card/g) || []).length, 0);
+  assert.doesNotMatch(app.innerHTML, /resource-card--current|resource-card--new/);
+  assert.match(app.innerHTML, /p7-summary-note/);
 
   state.session.savingPhases = [
     { id: 1, annualContribution: 100000, strategyCode: 'none', withdrawalPolicyYear: 5 },
@@ -496,4 +616,9 @@ test('Customer View keeps the blue combined account-value card clear and aggrega
   assert.match(app.innerHTML, /2期合計戶口價值 · 按各期目前使用設定/);
   assert.match(app.innerHTML, new RegExp(formatCustomerMoney(aggregate.remainingValue).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(app.innerHTML, /withdrawal-summary|整體效果/);
+  const actionContainer = app.innerHTML.match(/<div class="actions presentation-actions customer-summary-actions"[^>]*data-summary-actions="right"[^>]*>([\s\S]*?)<\/div>/)?.[0] || '';
+  assert.ok(actionContainer);
+  assert.match(actionContainer, /data-action="print"/);
+  assert.match(actionContainer, /data-action="close-customer"/);
+  assert.match(actionContainer, /customer-summary-actions/);
 });

@@ -33,8 +33,8 @@ assert.match(html(start,'P1'),/data-action="select-method"/);
 start.pageId='START';
 goTo(start,'P1');assert.equal(goBack(start),'START');
 start.session.scenario='scenario1';start.session.currentMethod='none';start.session.annualContribution=50000;start.session.currentAge=40;
-assert.match(html(start,'P3'),/5年後現有方法預計有幾多/);
-assert.match(html(start,'P4'),/同一筆每年安排/);
+assert.match(html(start,'P3'),/8年後現有方法預計有幾多/);
+assert.match(html(start,'P4'),/每年安排/);
 
 assert.deepEqual(INVESTMENT_TOOLS.map(item=>item[1]),['定期存款','股票','ETF','債券']);
 const s2=createState();s2.session.scenario='scenario2';
@@ -46,12 +46,9 @@ for(const [tool,expected] of [['stock','S2_MARKET'],['etf','S2_MARKET'],['fixed_
   const page=html(s2,expected);
   assert.match(page,new RegExp(INVESTMENT_TOOLS.find(item=>item[0]===tool)[1]));
   if(expected==='S2_MARKET'){
-    assert.match(page,/100、112、125、103、94、108/);
-    assert.equal(count(page,/data-action="select-market-response"/g),3);
-    assert.doesNotMatch(page,/data-action="continue-to-saving"/);
-    s2.session.marketResponse='hold';
-    assert.match(html(s2,expected),/data-action="continue-to-saving"/);
-    s2.session.marketResponse=null;
+    assert.match(page,/過去10年，實際行過點？/);
+    assert.match(page,/market-reflection/);
+    assert.match(page,/data-action="continue-scenario2-to-saving"/);
   }else{
     assert.equal(count(page,/data-action="select-maturity-response"/g),4);
     if(tool==='bond') { assert.match(page,/如果債券有到期日/); assert.doesNotMatch(page,/>續期</); }
@@ -59,7 +56,7 @@ for(const [tool,expected] of [['stock','S2_MARKET'],['etf','S2_MARKET'],['fixed_
     assert.doesNotMatch(page,/class="horizon-line"/);
     s2.session.maturityResponse='renew';
     assert.match(html(s2,expected),/第15年/);
-    assert.match(html(s2,expected),/data-action="continue-to-saving"/);
+    assert.match(html(s2,expected),/data-action="continue-scenario2-to-saving"/);
     s2.session.maturityResponse=null;
   }
 }
@@ -68,10 +65,6 @@ for(const selected of [['stock','fixed_deposit'],['etf','bond'],['stock','etf','
   assert.equal(investmentPath(selected),'S2_MIXED');
   s2.session.marketResponse=null;s2.session.maturityResponse=null;
   let page=html(s2,'S2_MARKET');
-  assert.doesNotMatch(page,/data-action="continue-market-to-maturity"/);
-  assert.doesNotMatch(page,/data-action="continue-to-saving"/);
-  s2.session.marketResponse='hold';
-  page=html(s2,'S2_MARKET');
   assert.match(page,/data-action="continue-market-to-maturity"/);
   s2.session.maturityResponse=null;
   page=html(s2,'S2_MATURITY');
@@ -83,16 +76,16 @@ for(const selected of [['stock','fixed_deposit'],['etf','bond'],['stock','etf','
   page=html(s2,'S2_MIXED');
   assert.equal(count(page,/data-action="select-mixed-focus"/g),2);
   for(const key of selected) assert.match(page,new RegExp(INVESTMENT_TOOLS.find(item=>item[0]===key)[1]));
-  assert.match(page,/data-action="continue-to-saving"/);
+  assert.match(page,/data-action="continue-scenario2-to-saving"/);
 }
 const mixedBack=createState();
 mixedBack.session.scenario='scenario2';mixedBack.session.investmentTools=['stock','fixed_deposit'];mixedBack.session.marketResponse='hold';mixedBack.session.maturityResponse='compare';
 mixedBack.pageId='S2_TOOLS';goTo(mixedBack,'S2_MARKET');goTo(mixedBack,'S2_MATURITY');goTo(mixedBack,'S2_MIXED');
 assert.equal(goBack(mixedBack),'S2_MATURITY');assert.match(html(mixedBack,'S2_MATURITY'),/data-value="compare"[^>]+aria-pressed="true"/);
-assert.equal(goBack(mixedBack),'S2_MARKET');assert.match(html(mixedBack,'S2_MARKET'),/data-value="hold"[^>]+aria-pressed="true"/);
+assert.equal(goBack(mixedBack),'S2_MARKET');assert.match(html(mixedBack,'S2_MARKET'),/data-value="hsi"[^>]+aria-selected="true"/);
 assert.equal(goBack(mixedBack),'S2_TOOLS');mixedBack.session.investmentTools=['stock'];
 assert.equal(investmentPath(mixedBack.session.investmentTools),'S2_MARKET');
-assert.match(html(mixedBack,'S2_MARKET'),/data-action="continue-to-saving"/);
+assert.match(html(mixedBack,'S2_MARKET'),/data-action="continue-scenario2-to-saving"/);
 assert.deepEqual(toggleChoice(['stock'],'stock',INVESTMENT_TOOLS),[]);
 assert.deepEqual(toggleChoice([],'cash',INVESTMENT_TOOLS),[]);
 
@@ -108,7 +101,7 @@ for(const selected of combinations){
   assert.match(triangle,new RegExp(`data-selected-count="${selected.length}"`));
   const page=html(s3,'S3_TRADEOFF');
   assert.equal(count(page,/class="tradeoff-node is-selected"/g),selected.length);
-  assert.match(page,/data-action="continue-to-saving"/);
+  assert.match(page,/data-action="continue-scenario3-to-saving"/);
   for(const [key,label] of SCENARIO_GOALS){
     if(selected.includes(key)) assert.match(page,new RegExp(label));
     else assert.doesNotMatch(page,new RegExp(label));
@@ -122,14 +115,14 @@ assert.doesNotMatch(html(s3,'S3_TRADEOFF'),/★|⭐|3 stars|評分：\d/);
 
 for(const state of [s2,s3]){
   state.session.annualContribution=50000;state.session.currentAge=40;
-  assert.equal(scenarioRoute(official,'scenario_to_saving'),'P2');
+  assert.equal(scenarioRoute(official,'scenario3_to_saving'),'P2');
   assert.match(html(state,'P2'),/data-action="select-purpose"/);
   assert.match(html(state,'P2'),/你希望呢筆錢將來用喺邊/);
   assert.doesNotMatch(html(state,'P3'),/data-assumption=/);
-  assert.match(html(state,'P3'),/如果另外建立一筆 Saving/);
+  assert.match(html(state,'P3'),/複利儲蓄安排/);
   assert.match(html(state,'P4'),/按官方已知數據/);
   assert.doesNotMatch(html(state,'P4'),/data-action="select-mixed-focus"/);
-  assert.match(html(state,'P5'),/data-action="add-saving-phase"/);
+  assert.match(html(state,'P5'),/data-action=['"]add-saving-phase['"]/);
   assert.match(html(state,'P6'),/accumulation-time-rail/);
   assert.match(html(state,'P7'),/withdrawal-start-rail/);
   state.customerView=true;
@@ -144,9 +137,9 @@ assert.equal(officialBefore.available,true);
 assert.equal(official.return_tables[official.strategyMap.none].some(row=>row.multiplier===125),false);
 
 // Configured routing uses the current routing domain only for valid stage targets.
-official.routing=[{route_id:'scenario2',next_page:'S2_TOOLS',enabled:true},{route_id:'scenario_to_saving',next_page:'P7',enabled:true}];
+official.routing=[{route_id:'scenario2',next_page:'S2_TOOLS',enabled:true},{route_id:'scenario3_to_saving',next_page:'P7',enabled:true}];
 assert.equal(scenarioRoute(official,'scenario2'),'S2_TOOLS');
-assert.equal(scenarioRoute(official,'scenario_to_saving'),'P2');
+assert.equal(scenarioRoute(official,'scenario3_to_saving'),'P2');
 const local=applyLocalOverrides(official,{pages:{S3_GOALS:{title:'本機標題'}},cards:{'method-none':{headline:'本機選項'}}});
 assert.equal(local.flow.find(p=>p.page_id==='S3_GOALS').title,'本機標題');
 assert.equal(local.page_content.find(p=>p.content_id==='method-none').headline,'本機選項');
@@ -165,6 +158,7 @@ main = Path('src/main.js').read_text()
 assert "action === 'select-scenario'" in main
 assert "action === 'toggle-investment-tool'" in main
 assert "action === 'toggle-goal'" in main
-assert "action === 'continue-to-saving'" in main
-assert "if (p3Editing) { updateP3Live(); return; }" in main
+assert "action === 'continue-scenario2-to-saving'" in main
+assert "action === 'continue-scenario3-to-saving'" in main
+assert "if (p3Editing) {" in main and "handleP3InputEvent" in main
 assert "navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })" in main

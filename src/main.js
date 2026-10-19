@@ -114,19 +114,9 @@ function nextPage() {
   if (next) goTo(state, next.page_id);
   draw();
 }
-function makeHoldingId(method) { return `${method}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`; }
 function updateField(target) {
   const value = readInputValue(target);
   applySessionInput(state.session, target, value);
-  if (target.dataset.holdingField) {
-    const method = target.dataset.holdingMethod;
-    const items = Array.isArray(state.session.assumptions[method]) ? state.session.assumptions[method].map(item => ({ ...item })) : [];
-    const index = Number(target.dataset.holdingIndex);
-    while (items.length <= index) items.push({ id: makeHoldingId(method), principal: null, termYears: null, annualRate: null });
-    const key = target.dataset.holdingField;
-    items[index][key] = value;
-    state.session.assumptions[method] = items;
-  }
   if (target.dataset.marketPrincipal) state.session.marketPrincipal = value;
   if (target.dataset.phaseAnnual) {
     const id = Number(target.dataset.phaseAnnual);
@@ -207,7 +197,7 @@ app.addEventListener('input', event => {
   const p3Editing = state.pageId === 'P3' && liveField;
   const p5Editing = state.pageId === 'P5' && target.matches('[data-phase-annual]');
   const marketEditing = state.pageId === 'S2_MARKET' && target.matches('[data-market-principal]');
-  if (p3Editing && !target.dataset.holdingField) {
+  if (p3Editing) {
     handleP3InputEvent({ state: state.session, session: state.session, target, querySelector: selector => document.querySelector(selector) });
     return;
   }

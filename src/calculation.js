@@ -115,6 +115,31 @@ function normalizedHoldings(items) {
   })).filter(item => Number.isFinite(item.principal) && item.principal >= 0 && Number.isFinite(item.termYears) && item.termYears >= 0 && Number.isFinite(item.annualRate));
 }
 
+/**
+ * The current instrument page is deliberately limited to the known term.
+ * It must not turn today's rate into an assumed post-maturity reinvestment.
+ */
+export function currentInstrumentSummary({ method, assumptions = {} }) {
+  const key = method === 'fixed_deposit' ? 'fixedDeposits' : method === 'bond' ? 'bonds' : null;
+  if (!key) return { available: false, details: [], value: null };
+  const holdings = normalizedHoldings(assumptions[key]);
+  const calculate = method === 'fixed_deposit' ? calculateFixedDepositValue : calculateBondValue;
+  const details = holdings.map(item => ({
+    ...item,
+    value: calculate({ ...item, selectedYear: item.termYears }),
+    matured: false
+  }));
+  const value = details.length ? details.reduce((sum, item) => sum + item.value, 0) : null;
+  return {
+    available: value != null && Number.isFinite(value),
+    details,
+    value: Number.isFinite(value) ? value : null,
+    principal: details.length ? details.reduce((sum, item) => sum + item.principal, 0) : null,
+    termYears: details.length === 1 ? details[0].termYears : null,
+    annualRate: details.length === 1 ? details[0].annualRate : null
+  };
+}
+
 export function calculateBankProjection({ existingDeposit = 0, cashRate = null, annualContribution = 0, projectionYears = 0 }) {
   const rate = decimalRate(cashRate);
   const existingDepositFutureValue = calculateBankValue({ principal: existingDeposit, annualRate: rate, selectedYear: projectionYears });
@@ -126,6 +151,34 @@ export function calculateBankProjection({ existingDeposit = 0, cashRate = null, 
     existingDepositFutureValue, futureAnnualValue, rate,
     rateKnown: rate != null,
     label: rate == null ? '未加入利息假設；按現有本金及每年安排展示。' : '按你輸入的銀行年息計算。'
+  };
+}
+
+/**
+ * Resource A for the FD/Bond conversation: existing deposit plus the annual
+ * amount that remains in cash. It deliberately uses the Bank/Cash timing
+ * contract and never reads the current instrument's rate.
+ */
+export function calculateExistingResourceProjection({ existingDeposit = null, cashRate = null, annualContribution = null, projectionYears = 8 }) {
+  const existing = normalizeMoneyValue(existingDeposit);
+  const annual = normalizeMoneyValue(annualContribution);
+  const year = Math.max(0, Math.floor(Number(projectionYears)) || 0);
+  if (existing == null && annual == null) return { available: false, projectionYears: year, value: null, growth: null, rate: decimalRate(cashRate) };
+  const bank = calculateBankProjection({
+    existingDeposit: existing ?? 0,
+    cashRate,
+    annualContribution: annual ?? 0,
+    projectionYears: year
+  });
+  const principal = (existing ?? 0) + (annual ?? 0) * year;
+  return {
+    ...bank,
+    available: true,
+    projectionYears: year,
+    existingDeposit: existing,
+    annualContribution: annual,
+    principal,
+    growth: bank.value - principal
   };
 }
 
