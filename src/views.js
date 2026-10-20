@@ -15,16 +15,18 @@ function growthAbovePrincipal(total, principal) {
   const base = normalizeMoneyValue(principal);
   return value == null || base == null ? null : value - base;
 }
-function comparisonRows({ existingLabel, existingValue, annualArrangement, growth, total }) {
-  return `<div class='comparison-detail'><span>${existingLabel}</span><strong>${existingValue == null ? '—' : money(existingValue)}</strong></div><div class='comparison-detail'><span>每年安排</span><strong>${annualArrangement == null ? '—' : money(annualArrangement)}</strong></div><div class='comparison-detail'><span>累積增長</span><strong>${growth == null ? '—' : money(growth)}</strong></div><div class='comparison-card-total'><span>總額</span><strong>${total == null ? '—' : money(total)}</strong></div>`;
+function comparisonRows({ existingLabel, existingValue, annualArrangement, growth, total, annualLabel = '每年安排' }) {
+  return `<div class='comparison-detail'><span>${existingLabel}</span><strong>${existingValue == null ? '—' : money(existingValue)}</strong></div><div class='comparison-detail'><span>${annualLabel}</span><strong>${annualArrangement == null ? '—' : money(annualArrangement)}</strong></div><div class='comparison-detail'><span>累積增長</span><strong>${growth == null ? '—' : money(growth)}</strong></div><div class='comparison-card-total'><span>總額</span><strong>${total == null ? '—' : money(total)}</strong></div>`;
 }
-function instrumentP4Card({ method, methodName, current, resource, selectedYear }) {
+function instrumentP4Card({ method, methodName, current, resource, fair, selectedYear }) {
   const isBond = method === 'bond';
   const instrumentLabel = isBond ? '債券' : '定期存款';
   const amountLabel = isBond ? '債券金額' : '定期金額';
   const termLabel = isBond ? '距離到期' : '年期';
+  const fairRows = fair
+    ? comparisonRows({ existingLabel: '現有存款', existingValue: fair.bankExistingPrincipal, annualArrangement: fair.bankAnnualPrincipal, growth: resource.available ? resource.growth : null, total: resource.available ? resource.value : null })
+    : comparisonRows({ existingLabel: '現有存款', existingValue: null, annualArrangement: null, growth: null, total: null });
   const resourceRate = resource.rate == null ? '未輸入' : `${(resource.rate * 100).toLocaleString('zh-HK')}%`;
-  const resourceSection = `<div class='instrument-p4-section resource-section'><span class='card-kicker'>現有存款安排 · 以第${selectedYear}年計算</span><div class='comparison-detail'><span>現有存款</span><strong>${resource.existingDeposit == null ? '—' : money(resource.existingDeposit)}</strong></div><div class='comparison-detail'><span>每年存放</span><strong>${resource.annualContribution == null ? '—' : money(resource.annualContribution)}</strong></div><div class='comparison-detail'><span>存款利息</span><strong>${resourceRate}</strong></div><div class='comparison-card-total'><span>累積結果</span><strong>${resource.available ? money(resource.value) : '—'}</strong></div></div>`;
   const instrumentSection = current.details.length
     ? `<div class='instrument-p4-section resource-section'><span class='card-kicker'>今期${instrumentLabel}</span>${current.details.map((item, index) => {
       const detailLabel = current.details.length > 1 ? `第${index + 1}筆${instrumentLabel}` : instrumentLabel;
@@ -32,7 +34,7 @@ function instrumentP4Card({ method, methodName, current, resource, selectedYear 
       return `<div class='instrument-p4-detail'><strong>${detailLabel}</strong><div class='comparison-detail'><span>${amountLabel}</span><strong>${money(item.principal)}</strong></div><div class='comparison-detail'><span>${termLabel}</span><strong>${item.termYears}年</strong></div><div class='comparison-detail'><span>年息</span><strong>${pct(item.annualRate)}</strong></div><div class='comparison-detail'><span>今期累積增長</span><strong>${money(growth)}</strong></div><div class='comparison-card-total'><span>今期到期金額</span><strong>${money(item.value)}</strong></div></div>`;
     }).join('')}</div>`
     : `<div class='instrument-p4-section resource-section'><span class='card-kicker'>今期${instrumentLabel}</span><p class='calculation-note'>尚未輸入${instrumentLabel}資料。</p></div>`;
-  return `<div class='resource-card resource-card--current p4-comparison-card p4-instrument-card'><span class='card-kicker'>現有方法 · ${esc(methodName)}</span>${resourceSection}${instrumentSection}<small>今期到期金額可以計到；到期之後下一期息率同條件，就要到時先知道。</small></div>`;
+  return `<div class='resource-card resource-card--current p4-comparison-card p4-instrument-card'><span class='card-kicker'>現有方法 · ${esc(methodName)}</span>${fairRows}<small>現有存款安排按第${selectedYear}年計算，存款利息 ${resourceRate}；上列本金分配用於同一時間點比較。</small>${instrumentSection}<small>今期到期金額可以計到；到期之後下一期息率同條件，就要到時先知道。</small></div>`;
 }
 const pageContent = (official, pageId) => official?.page_content?.filter(item => item.page_id === pageId) || [];
 
@@ -321,7 +323,7 @@ function p4(state, official) {
   const methodName = method?.display_name || '現有方法';
   const existingDeposit = normalizeMoneyValue(state.session.assumptions?.existingDeposit);
   const currentExisting = maturityMethod ? null : existingDeposit ?? (current.details?.reduce((sum, item) => sum + (normalizeMoneyValue(item.principal) || 0), 0) || null);
-  const fair = state.session.currentMethod === 'cash'
+  const fair = state.session.currentMethod === 'cash' || maturityMethod
     ? calculateFairPrincipalComparison({ existingDeposit, cashRate: state.session.assumptions?.cashRate, annualContribution, projectionYears: selectedYear, official })
     : null;
   const resource = maturityMethod
@@ -331,10 +333,10 @@ function p4(state, official) {
     ? comparisonRows({ existingLabel: '現有存款', existingValue: existingDeposit == null ? null : fair.bankExistingPrincipal, annualArrangement: fair.bankAnnualPrincipal, growth: fair.bankGrowth, total: fair.bankTotal })
     : comparisonRows({ existingLabel: '現有資源', existingValue: currentExisting, annualArrangement: annualContribution, growth: growthAbovePrincipal(current.value, (currentExisting || 0) + (annualContribution || 0)), total: current.value });
   const savingRows = fair
-    ? comparisonRows({ existingLabel: '現有存款', existingValue: fair.savingBankPrincipal, annualArrangement: fair.savingContributionPrincipal, growth: fair.savingGrowth, total: fair.savingTotal })
+    ? comparisonRows({ existingLabel: '現有存款', existingValue: fair.savingBankPrincipal, annualArrangement: fair.savingContributionPrincipal, growth: fair.savingGrowth, total: fair.savingTotal, annualLabel: maturityMethod ? '5年安排' : '每年安排' })
     : comparisonRows({ existingLabel: '現有存款', existingValue: saving.totalContribution, annualArrangement: annualContribution, growth: growthAbovePrincipal(saving.available ? saving.futureValue : null, saving.totalContribution || 0), total: saving.available ? saving.futureValue : null });
   const currentCard = maturityMethod
-    ? instrumentP4Card({ method: state.session.currentMethod, methodName, current: currentInstrumentSummary({ method: state.session.currentMethod, assumptions: state.session.assumptions }), resource, selectedYear })
+    ? instrumentP4Card({ method: state.session.currentMethod, methodName, current: currentInstrumentSummary({ method: state.session.currentMethod, assumptions: state.session.assumptions }), resource, fair, selectedYear })
     : `<div class='resource-card resource-card--current p4-comparison-card'><span class='card-kicker'>現有方法 · ${esc(methodName)}</span>${currentRows}<small>${esc(current.label || '按目前輸入資料展示。')}</small></div>`;
   const savingCard = `<div class='resource-card resource-card--new p4-comparison-card'><span class='card-kicker'>複利儲蓄安排</span>${savingRows}<small>${saving.available ? '按官方已有數值展示，沒有插值。' : esc(saving.message)}</small></div>`;
   return `<div class='comparison-intro'><strong>以 ${horizon} 作比較</strong></div><div class='time-bar-card timeline-rail-card'><div class='time-bar-heading'><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div><div class='comparison-stack p4-simple-comparison'>${currentCard}<div class='plus'>對比</div>${savingCard}</div><p class='calculation-note'>現有資源及新增安排分開展示；複利儲蓄安排只使用官方已有數值。</p><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>了解點樣運作 →</button></div>`;
