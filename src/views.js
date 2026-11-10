@@ -18,7 +18,31 @@ function growthAbovePrincipal(total, principal) {
 function comparisonRows({ existingLabel, existingValue, annualArrangement, growth, total, annualLabel = '每年安排' }) {
   return `<div class='comparison-detail'><span>${existingLabel}</span><strong>${existingValue == null ? '—' : money(existingValue)}</strong></div><div class='comparison-detail'><span>${annualLabel}</span><strong>${annualArrangement == null ? '—' : money(annualArrangement)}</strong></div><div class='comparison-detail'><span>累積增長</span><strong>${growth == null ? '—' : money(growth)}</strong></div><div class='comparison-card-total'><span>總額</span><strong>${total == null ? '—' : money(total)}</strong></div>`;
 }
-function instrumentP4Card({ method, methodName, current, resource, fair, selectedYear }) {
+function detailRow(label, value) {
+  return `<div class="comparison-detail"><span>${esc(label)}</span><strong>${value == null ? '—' : money(value)}</strong></div>`;
+}
+function expandableBreakdown(id, content) {
+  return `<details class="calculation-breakdown" data-breakdown="${id}"><summary><span class="breakdown-open">查看計算明細</span><span class="breakdown-close">收起計算明細</span></summary><div class="breakdown-content">${content}</div></details>`;
+}
+function bankBreakdown(fair, resource, existing, rate, year) {
+  if (!fair?.bank || !fair.annualContribution) return '<p>輸入每年安排後可查看計算。</p>';
+  const growth = resource ? (resource.available ? resource.growth : null) : fair.bankGrowth;
+  const total = resource ? (resource.available ? resource.value : null) : fair.bankTotal;
+  const rateText = rate == null || rate === '' ? '未輸入，按沒有利息計算' : `${esc(rate)}%`;
+  return `${detailRow('原有存款', existing)}${detailRow('每年安排', fair.annualContribution)}<p>第 ${esc(year)} 年：每年安排 × ${esc(year)} 年</p>${detailRow('累積安排本金', fair.bankAnnualPrincipal)}${detailRow('合計本金', fair.bankPrincipal)}<p>存款年息：${rateText}；原有存款按年計息，每年安排於年末存入。</p>${detailRow('累積增長', growth)}${detailRow('總額', total)}`;
+}
+function savingBreakdown(fair, existing, rate, year) {
+  if (!fair?.bank || !fair.annualContribution) return '<p>輸入每年安排後可查看計算。</p>';
+  const rateText = rate == null || rate === '' ? '未輸入，按沒有利息計算' : `${esc(rate)}%`;
+  return `${detailRow('原有存款', existing)}${detailRow('每年安排', fair.annualContribution)}<p>第 ${esc(year)} 年</p>${detailRow('首 5 年複利儲蓄安排', fair.savingContributionPrincipal)}${detailRow('第 6 年起存入銀行的安排', fair.savingBankPrincipal - fair.existingPrincipal)}${detailRow('累積投入本金', fair.savingPrincipal)}<p>銀行存款年息：${rateText}；每年安排於年末存入。</p>${detailRow('銀行本金', fair.savingBankPrincipal)}${detailRow('銀行利息', fair.savingBankValue - fair.savingBankPrincipal)}${detailRow('銀行部分合計', fair.savingBankValue)}${detailRow('官方複利儲蓄價值', fair.savingPlanValue)}${fair.savingPlanValue == null ? '<p>這個年份沒有可用的官方價值，未能計算總額及增長。</p>' : ''}${detailRow('累積增長', fair.savingGrowth)}${detailRow('總額：銀行部分＋官方價值', fair.savingTotal)}`;
+}
+function portfolioBreakdown(saving, year) {
+  const phases = saving.phases || [];
+  const phaseRows = phases.map(phase => `<p>${esc(phase.label)}：${phase.started ? `第 ${esc(phase.localPolicyYear)} 年` : '尚未開始'}；每年安排 ${money(phase.annualContribution)}；${phase.available ? `官方價值 ${money(phase.futureValue)}` : '官方價值暫不可用'}</p>`).join('');
+  const knownPrincipal = phases.filter(phase => phase.started && phase.available).reduce((sum, phase) => sum + phase.annualContribution * Math.min(5, phase.localPolicyYear), 0);
+  return `<p>第 ${esc(year)} 年；各期首 5 年安排投入複利儲蓄。</p>${phaseRows}${detailRow('已知期數的累積投入', saving.available ? knownPrincipal : null)}${detailRow('已知期數的官方價值合計', saving.available ? saving.futureValue : null)}${detailRow('已知期數的增長', saving.available ? saving.futureValue - knownPrincipal : null)}${saving.unavailablePhaseCount ? '<p>部分期數未有官方價值；合計只包括已知期數。</p>' : ''}${detailRow('顯示總額', saving.available ? saving.futureValue : null)}`;
+}
+function instrumentP4Card({ method, methodName, current, resource, fair, selectedYear, existingDeposit, cashRate }) {
   const isBond = method === 'bond';
   const instrumentLabel = isBond ? '債券' : '定期存款';
   const amountLabel = isBond ? '債券金額' : '定期金額';
@@ -34,7 +58,7 @@ function instrumentP4Card({ method, methodName, current, resource, fair, selecte
       return `<div class='instrument-p4-detail'><strong>${detailLabel}</strong><div class='comparison-detail'><span>${amountLabel}</span><strong>${money(item.principal)}</strong></div><div class='comparison-detail'><span>${termLabel}</span><strong>${item.termYears}年</strong></div><div class='comparison-detail'><span>年息</span><strong>${pct(item.annualRate)}</strong></div><div class='comparison-detail'><span>今期累積增長</span><strong>${money(growth)}</strong></div><div class='comparison-card-total'><span>今期到期金額</span><strong>${money(item.value)}</strong></div></div>`;
     }).join('')}</div>`
     : `<div class='instrument-p4-section resource-section'><span class='card-kicker'>今期${instrumentLabel}</span><p class='calculation-note'>尚未輸入${instrumentLabel}資料。</p></div>`;
-  return `<div class='resource-card resource-card--current p4-comparison-card p4-instrument-card'><span class='card-kicker'>現有方法 · ${esc(methodName)}</span>${fairRows}<small>現有存款安排按第${selectedYear}年計算，存款利息 ${resourceRate}；上列本金分配用於同一時間點比較。</small>${instrumentSection}<small>今期到期金額可以計到；到期之後下一期息率同條件，就要到時先知道。</small></div>`;
+  return `<div class='resource-card resource-card--current p4-comparison-card p4-instrument-card'><span class='card-kicker'>現有方法 · ${esc(methodName)}</span>${fairRows}${expandableBreakdown('current', bankBreakdown(fair, resource, existingDeposit, cashRate, selectedYear))}<small>現有存款安排按第${selectedYear}年計算，存款利息 ${resourceRate}；上列本金分配用於同一時間點比較。</small>${instrumentSection}<small>今期到期金額可以計到；到期之後下一期息率同條件，就要到時先知道。</small></div>`;
 }
 const pageContent = (official, pageId) => official?.page_content?.filter(item => item.page_id === pageId) || [];
 
@@ -152,7 +176,7 @@ export function marketSimulatorResult(state) {
       <div><dt>盈利／虧損</dt><dd>${signedMoney(result.profitLoss)}</dd></div>
       <div><dt>歷史變化</dt><dd>${signedPercent(result.returnPercent)}</dd></div>
     </dl>
-    <p class="market-result-basis">${esc(basis)}</p>`;
+    <p class="market-result-basis">${esc(basis)}</p>${expandableBreakdown('market', `<p>${esc(series?.label)} · 資料來源：${esc(series?.sourceName)}</p><p>${esc(result.startYear)} 年觀察值：${esc(result.startValue)}；${esc(result.endYear)} 年觀察值：${esc(result.endValue)}（${esc(series?.rawDataType)}）</p>${detailRow('起始金額', result.principal)}<p>歷史變化：${signedPercent(result.returnPercent)}</p>${detailRow('盈利／虧損', result.profitLoss)}${detailRow('期末價值', result.simulatedValue)}<p>歷史表現不保證未來回報。</p>`)}`;
 }
 
 function scenario2Market(state) {
@@ -334,16 +358,16 @@ function p4(state, official) {
     : comparisonRows({ existingLabel: '現有資源', existingValue: currentExisting, annualArrangement: annualContribution, growth: growthAbovePrincipal(current.value, (currentExisting || 0) + (annualContribution || 0)), total: current.value });
   const savingRows = fair
     ? comparisonRows({ existingLabel: '現有存款', existingValue: fair.savingBankPrincipal, annualArrangement: fair.savingContributionPrincipal, growth: fair.savingGrowth, total: fair.savingTotal, annualLabel: maturityMethod ? '5年安排' : '每年安排' })
-    : comparisonRows({ existingLabel: '現有存款', existingValue: saving.totalContribution, annualArrangement: annualContribution, growth: growthAbovePrincipal(saving.available ? saving.futureValue : null, saving.totalContribution || 0), total: saving.available ? saving.futureValue : null });
+    : comparisonRows({ existingLabel: '現有存款', existingValue: saving.totalContribution, annualArrangement: annualContribution, growth: saving.complete ? growthAbovePrincipal(saving.available ? saving.futureValue : null, saving.totalContribution || 0) : null, total: saving.available ? saving.futureValue : null });
   const currentCard = maturityMethod
-    ? instrumentP4Card({ method: state.session.currentMethod, methodName, current: currentInstrumentSummary({ method: state.session.currentMethod, assumptions: state.session.assumptions }), resource, fair, selectedYear })
-    : `<div class='resource-card resource-card--current p4-comparison-card'><span class='card-kicker'>現有方法 · ${esc(methodName)}</span>${currentRows}<small>${esc(current.label || '按目前輸入資料展示。')}</small></div>`;
-  const savingCard = `<div class='resource-card resource-card--new p4-comparison-card'><span class='card-kicker'>複利儲蓄安排</span>${savingRows}<small>${saving.available ? '按官方已有數值展示，沒有插值。' : esc(saving.message)}</small></div>`;
+    ? instrumentP4Card({ method: state.session.currentMethod, methodName, current: currentInstrumentSummary({ method: state.session.currentMethod, assumptions: state.session.assumptions }), resource, fair, selectedYear, existingDeposit, cashRate: state.session.assumptions?.cashRate })
+    : `<div class='resource-card resource-card--current p4-comparison-card'><span class='card-kicker'>現有方法 · ${esc(methodName)}</span>${currentRows}${expandableBreakdown('current', fair ? bankBreakdown(fair, null, existingDeposit, state.session.assumptions?.cashRate, selectedYear) : `<p>${esc(current.label || '資料不足，未能計算。')}</p>${detailRow('顯示總額', current.value)}`)}<small>${esc(current.label || '按目前輸入資料展示。')}</small></div>`;
+  const savingCard = `<div class='resource-card resource-card--new p4-comparison-card'><span class='card-kicker'>複利儲蓄安排</span>${savingRows}${expandableBreakdown('saving', fair ? savingBreakdown(fair, existingDeposit, state.session.assumptions?.cashRate, selectedYear) : portfolioBreakdown(saving, selectedYear))}<small>${saving.available ? '按官方已有數值展示，沒有插值。' : esc(saving.message)}</small></div>`;
   return `<div class='comparison-intro'><strong>以 ${horizon} 作比較</strong></div><div class='time-bar-card timeline-rail-card'><div class='time-bar-heading'><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div><div class='comparison-stack p4-simple-comparison'>${currentCard}<div class='plus'>對比</div>${savingCard}</div><p class='calculation-note'>現有資源及新增安排分開展示；複利儲蓄安排只使用官方已有數值。</p><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>了解點樣運作 →</button></div>`;
 }
 function p4Scenario(state, official, selectedYear, timeline) {
   const saving = calculateSavingPortfolio({ session: state.session, overallPolicyYear: selectedYear, official });
-  return `<div class="comparison-intro">另外建立一筆複利儲蓄安排<br><span>時間行落去會點？</span></div><div class="time-bar-card timeline-rail-card"><div class="time-bar-heading"><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div><div class="resource-card resource-card--new"><span class="card-kicker">複利儲蓄安排 · ${saving.phases.length} 期安排</span><strong>${saving.available ? money(saving.futureValue) : '—'}</strong><span>${saving.available ? `到第 ${selectedYear} 年 · 按官方已知數據` : esc(saving.message)}</span></div><p class="calculation-note">只展示複利儲蓄安排的官方已知價值；沒有為現有工具或偏好虛構回報。</p><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">了解點樣運作 →</button></div>`;
+  return `<div class="comparison-intro">另外建立一筆複利儲蓄安排<br><span>時間行落去會點？</span></div><div class="time-bar-card timeline-rail-card"><div class="time-bar-heading"><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div><div class="resource-card resource-card--new"><span class="card-kicker">複利儲蓄安排 · ${saving.phases.length} 期安排</span><strong>${saving.available ? money(saving.futureValue) : '—'}</strong><span>${saving.available ? `到第 ${selectedYear} 年 · 按官方已知數據` : esc(saving.message)}</span>${expandableBreakdown('saving', portfolioBreakdown(saving, selectedYear))}</div><p class="calculation-note">只展示複利儲蓄安排的官方已知價值；沒有為現有工具或偏好虛構回報。</p><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">了解點樣運作 →</button></div>`;
 }
 
 function p5(state) {

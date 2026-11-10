@@ -43,3 +43,9 @@ jobs:
           python3 tests/static_checks.py
           python3 tests/portable_media.test.py
           python3 tests/version_consistency.test.py
+      - name: Install browser test dependencies
+        run: |
+          python3 -m pip install playwright
+          python3 -m playwright install --with-deps chromium
+      - name: P4 breakdown browser regression
+        run: python3 tests/p4_breakdown_browser.test.py

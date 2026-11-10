@@ -8,7 +8,7 @@ import { ENTRY_MODES, avaReturnHref, getEntryMode } from './integration.js';
 import { exchangeAdminLaunch, handleAdminTabKeydown, publishOfficial, readAdminPayload, renderAdmin, resetAdminTab, switchAdminRecord, switchAdminTab } from './admin.js';
 import { APP_VERSION, BUILD_ID } from './build.js';
 import { currentPath } from './calculation.js';
-import { formatMoneyInputElement, readInputValue } from './money.js';
+import { formatMoneyInputElement, normalizeMoneyValue, parseMoney, readInputValue } from './money.js';
 import { INVESTMENT_TOOLS, SCENARIO_GOALS, investmentPath, scenarioRoute, toggleChoice } from './scenario-flow.js';
 import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries, simulateMarketHistory } from './scenario2-market-history.js';
 import { fetchDeploymentMetadata, reloadOnceForBuild, requestSkipWaiting, shouldForceUpdate, updateStatusMarkup } from './update-gate.js';
@@ -61,7 +61,13 @@ function draw(focus = null, resetRails = []) {
   const railPositions = new Map([...app.querySelectorAll('.timeline-rail[id]')].map(rail => [rail.id, {
     context: rail.dataset.scrollContext, left: rail.scrollLeft
   }]));
+  const samePage = app.dataset?.renderedPage === state.pageId;
+  const openDetails = samePage ? [...app.querySelectorAll('details[data-breakdown][open]')].map(item => item.dataset.breakdown) : [];
   render(app, state, applyLocalOverrides(base, effectiveOverrides), effectiveOverrides, meta);
+  if (app.dataset) {
+    app.dataset.renderedPage = state.pageId;
+    app.querySelectorAll('details[data-breakdown]').forEach(item => { item.open = openDetails.includes(item.dataset.breakdown); });
+  }
   app.querySelectorAll('.timeline-rail[id]').forEach(rail => {
     const previous = railPositions.get(rail.id);
     if (resetRails.includes(rail.id)) {
@@ -79,6 +85,7 @@ function draw(focus = null, resetRails = []) {
     }
   }
 }
+function makeHoldingId(method) { return `${method}-${crypto.randomUUID()}`; }
 function clone(value) { return JSON.parse(JSON.stringify(value)); }
 function collectEditedOverrides(base) {
   const next = clone(base);
@@ -117,7 +124,7 @@ function nextPage() {
 function updateField(target) {
   const value = readInputValue(target);
   applySessionInput(state.session, target, value);
-  if (target.dataset.marketPrincipal) state.session.marketPrincipal = value;
+  if (target.hasAttribute('data-market-principal')) state.session.marketPrincipal = value;
   if (target.dataset.phaseAnnual) {
     const id = Number(target.dataset.phaseAnnual);
     const items = Array.isArray(state.session.savingPhases) ? state.session.savingPhases.map(item => ({ ...item })) : [{ id: 1, annualContribution: state.session.annualContribution, strategyCode: null, withdrawalPolicyYear: null }];
@@ -155,7 +162,12 @@ function updateMarketSimulatorLive() {
     }
   }
   const summary = document.querySelector('[data-market-result]');
-  if (summary) summary.innerHTML = marketSimulatorResult(state);
+  if (summary) {
+    const wasOpen = summary.querySelector('details[data-breakdown="market"]')?.open;
+    summary.innerHTML = marketSimulatorResult(state);
+    const details = summary.querySelector('details[data-breakdown="market"]');
+    if (details) details.open = !!wasOpen;
+  }
 }
 
 function updateP5Live() {

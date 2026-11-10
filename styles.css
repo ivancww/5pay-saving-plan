@@ -191,3 +191,12 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
 }
 /* Keep summary actions together at the right edge on presentation pages. */
 .presentation-actions,.customer-summary-actions{justify-content:flex-end}
+
+.calculation-breakdown { min-width: 0; margin-top: 0.75rem; }
+.calculation-breakdown summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: #1e3a8a; font-weight: 700; text-decoration: underline; }
+.calculation-breakdown summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.calculation-breakdown .breakdown-close, .calculation-breakdown[open] .breakdown-open { display: none; }
+.calculation-breakdown[open] .breakdown-close { display: inline; }
+.breakdown-content { min-width: 0; overflow-wrap: anywhere; padding: 0.5rem 0; }
+.breakdown-content p { margin: 0.5rem 0; }
+.breakdown-content .comparison-detail strong { text-align: right; overflow-wrap: anywhere; }
