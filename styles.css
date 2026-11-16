@@ -84,7 +84,7 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
 .tradeoff-join{color:var(--accent);font-size:22px}
 .tradeoff-line{padding:16px;border-radius:12px;background:var(--bg);line-height:1.6;color:var(--text);text-align:center;overflow-wrap:anywhere}
 @media(max-width:650px){.scenario-grid,.response-grid,.mixed-visual,.resource-bridge{grid-template-columns:1fr}.scenario-card{min-height:140px}.bridge-plus{line-height:1}.tool-grid{gap:8px}.tool-card{padding:10px;grid-template-columns:1fr;min-height:100px}.tool-card small{grid-column:1}.market-path{max-height:160px}.maturity-visual{gap:4px}.maturity-visual>div{padding:8px 4px}.maturity-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:360px){.goal-triangle{height:250px}.goal-point{width:104px;font-size:13px}.horizon-line{padding-inline:4px;gap:1px}.maturity-visual>div{font-size:13px}}
+@media(max-width:360px){.goal-triangle{height:250px}.goal-point{width:104px;font-size:13px}.horizon-line{flex-wrap:wrap;justify-content:center;white-space:normal;padding-inline:4px;gap:6px 4px}.horizon-line .year-chip{flex:0 0 auto;min-width:0}.maturity-visual>div{font-size:13px}}
 
 @media (min-width:1001px){.app-header{padding-left:max(42px,env(safe-area-inset-left));padding-right:max(42px,env(safe-area-inset-right))}.ava-front{padding:34px max(42px,env(safe-area-inset-left)) 60px max(42px,env(safe-area-inset-right))}}
 
