@@ -85,12 +85,15 @@ try:
         page.locator('[data-action="continue-investment-tools"]').click()
         assert page.locator('.market-path').is_visible()
         no_overflow(page, 'market path')
-        page.locator('[data-action="select-market-response"][data-value="hold"]').click()
+        assert page.locator('[data-market-simulator]').is_visible()
+        assert page.locator('[data-market-result] .market-simulator-result__main').is_visible()
+        page.locator('[data-market-end]').select_option('2023')
+        assert '2023' in page.locator('[data-market-result]').inner_text()
         page.locator('[data-action="back"]').click()
         assert page.locator('.tool-card.is-selected').count() == 1
         page.locator('[data-action="continue-investment-tools"]').click()
-        assert page.locator('.response-card.is-selected').count() == 1
-        page.locator('[data-action="continue-to-saving"]').click()
+        assert page.locator('[data-market-end]').input_value() == '2023'
+        page.locator('[data-action="continue-scenario2-to-saving"]').click()
         assert page.locator('[data-action="select-purpose"]').count() == 1
         assert page.locator('#page-title').inner_text() == '你希望呢筆錢將來用喺邊？'
         page.locator('[data-action="select-purpose"]').first.click()
@@ -124,7 +127,8 @@ try:
                 assert page.locator('.horizon-line').is_visible()
             else:
                 assert page.locator('.market-path').is_visible()
-                page.locator('[data-action="select-market-response"][data-value="hold"]').click()
+                assert page.locator('[data-market-simulator]').is_visible()
+                assert page.locator('[data-market-result] .market-simulator-result__main').is_visible()
                 assert page.locator('[data-action="continue-market-to-maturity"]').is_visible()
                 page.locator('[data-action="continue-market-to-maturity"]').click()
                 assert page.locator('.maturity-visual').is_visible()
@@ -134,11 +138,12 @@ try:
                 page.locator('[data-action="back"]').click()
                 assert page.locator('[data-value="compare"][aria-pressed="true"]').count() == 1
                 page.locator('[data-action="back"]').click()
-                assert page.locator('[data-value="hold"][aria-pressed="true"]').count() == 1
+                assert page.locator('[data-market-simulator]').is_visible()
+                assert page.locator('[data-market-result] .market-simulator-result__main').is_visible()
                 page.locator('[data-action="back"]').click()
                 assert page.locator('.tool-card.is-selected').count() == 2
                 page.locator('[data-action="continue-investment-tools"]').click()
-                page.locator('[data-action="select-market-response"][data-value="hold"]').click()
+                assert page.locator('[data-market-simulator]').is_visible()
                 page.locator('[data-action="continue-market-to-maturity"]').click()
                 page.locator('[data-action="select-maturity-response"][data-value="compare"]').click()
                 page.locator('[data-action="continue-maturity-to-mixed"]').click()
