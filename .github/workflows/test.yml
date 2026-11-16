@@ -49,3 +49,5 @@ jobs:
           python3 -m playwright install --with-deps chromium
       - name: P4 breakdown browser regression
         run: python3 tests/p4_breakdown_browser.test.py
+      - name: Customer scenario browser regression
+        run: python3 tests/scenario_browser_check.py
