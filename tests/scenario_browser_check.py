@@ -94,9 +94,9 @@ try:
         page.locator('[data-action="continue-investment-tools"]').click()
         assert page.locator('[data-market-end]').input_value() == '2023'
         page.locator('[data-action="continue-scenario2-to-saving"]').click()
-        assert page.locator('[data-action="select-purpose"]').count() == 1
-        assert page.locator('#page-title').inner_text() == '你希望呢筆錢將來用喺邊？'
-        page.locator('[data-action="select-purpose"]').first.click()
+        # Scenario 2 transitions directly to P3; P2 is the Scenario 1/3 purpose page.
+        assert page.locator('#annual-contribution').is_visible()
+        assert page.locator('#customer-age').is_visible()
         page.locator('#annual-contribution').fill('50000')
         page.locator('#customer-age').fill('40')
         page.locator('[data-action="next"]').click()
