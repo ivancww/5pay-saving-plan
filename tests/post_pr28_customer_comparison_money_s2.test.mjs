@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { normalizeMoneyValue, parseMoney, formatMoneyInput, readInputValue } from '../src/money.js';
 import { activeSavingPhases, calculateExistingResourceProjection, calculateFairPrincipalComparison, calculateSavingPortfolio, currentInstrumentSummary, currentPath, withdrawalPortfolio } from '../src/calculation.js';
 import { investmentPath, scenarioRoute } from '../src/scenario-flow.js';
-import { applySessionInput, effectiveAnnualContribution, handleP3InputEvent, normalizeMoneyState } from '../src/state.js';
+import { applySessionInput, createState, effectiveAnnualContribution, handleP3InputEvent, normalizeMoneyState } from '../src/state.js';
 import { formatCustomerMoney, marketSimulatorResult, render } from '../src/views.js';
 import { getExistingResourceFutureValue } from '../src/views.js';
 import { SCENARIO2_MARKET_HISTORY, normalizedMarketSeries, simulateMarketHistory } from '../src/scenario2-market-history.js';
@@ -697,4 +697,38 @@ test('Customer View keeps the blue combined account-value card clear and aggrega
   assert.match(actionContainer, /data-action="print"/);
   assert.match(actionContainer, /data-action="close-customer"/);
   assert.match(actionContainer, /customer-summary-actions/);
+});
+
+
+test('unified flow reads canonical Official Sheet copy while retaining User Edit precedence', () => {
+  const officialUnified = {
+    flow: [
+      { page_id: 'P1', title: '官方 P1 標題', subtitle: '官方 P1 副題', enabled: true },
+      { page_id: 'P2', title: '官方 P2 標題', subtitle: '', enabled: true }
+    ],
+    page_content: [
+      { content_id: 'P1_C1', page_id: 'P1', action_key: 'cash', headline: '舊版銀行', enabled: true },
+      { content_id: 'unified-p1-cash', page_id: 'P1', action_key: 'cash', headline: '新版銀行存款', enabled: true },
+      { content_id: 'unified-p2-flexibility', page_id: 'P2', action_key: 'flexibility', headline: '官方靈活性', enabled: true }
+    ],
+    current_methods: []
+  };
+  const state = createState();
+  const app = { innerHTML: '' };
+  render(app, state, officialUnified);
+  assert.match(app.innerHTML, /官方 P1 標題/);
+  assert.match(app.innerHTML, /官方 P1 副題/);
+  assert.match(app.innerHTML, /新版銀行存款/);
+  assert.doesNotMatch(app.innerHTML, /舊版銀行/);
+  render(app, state, officialUnified, { cards: { 'unified-p1-cash': { headline: 'User Edit 銀行' } } });
+  assert.match(app.innerHTML, /User Edit 銀行/);
+  state.pageId = 'P2';
+  render(app, state, officialUnified);
+  assert.match(app.innerHTML, /官方 P2 標題/);
+  assert.match(app.innerHTML, /官方靈活性/);
+  const stale = { ...officialUnified, page_content: [{ content_id: 'P1_C1', page_id: 'P1', action_key: 'cash', headline: '舊版銀行', enabled: true }] };
+  state.pageId = 'P1';
+  render(app, state, stale);
+  assert.match(app.innerHTML, /平時多出嚟嘅錢，你通常會點安排？/);
+  assert.match(app.innerHTML, /銀行存款/);
 });
