@@ -85,7 +85,10 @@ try:
                     assert '到期後息率及再投資條件未知' in story.inner_text()
                     assert story.locator('.p4-total-difference strong').inner_text() == '—'
                     assert '金額＋每年儲蓄' in story.inner_text()
-                    assert '複利儲蓄金額＋其後每年儲蓄' in story.inner_text()
+                    assert '定期＋首5年複利儲蓄＋其後每年儲蓄' in story.inner_text() if method == 'fixed_deposit' else '債券＋首5年複利儲蓄＋其後每年儲蓄' in story.inner_text()
+                    assert '首5年複利儲蓄 HK$ 250,000' in story.inner_text()
+                    assert '其後每年儲蓄 HK$ 500,000' in story.inner_text()
+                    assert '定期 HK$ 200,000' in story.inner_text() if method == 'fixed_deposit' else '債券 HK$ 200,000' in story.inner_text()
                     bars = story.locator('.p4-colored-bar')
                     widths = [bars.nth(i).locator('span').evaluate_all('(es) => es.map(e => parseFloat(e.style.width))') for i in range(2)]
                     assert all(abs(sum(parts) - 100) < 0.01 for parts in widths)
