@@ -349,6 +349,7 @@ function p4BankAllocationView(fair, existingDeposit, selectedYear) {
     + '<p class="p4-bar-key"><span><i class="p4-key-saving"></i>首5年複利儲蓄 ' + money(firstFive) + '</span><span><i class="p4-key-bank"></i>其後銀行存款 ' + money(remaining) + '</span></p></div>'
     + '<div class="p4-simple-outcomes"><div class="p4-simple-outcome"><span>維持現有安排</span><strong>' + money(bankTotal) + '</strong></div><div class="p4-simple-outcome p4-simple-outcome--saving"><span>加入多一種工具</span><strong>' + money(savingTotal) + '</strong></div></div>'
     + '<div class="p4-total-difference"><span>第' + selectedYear + '年模擬差額</span><strong>' + money(difference) + '</strong></div>'
+    + (savingTotal == null ? '<p class="p4-small-caveat">呢個年份未有可用官方價值，未能計算儲蓄結果及差額。</p>' : '')
     + '<p class="p4-small-caveat">同一筆本金，不同安排，未來可能帶來不同效果。銀行部分按假設利率計算；複利儲蓄只採用該年已有官方價值，非保證回報不能視作確定。</p></section>';
 }
 function p4MaturityTimeView(method, current, fair, selectedYear) {
