@@ -74,7 +74,14 @@ export function render(app, state, official, overrides = {}, meta = {}) {
   if (state.customerView) { app.innerHTML = customerView(state, official, meta); return; }
   const page = official?.flow?.find(item => item.page_id === state.pageId) || { page_id: state.pageId, title: 'AVA Saving', subtitle: '' };
   const bondOnly = state.pageId === 'S2_MATURITY' && state.session.investmentTools?.includes('bond') && !state.session.investmentTools.includes('fixed_deposit');
-  const heading = state.session.scenario === 'unified' ? ({P1:{title:'平時多出嚟嘅錢，你通常會點安排？',subtitle:''},P2:{title:'你希望呢啲安排，主要幫你做到咩？',subtitle:''},P3:{title:'如果將時間加落去呢？',subtitle:''},P4:{title:'無須改變現有安排，新增儲蓄發掘更多可能性？',subtitle:'保留原有理財工具，透過不同資金安排，探索未來可能帶來嘅效果。'}}[state.pageId] || null) : scenarioHeading(state);
+  const unifiedDefaults = {P1:{title:'平時多出嚟嘅錢，你通常會點安排？',subtitle:''},P2:{title:'你希望呢啲安排，主要幫你做到咩？',subtitle:''},P3:{title:'如果將時間加落去呢？',subtitle:''},P4:{title:'無須改變現有安排，新增儲蓄發掘更多可能性？',subtitle:'保留原有理財工具，透過不同資金安排，探索未來可能帶來嘅效果。'}};
+  // Only trust unified Sheet titles when the corresponding canonical choice rows
+  // exist; older Official caches still contain the pre-unified P1–P4 copy.
+  const officialUnified = official?.page_content?.some(item => item.content_id === 'unified-p1-cash' && item.enabled !== false);
+  const fallbackHeading = unifiedDefaults[state.pageId] || null;
+  const heading = state.session.scenario === 'unified'
+    ? (officialUnified && fallbackHeading ? {title:page.title || fallbackHeading.title,subtitle:page.subtitle ?? fallbackHeading.subtitle} : fallbackHeading)
+    : scenarioHeading(state);
   const localPage = overrides.pages?.[state.pageId] || {};
   const title = Object.prototype.hasOwnProperty.call(localPage, 'title') ? localPage.title : bondOnly ? '如果債券有到期日，下一步會點？' : heading?.title || page.title;
   const subtitle = Object.prototype.hasOwnProperty.call(localPage, 'subtitle') ? localPage.subtitle : heading?.subtitle || page.subtitle;
@@ -133,8 +140,9 @@ function unifiedChoices(state, official, overrides, pageId) {
   const options = UNIFIED_CHOICES[pageId].map(([key, label]) => {
     const id = `unified-${pageId.toLowerCase()}-${key}`;
     const local = overrides?.cards?.[id];
+    const officialCard = pageContent(official, pageId).find(card => card.content_id === id && card.enabled !== false);
     const legacy = pageContent(official, pageId).find(card => card.action_key === key && overrides?.cards?.[card.content_id]);
-    const title = local?.headline ?? legacy?.headline ?? label;
+    const title = local?.headline ?? officialCard?.headline ?? legacy?.headline ?? label;
     const checked = pageId === 'P1' ? selected.includes(key) : state.session.purpose === key;
     return `<button class="ava-card ava-card--interactive ${checked ? 'is-selected' : ''}" data-action="${pageId === 'P1' ? 'toggle-unified-tool' : 'select-unified-purpose'}" data-value="${key}" data-card-id="${id}" aria-pressed="${checked}" type="button"><span class="card-icon" aria-hidden="true">${checked ? '✓' : '○'}</span><span><strong>${esc(title)}</strong></span></button>`;
   }).join('');
