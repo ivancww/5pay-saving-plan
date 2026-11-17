@@ -355,10 +355,10 @@ function p4MaturityTimeView(method, current, fair, selectedYear, holdings) {
   // The bars have different principal bases: fixed-deposit + annual deposits versus
   // annual deposits allocated to Saving / later bank only. Never add the FD to Saving.
   const fixedBar = fixedTotal != null && fixedTotal > 0
-    ? '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>' + kind + '</strong><strong>' + money(fixedTotal) + '</strong></div><p class="p4-bar-key">' + kind + '金額＋每年儲蓄</p><div class="p4-colored-bar" role="img" aria-label="' + kind + '本金加每年儲蓄本金"><span class="p4-color-instrument" style="width:' + fraction(principal, fixedTotal) + '%"></span><span class="p4-color-bank" style="width:' + fraction(annual, fixedTotal) + '%"></span></div><p class="p4-bar-key"><span><i class="p4-key-instrument"></i>' + kind + ' ' + money(principal) + '</span><span><i class="p4-key-bank"></i>每年儲蓄累計 ' + money(annual) + '</span></p></div>'
+    ? '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>' + kind + '</strong><strong>' + money(fixedTotal) + '</strong></div><div class="p4-colored-bar" role="img" aria-label="' + kind + '本金加每年儲蓄本金"><span class="p4-color-instrument" style="width:' + fraction(principal, fixedTotal) + '%"></span><span class="p4-color-bank" style="width:' + fraction(annual, fixedTotal) + '%"></span></div></div>'
     : '<p class="p4-small-caveat">輸入' + kind + '資料及每年儲蓄後，可查看' + kind + '本金安排。</p>';
   const savingBar = annual != null && annual > 0 && saving != null && laterAnnual != null
-    ? '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>複利儲蓄</strong><strong>' + money(annual) + '</strong></div><p class="p4-bar-key">首5年複利儲蓄＋其後每年儲蓄</p><div class="p4-colored-bar" role="img" aria-label="首5年複利儲蓄本金及其後每年銀行儲蓄本金；不包含定期或債券本金"><span class="p4-color-saving" style="width:' + fraction(saving, annual) + '%"></span><span class="p4-color-bank" style="width:' + fraction(laterAnnual, annual) + '%"></span></div><p class="p4-bar-key"><span><i class="p4-key-saving"></i>首5年複利儲蓄 ' + money(saving) + '</span><span><i class="p4-key-bank"></i>其後每年儲蓄 ' + money(laterAnnual) + '</span></p></div>'
+    ? '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>複利儲蓄</strong><strong>' + money(annual) + '</strong></div><div class="p4-colored-bar" role="img" aria-label="首5年複利儲蓄本金及其後每年銀行儲蓄本金；不包含定期或債券本金"><span class="p4-color-saving" style="width:' + fraction(saving, annual) + '%"></span><span class="p4-color-bank" style="width:' + fraction(laterAnnual, annual) + '%"></span></div></div>'
     : '<p class="p4-small-caveat">輸入每年儲蓄後，可查看複利儲蓄及其後存款分配。</p>';
   const bars = fixedBar + savingBar;
   return '<section class="p4-visual-story p4-maturity-story" data-p4-design="maturity">'
@@ -366,7 +366,7 @@ function p4MaturityTimeView(method, current, fair, selectedYear, holdings) {
     + '<div class="p4-maturity-current"><span class="card-kicker">今期' + kind + ' · 現有條款</span>' + maturityRows + '</div>'
     + bars
 
-    + '<p class="p4-small-caveat">左條 Bar 包含' + kind + '本金＋每年儲蓄；右條 Bar 只包含首5年複利儲蓄＋其後每年存款，不包括' + kind + '本金或目前銀行存款。兩條 Bar 的本金基數不同，不可直接用 Bar 長度比較回報。</p>'
+    + '<p class="p4-small-caveat">兩條分配圖的本金計算範圍不同，並非回報比較。</p>'
     + '<div class="p4-total-difference"><span>第' + selectedYear + '年模擬差額</span><strong>—</strong></div>'
     + '<p class="p4-small-caveat">' + kind + '到期後息率及再投資條件未知，未能計算未來差額。複利儲蓄只採用已有官方價值，實際條款及非保證項目可能影響結果。</p></section>';
 }
