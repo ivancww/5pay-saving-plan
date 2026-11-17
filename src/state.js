@@ -2,7 +2,7 @@ import { activeSavingPhases, calculateExistingResourceProjection, currentInstrum
 import { formatMoneyInputElement, normalizeMoneyValue, readInputValue } from './money.js';
 
 export function createState({ currentAge = null } = {}) {
-  return { pageId: 'START', history: [], session: { scenario: null, investmentTools: [], marketResponse: null, marketHistorySeries: 'hsi', marketPrincipal: 100000, marketStartYear: '2016', marketEndYear: '2025', maturityResponse: null, maturityHorizon: 5, mixedFocus: null, scenarioGoals: [], currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
+  return { pageId: 'P1', history: [], session: { scenario: 'unified', selectedTools: [], optionalOpen: { fixed_deposit: false, market: false }, investmentTools: [], marketResponse: null, marketHistorySeries: 'hsi', marketPrincipal: null, marketStartYear: '2016', marketEndYear: '2025', maturityResponse: null, maturityHorizon: 5, mixedFocus: null, scenarioGoals: [], currentMethod: null, purpose: null, assumptions: {}, annualContribution: null, currentAge, ageError: false, policyYear: 15, strategyCode: 'none', withdrawalPolicyYear: null, withdrawalStrategyCode: null, savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }] }, mode: 'use', customerView: false };
 }
 
 export function normalizeMoneyState(session) {

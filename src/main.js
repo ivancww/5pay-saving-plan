@@ -62,6 +62,7 @@ function draw(focus = null, resetRails = []) {
     context: rail.dataset.scrollContext, left: rail.scrollLeft
   }]));
   const samePage = app.dataset?.renderedPage === state.pageId;
+  if (samePage && state.session.scenario === 'unified') app.querySelectorAll('details[data-optional]').forEach(item => { state.session.optionalOpen[item.dataset.optional] = item.open; });
   const openDetails = samePage ? [...app.querySelectorAll('details[data-breakdown][open]')].map(item => item.dataset.breakdown) : [];
   render(app, state, applyLocalOverrides(base, effectiveOverrides), effectiveOverrides, meta);
   if (app.dataset) {
@@ -195,7 +196,7 @@ async function restoreBackup(file) {
     const result = validatePortableBackup(JSON.parse(await file.text()));
     if (!result.valid) { window.alert(result.message); return; }
     overrides = result.data;
-    saveOverrides(overrides); state.pageId = 'START'; state.history = []; state.mode = 'use'; draw();
+    saveOverrides(overrides); state.pageId = 'P1'; state.history = []; state.mode = 'use'; draw();
   } catch { window.alert('備份檔案無法讀取。'); }
 }
 
@@ -211,6 +212,7 @@ app.addEventListener('input', event => {
   const marketEditing = state.pageId === 'S2_MARKET' && target.matches('[data-market-principal]');
   if (p3Editing) {
     handleP3InputEvent({ state: state.session, session: state.session, target, querySelector: selector => document.querySelector(selector) });
+    if (target.matches('[data-market-principal]')) { state.session.marketPrincipal = readInputValue(target); updateMarketSimulatorLive(); }
     return;
   }
   if (target.matches('[data-money-input]')) formatMoneyInputElement(target);
@@ -223,6 +225,7 @@ app.addEventListener('input', event => {
 app.addEventListener('click', event => {
   const control = event.target.closest('[data-action]'); if (!control) return;
   const action = control.dataset.action;
+  if (state.session.scenario === 'unified' && state.pageId === 'P3') app.querySelectorAll('details[data-optional]').forEach(item => { state.session.optionalOpen[item.dataset.optional] = item.open; });
   if (entryMode === ENTRY_MODES.admin && action === 'admin-tab') { switchAdminTab(app, control.dataset.domain); return; }
   if (entryMode === ENTRY_MODES.admin && action === 'admin-record') { switchAdminRecord(app, control.dataset.domain, control.value); return; }
   if (entryMode === ENTRY_MODES.admin && action === 'admin-reset') { resetAdminTab(app); return; }
@@ -246,12 +249,23 @@ app.addEventListener('click', event => {
       goTo(state, destination);
     }
   }
+  if (action === 'toggle-unified-tool' && state.pageId === 'P1') {
+    const key = control.dataset.value;
+    if (['cash', 'fixed_deposit', 'market', 'saving_plan'].includes(key)) {
+      const choices = state.session.selectedTools || [];
+      const selected = !choices.includes(key);
+      state.session.selectedTools = selected ? [...choices, key] : choices.filter(item => item !== key);
+      if (key === 'fixed_deposit' || key === 'market') state.session.optionalOpen[key] = selected;
+    }
+  }
+  if (action === 'continue-unified-tools' && state.pageId === 'P1' && state.session.selectedTools.length) { state.session.currentMethod = 'cash'; goTo(state, 'P2'); }
+  if (action === 'select-unified-purpose' && state.pageId === 'P2' && ['flexibility','growth_income','future','stability'].includes(control.dataset.value)) { state.session.purpose = control.dataset.value; goTo(state, 'P3'); }
   if (action === 'toggle-investment-tool' && state.pageId === 'S2_TOOLS') state.session.investmentTools = toggleChoice(state.session.investmentTools, control.dataset.value, INVESTMENT_TOOLS);
   if (action === 'continue-investment-tools' && state.pageId === 'S2_TOOLS') {
     const path = investmentPath(state.session.investmentTools);
     if (path) goTo(state, scenarioRoute(official, path === 'S2_MIXED' ? 'scenario2_market' : `scenario2_${path.slice(3).toLowerCase()}`));
   }
-  if (action === 'select-market-history-series' && state.pageId === 'S2_MARKET' && SCENARIO2_MARKET_HISTORY[control.dataset.value]) {
+  if (action === 'select-market-history-series' && (state.pageId === 'S2_MARKET' || (state.pageId === 'P3' && state.session.scenario === 'unified')) && SCENARIO2_MARKET_HISTORY[control.dataset.value]) {
     state.session.marketHistorySeries = control.dataset.value;
     const series = normalizedMarketSeries(control.dataset.value);
     state.session.marketStartYear = series?.observations[0]?.year || null;
@@ -344,9 +358,9 @@ app.addEventListener('click', event => {
   }
   if (action === 'delete-page' && state.pageId.startsWith('LOCAL_')) {
     overrides.customPages = (overrides.customPages || []).filter(page => page.page_id !== state.pageId);
-    saveOverrides(overrides); state.pageId = 'START'; state.history = []; state.mode = 'use';
+    saveOverrides(overrides); state.pageId = 'P1'; state.history = []; state.mode = 'use';
   }
-  if (action === 'restore-defaults') { overrides = {}; saveOverrides(overrides); state.mode = 'use'; state.pageId = 'START'; state.history = []; }
+  if (action === 'restore-defaults') { overrides = {}; saveOverrides(overrides); state.mode = 'use'; state.pageId = 'P1'; state.history = []; }
   // A start selection already resets the dependent policy year, even on reselect.
   draw(null, action === 'select-withdrawal-start' ? [Number(control.dataset.phaseId || 1) === 1 ? 'withdrawal-explore-rail' : `withdrawal-explore-rail-${control.dataset.phaseId}`] : []);
 });
@@ -354,7 +368,7 @@ app.addEventListener('click', event => {
 app.addEventListener('change', event => {
   if (event.target.matches('[data-market-start]')) state.session.marketStartYear = event.target.value;
   if (event.target.matches('[data-market-end]')) state.session.marketEndYear = event.target.value;
-  if (event.target.matches('[data-market-start], [data-market-end]') && state.pageId === 'S2_MARKET') updateMarketSimulatorLive();
+  if (event.target.matches('[data-market-start], [data-market-end]') && (state.pageId === 'S2_MARKET' || (state.pageId === 'P3' && state.session.scenario === 'unified'))) updateMarketSimulatorLive();
   if (entryMode === ENTRY_MODES.admin && event.target.matches('[data-admin-record-select]')) {
     switchAdminRecord(app, event.target.dataset.adminRecordSelect, event.target.value);
   }
