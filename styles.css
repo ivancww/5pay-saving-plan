@@ -237,3 +237,5 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
 .input-card > .field-inline:first-child{border-top:0;padding-top:0}.p4-principal-explanation{font-size:13px}.p4-principal-explanation span{font-weight:400;color:inherit}
 
 .p4-color-instrument{background:#71839c;display:block;height:100%}.p4-key-instrument{background:#71839c}
+
+.conversation-grid .ava-card[aria-pressed="true"]{background:var(--selected);border-color:var(--accent)}.unified-optional{border:1px solid var(--border);border-radius:var(--radius);padding:14px}.unified-optional>summary{font-weight:700;color:var(--primary);cursor:pointer}.unified-optional[open]>summary{margin-bottom:14px}

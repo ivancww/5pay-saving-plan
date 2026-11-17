@@ -28,6 +28,8 @@ const count=(text,pattern)=>(text.match(pattern)||[]).length;
 assert.equal(getCustomerAge(createState()),null);
 assert.deepEqual(['scenario1','scenario2','scenario3'].map(key=>scenarioRoute(official,key)),['P1','S2_TOOLS','S3_GOALS']);
 const start=createState();
+assert.equal(start.pageId,'P1'); assert.equal(start.session.scenario,'unified');
+start.session.scenario='scenario1';
 assert.equal(count(html(start,'START'),/data-action="select-scenario"/g),3);
 assert.match(html(start,'P1'),/data-action="select-method"/);
 start.pageId='START';
@@ -37,7 +39,7 @@ assert.match(html(start,'P3'),/8年後現有方法預計有幾多/);
 assert.match(html(start,'P4'),/每年安排/);
 
 assert.deepEqual(INVESTMENT_TOOLS.map(item=>item[1]),['定期存款','股票','ETF','債券']);
-const s2=createState();s2.session.scenario='scenario2';
+const s2=createState();s2.session.scenario='scenario2';s2.session.marketPrincipal=100000;
 assert.equal(count(html(s2,'S2_TOOLS'),/data-action="toggle-investment-tool"/g),4);
 assert.match(html(s2,'S2_TOOLS'),/data-action="continue-investment-tools"[^>]*disabled/);
 for(const [tool,expected] of [['stock','S2_MARKET'],['etf','S2_MARKET'],['fixed_deposit','S2_MATURITY'],['bond','S2_MATURITY']]){
@@ -79,7 +81,7 @@ for(const selected of [['stock','fixed_deposit'],['etf','bond'],['stock','etf','
   assert.match(page,/data-action="continue-scenario2-to-saving"/);
 }
 const mixedBack=createState();
-mixedBack.session.scenario='scenario2';mixedBack.session.investmentTools=['stock','fixed_deposit'];mixedBack.session.marketResponse='hold';mixedBack.session.maturityResponse='compare';
+mixedBack.session.scenario='scenario2';mixedBack.session.marketPrincipal=100000;mixedBack.session.investmentTools=['stock','fixed_deposit'];mixedBack.session.marketResponse='hold';mixedBack.session.maturityResponse='compare';
 mixedBack.pageId='S2_TOOLS';goTo(mixedBack,'S2_MARKET');goTo(mixedBack,'S2_MATURITY');goTo(mixedBack,'S2_MIXED');
 assert.equal(goBack(mixedBack),'S2_MATURITY');assert.match(html(mixedBack,'S2_MATURITY'),/data-value="compare"[^>]+aria-pressed="true"/);
 assert.equal(goBack(mixedBack),'S2_MARKET');assert.match(html(mixedBack,'S2_MARKET'),/data-value="hsi"[^>]+aria-selected="true"/);

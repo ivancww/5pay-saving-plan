@@ -74,12 +74,12 @@ export function render(app, state, official, overrides = {}, meta = {}) {
   if (state.customerView) { app.innerHTML = customerView(state, official, meta); return; }
   const page = official?.flow?.find(item => item.page_id === state.pageId) || { page_id: state.pageId, title: 'AVA Saving', subtitle: '' };
   const bondOnly = state.pageId === 'S2_MATURITY' && state.session.investmentTools?.includes('bond') && !state.session.investmentTools.includes('fixed_deposit');
-  const heading = scenarioHeading(state);
+  const heading = state.session.scenario === 'unified' ? ({P1:{title:'平時多出嚟嘅錢，你通常會點安排？',subtitle:''},P2:{title:'你希望呢啲安排，主要幫你做到咩？',subtitle:''},P3:{title:'如果將時間加落去呢？',subtitle:''},P4:{title:'無須改變現有安排，新增儲蓄發掘更多可能性？',subtitle:'保留原有理財工具，透過不同資金安排，探索未來可能帶來嘅效果。'}}[state.pageId] || null) : scenarioHeading(state);
   const localPage = overrides.pages?.[state.pageId] || {};
   const title = Object.prototype.hasOwnProperty.call(localPage, 'title') ? localPage.title : bondOnly ? '如果債券有到期日，下一步會點？' : heading?.title || page.title;
   const subtitle = Object.prototype.hasOwnProperty.call(localPage, 'subtitle') ? localPage.subtitle : heading?.subtitle || page.subtitle;
   const synthetic = scenarioPage(state.pageId);
-  const body = page.page_id.startsWith('LOCAL_') ? customPage(page) : (synthetic?.body(state, official) || ({ P1:p1, P2:p2, P3:p3, P4:p4, P5:p5, P6:p6, P7:p7 }[state.pageId]?.(state, official) || unavailable('未有這一頁的官方內容。')));
+  const body = page.page_id.startsWith('LOCAL_') ? customPage(page) : (synthetic?.body(state, official) || ({ P1:p1, P2:p2, P3:p3, P4:p4, P5:p5, P6:p6, P7:p7 }[state.pageId]?.(state, official, overrides) || unavailable('未有這一頁的官方內容。')));
   app.innerHTML = `<div class="front-wrap" data-ava-mode="${state.mode}">
     ${state.history.length ? '<div class="page-control-row"><button class="ava-button ava-button--secondary back-link" data-action="back" type="button" aria-label="返回上一頁">← 返回</button></div>' : ''}
     <section class="ava-concept ava-main-card" aria-labelledby="page-title">
@@ -107,7 +107,7 @@ function scenarioHeading(state) {
 const SCENARIO_PAGES = {
   START: start,
   S2_TOOLS: scenario2Tools,
-  S2_MARKET: scenario2Market,
+  S2_MARKET: state => scenario2Market(state),
   S2_MATURITY: scenario2Maturity,
   S2_MIXED: scenario2Mixed,
   S3_GOALS: scenario3Goals,
@@ -124,8 +124,46 @@ function start(state, official) {
   }).join('')}</div><p class="quiet-note">你可以先講，我哋只係用呢個選擇幫手接住之後嘅畫面。</p>`;
 }
 
-function p1(state, official) { return `<div class="conversation-grid">${pageContent(official, 'P1').map(card => choice(card, 'method')).join('')}</div><p class="quiet-note">你可以先講，我哋只係用呢個選擇幫手接住之後嘅畫面。</p>`; }
-function p2(state, official) { return `<div class="conversation-grid">${pageContent(official, 'P2').map(card => choice(card, 'purpose')).join('')}</div>`; }
+const UNIFIED_CHOICES = {
+  P1: [['cash','銀行存款'], ['fixed_deposit','定期存款'], ['market','股票／ETF'], ['saving_plan','儲蓄計劃']],
+  P2: [['flexibility','靈活性'], ['growth_income','財富增長／收息'], ['future','為未來預備'], ['stability','穩定']]
+};
+function unifiedChoices(state, official, overrides, pageId) {
+  const selected = state.session.selectedTools || [];
+  const options = UNIFIED_CHOICES[pageId].map(([key, label]) => {
+    const id = `unified-${pageId.toLowerCase()}-${key}`;
+    const local = overrides?.cards?.[id];
+    const legacy = pageContent(official, pageId).find(card => card.action_key === key && overrides?.cards?.[card.content_id]);
+    const title = local?.headline ?? legacy?.headline ?? label;
+    const checked = pageId === 'P1' ? selected.includes(key) : state.session.purpose === key;
+    return `<button class="ava-card ava-card--interactive ${checked ? 'is-selected' : ''}" data-action="${pageId === 'P1' ? 'toggle-unified-tool' : 'select-unified-purpose'}" data-value="${key}" data-card-id="${id}" aria-pressed="${checked}" type="button"><span class="card-icon" aria-hidden="true">${checked ? '✓' : '○'}</span><span><strong>${esc(title)}</strong></span></button>`;
+  }).join('');
+  return `<div class="conversation-grid">${options}</div>${pageId === 'P1' ? `<div class="actions"><button class="ava-button ava-button--primary" data-action="continue-unified-tools" type="button" ${selected.length ? '' : 'disabled'}>繼續 →</button></div>` : ''}`;
+}
+function unifiedP3(state) {
+  const session = state.session;
+  const open = session.optionalOpen || {};
+  return `<div class="ava-card input-card"><label class="ava-label field-inline" for="customer-age">你而家幾多歲？<input id="customer-age" data-field="currentAge" inputmode="numeric" type="number" min="0" max="120" step="1" value="${esc(session.currentAge ?? '')}" placeholder="例如 40" required></label><p class="ava-help">由目前歲數開始，顯示日後各個時間點的歲數。</p>${session.ageError ? '<p class="ava-status ava-status--warning" role="alert">請先輸入目前歲數。</p>' : ''}<div class="input-section input-section--new"><h3>每年儲蓄</h3><label class="ava-label" for="annual-contribution">每年儲蓄金額</label><div class="money-input"><span>HK$</span><input id="annual-contribution" data-field="annualContribution" data-money-input inputmode="numeric" type="text" value="${inputMoney(session.annualContribution)}" placeholder="例如 100000"></div></div><div class="input-section input-section--existing"><h3>目前銀行存款</h3><label class="ava-label" for="existing-deposit">銀行存款金額</label><div class="money-input"><span>HK$</span><input id="existing-deposit" data-assumption="existing-deposit" data-money-input inputmode="numeric" type="text" value="${inputMoney(session.assumptions?.existingDeposit)}" placeholder="例如 200000"></div><details data-optional="bank-rate" ${open['bank-rate'] ? 'open' : ''}><summary>銀行年息（可選）</summary><label class="ava-label field-inline" for="cash-rate">銀行年息 <span><input id="cash-rate" data-assumption="cash-rate" type="number" min="0" step="0.1" value="${esc(session.assumptions?.cashRate ?? '')}"> %</span></label></details></div><details class="unified-optional" data-optional="fixed_deposit" ${open.fixed_deposit ? 'open' : ''}><summary>定期存款</summary>${holdingEditor('fixedDeposits', '定期存款', '年期', session.assumptions?.fixedDeposits, '定期本金')}</details><details class="unified-optional" data-optional="market" ${open.market ? 'open' : ''}><summary>股票／ETF</summary>${scenario2Market(state, true)}</details></div><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">繼續 →</button></div>`;
+}
+function unifiedP4(state, official) {
+  const years = supportedYears(official, 'none');
+  const year = years.includes(state.session.policyYear) ? state.session.policyYear : years[0];
+  const rail = ageYearRail({id:'comparison-time-rail',items:years.map(year => ({year})),selected:year,state});
+  const annual = effectiveAnnualContribution(state.session);
+  const deposit = normalizeMoneyValue(state.session.assumptions?.existingDeposit);
+  const fair = calculateFairPrincipalComparison({existingDeposit:deposit,cashRate:state.session.assumptions?.cashRate,annualContribution:annual,projectionYears:year,official});
+  const total = fair.bankAnnualPrincipal ?? null;
+  const first = fair.savingContributionPrincipal ?? null;
+  const ratio = total > 0 && first != null ? Math.max(0, Math.min(100, first / total * 100)) : 0;
+  const difference = fair.bankTotal != null && fair.savingTotal != null ? fair.savingTotal - fair.bankTotal : null;
+  const tools = state.session.selectedTools || [];
+  const hasFixed = tools.includes('fixed_deposit') || (state.session.assumptions?.fixedDeposits || []).some(item => normalizeMoneyValue(item.principal) > 0);
+  const hasMarket = tools.includes('market') || normalizeMoneyValue(state.session.marketPrincipal) > 0;
+  const existing = `${hasFixed ? '<div class="resource-card"><strong>定期存款</strong><span>今期利息按現有條款計算</span><span>照常保留</span><p>☁️ 今期定期到期後，下一步會點安排？</p></div>' : ''}${hasMarket ? '<div class="resource-card"><strong>股票／ETF</strong><span>參與市場增長，同時承受波動</span><span>照常保留</span><p>☁️ 市場冇水晶球，未來嘅價值可以預先知道嗎？</p></div>' : ''}`;
+  return `<div class="p4-common-principal"><span>目前銀行存款</span><strong>${money(deposit)}</strong><small>每年新增儲蓄 ${money(annual)} · 第${esc(year)}年累積新增儲蓄本金 ${money(total)}</small></div><div class="time-bar-card timeline-rail-card"><div class="time-bar-heading"><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${rail}</div><section class="p4-visual-story" data-p4-design="unified"><h2>新增儲蓄，多一種安排</h2><div class="p4-split-bars"><div class="p4-bar-title"><strong>全部放銀行</strong><strong>${money(total)}</strong></div><div class="p4-colored-bar"><span class="p4-color-bank" style="width:100%"></span></div><div class="p4-bar-title"><strong>銀行＋複利儲蓄</strong><strong>${money(total)}</strong></div><div class="p4-colored-bar"><span class="p4-color-saving" style="width:${ratio}%"></span><span class="p4-color-bank" style="width:${100-ratio}%"></span></div><p class="p4-bar-key"><span><i class="p4-key-saving"></i>首5年複利儲蓄</span><span><i class="p4-key-bank"></i>其後銀行儲蓄</span></p></div><div class="p4-simple-outcomes"><div class="p4-simple-outcome"><span>全部銀行</span><strong>${money(fair.bankTotal)}</strong></div><div class="p4-simple-outcome p4-simple-outcome--saving"><span>加入複利儲蓄</span><strong>${money(fair.savingTotal)}</strong></div></div>${difference == null ? '<p class="p4-small-caveat">官方價值暫不可用，未能計算模擬差額。</p>' : `<div class="p4-total-difference"><span>第${esc(year)}年模擬差額</span><strong${difference > 0 ? ' class="p4-difference-positive"' : ''}>${difference > 0 ? '+' : ''}${money(difference)}</strong></div>`}<p class="p4-small-caveat">結果包含目前銀行存款及其假設利息${state.session.assumptions?.cashRate == null || state.session.assumptions.cashRate === '' ? '（未輸入年息，按0%計算）' : ''}；柱圖只顯示新增儲蓄本金。複利儲蓄使用該年官方總值，目前未分開保證及非保證部分；並非保證較銀行有利，可提取金額及限制以保單條款為準。</p>${existing ? `<h2>你現有嘅工具，繼續各自發揮作用</h2><div class="conversation-grid">${existing}</div>` : ''}<div class="ava-card"><strong>不同工具，各有作用，互補所長。</strong><p>加入複利儲蓄規劃，讓部分未來資金更早有安排，為自己創造更多財務自主權，並預先規劃靈活現金流。</p></div></section><div class="actions"><button class="ava-button ava-button--primary" data-action="next" type="button">了解點樣運作 →</button></div>`;
+}
+function p1(state, official, overrides) { if (state.session.scenario === 'unified') return unifiedChoices(state, official, overrides, 'P1'); return `<div class="conversation-grid">${pageContent(official, 'P1').map(card => choice(card, 'method')).join('')}</div><p class="quiet-note">你可以先講，我哋只係用呢個選擇幫手接住之後嘅畫面。</p>`; }
+function p2(state, official, overrides) { if (state.session.scenario === 'unified') return unifiedChoices(state, official, overrides, 'P2'); return `<div class="conversation-grid">${pageContent(official, 'P2').map(card => choice(card, 'purpose')).join('')}</div>`; }
 function choice(card, kind) { return `<button class="ava-card ava-card--interactive" data-action="select-${kind}" data-value="${esc(card.action_key)}" data-card-id="${esc(card.content_id || card.action_key)}" type="button"><span class="card-icon" aria-hidden="true">${kind === 'method' ? '○' : '✦'}</span><span><strong>${esc(card.headline)}</strong><small>${esc(card.subtext)}</small></span></button>`; }
 
 function scenario2Tools(state, official) {
@@ -136,7 +174,7 @@ function scenario2Tools(state, official) {
 
 function marketSelection(state) {
   const tools = state.session.investmentTools || [];
-  const keys = marketHistoryKeys({ stocks: tools.includes('stock'), etfs: tools.includes('etf') });
+  const keys = marketHistoryKeys({ stocks: state.session.scenario === 'unified' || tools.includes('stock'), etfs: state.session.scenario === 'unified' || tools.includes('etf') });
   const activeKey = keys.includes(state.session.marketHistorySeries) ? state.session.marketHistorySeries : keys[0];
   const series = normalizedMarketSeries(activeKey);
   const years = series?.observations.map(item => item.year) || [];
@@ -179,7 +217,7 @@ export function marketSimulatorResult(state) {
     <p class="market-result-basis">${esc(basis)}</p>${expandableBreakdown('market', `<p>${esc(series?.label)} · 資料來源：${esc(series?.sourceName)}</p><p>${esc(result.startYear)} 年觀察值：${esc(result.startValue)}；${esc(result.endYear)} 年觀察值：${esc(result.endValue)}（${esc(series?.rawDataType)}）</p>${detailRow('起始金額', result.principal)}<p>歷史變化：${signedPercent(result.returnPercent)}</p>${detailRow('盈利／虧損', result.profitLoss)}${detailRow('期末價值', result.simulatedValue)}<p>歷史表現不保證未來回報。</p>`)}`;
 }
 
-function scenario2Market(state) {
+function scenario2Market(state, embedded = false) {
   const { tools, keys, activeKey, series, years, startYear, endYear } = marketSelection(state);
   const mixed = tools.some(key => key === 'stock' || key === 'etf') && tools.some(key => key === 'fixed_deposit' || key === 'bond');
   const values = series?.observations || [];
@@ -190,6 +228,11 @@ function scenario2Market(state) {
     const y = 106 - ((item.normalized - min) / Math.max(1, max - min)) * 78;
     return { ...item, x: x.toFixed(1), y: y.toFixed(1) };
   });
+  const annualChanges = values.slice(1).map((item, i) => item.normalized / values[i].normalized - 1).filter(Number.isFinite);
+  const averageChange = annualChanges.reduce((sum, value) => sum + value, 0) / (annualChanges.length || 1);
+  const volatility = annualChanges.length > 1 ? Math.sqrt(annualChanges.reduce((sum, value) => sum + (value - averageChange) ** 2, 0) / (annualChanges.length - 1)) : null;
+  let peak = 0, drawdown = 0;
+  for (const item of values) { peak = Math.max(peak, item.normalized); if (peak > 0) drawdown = Math.min(drawdown, item.normalized / peak - 1); }
   const startPoint = points.find(item => item.year === startYear) || points[0];
   const endPoint = points.find(item => item.year === endYear) || points[points.length - 1];
   const selectorLabel = tools.includes('stock') && tools.includes('etf') ? '市場指數／ETF例子' : tools.includes('etf') ? 'ETF例子' : '股票市場';
@@ -208,19 +251,20 @@ function scenario2Market(state) {
       <circle class="market-marker market-marker--start" data-market-marker="start" cx="${startPoint?.x || 28}" cy="${startPoint?.y || 106}" r="6"/>
       <circle class="market-marker market-marker--end" data-market-marker="end" cx="${endPoint?.x || 572}" cy="${endPoint?.y || 106}" r="6"/>
     </svg>
-    <div class="market-simulator-controls">
+    ${embedded && volatility != null ? `<p class="p4-small-caveat">歷史年變化波幅（標準差）${(volatility * 100).toFixed(1)}%；年末觀察最大跌幅 ${(drawdown * 100).toFixed(1)}%。只按現有年度觀察計算，不包括年內高低位。</p>` : ''}
+    ${embedded ? `<details data-optional="market-simulator" ${state.session.optionalOpen?.['market-simulator'] ? 'open' : ''}><summary>歷史模擬（可選）</summary>` : ''}<div class="market-simulator-controls">
       <label class="ava-label">本金<div class="money-input"><span>HK$</span><input data-market-principal data-money-input inputmode="numeric" type="text" value="${inputMoney(state.session.marketPrincipal)}" placeholder="100000"></div></label>
       <label class="ava-label">參與年份<select class="ava-input" data-market-start>${years.map(year => `<option value="${year}" ${year === startYear ? 'selected' : ''}>${year}</option>`).join('')}</select></label>
       <label class="ava-label">需要使用年份<select class="ava-input" data-market-end>${years.map(year => `<option value="${year}" ${year === endYear ? 'selected' : ''}>${year}</option>`).join('')}</select></label>
     </div>
     <div data-market-result>${marketSimulatorResult(state)}</div>
-    <section class="market-reflection" aria-label="歷史結果反思">
+    ${embedded ? '</details>' : ''}${embedded ? '' : `<section class="market-reflection" aria-label="歷史結果反思">
       <strong>歷史行完，我哋可以睇到結果；但如果今日開始，未來需要用錢嗰一年，結果又可唔可以預先知道？</strong>
       <p>歷史數據可以計算過去，但未來市場結果無法預先確定。</p>
-    </section>
+    </section>`}
     <details class="market-source"><summary>資料來源 ⓘ</summary><small>${esc(series?.primarySource?.name || '已核對的歷史資料')} · 資料期間 ${years[0] || '—'}–${years[years.length - 1] || '—'}</small></details>
     <p class="history-disclosure">${esc(disclosure)}</p>
-    ${simulateMarketHistory({ seriesKey: activeKey, principal: state.session.marketPrincipal, startYear, endYear }).available ? scenario2ResourceBridge(state, mixed ? 'continue-market-to-maturity' : 'continue-scenario2-to-saving') : ''}
+    ${!embedded && simulateMarketHistory({ seriesKey: activeKey, principal: state.session.marketPrincipal, startYear, endYear }).available ? scenario2ResourceBridge(state, mixed ? 'continue-market-to-maturity' : 'continue-scenario2-to-saving') : ''}
   </div>`;
 }
 function scenario2Maturity(state) {
@@ -273,6 +317,7 @@ function videoPlayer(media) {
 function mediaUnavailable() { return `<div class="ava-media-fallback" role="status"><strong>${mediaFallbackLabel()}</strong><span>請重新連結雲端媒體後再試。</span><button class="ava-button ava-button--subtle" data-action="reconnect-media" type="button">重新連結</button></div>`; }
 
 function p3(state, official) {
+  if (state.session.scenario === 'unified') return unifiedP3(state);
   if (state.session.scenario === 'scenario2' || state.session.scenario === 'scenario3') return p3Scenario(state);
   if (state.session.currentMethod === 'fixed_deposit' || state.session.currentMethod === 'bond') return p3Instrument(state, official);
   const method = official.current_methods?.find(item => item.method_key === state.session.currentMethod);
@@ -372,6 +417,7 @@ function p4MaturityTimeView(method, current, fair, selectedYear, holdings) {
 }
 
 function p4(state, official) {
+  if (state.session.scenario === 'unified') return unifiedP4(state, official);
   const years = supportedYears(official, 'none');
   const selectedYear = years.includes(state.session.policyYear) ? state.session.policyYear : years[0];
   const selectedAge = ageAtPolicyYear(state, selectedYear);
@@ -486,10 +532,10 @@ function customerView(state, official, meta) {
   const { phases, result } = withdrawalPortfolio(state.session, official);
   const method = official.current_methods?.find(x => x.method_key === state.session.currentMethod)?.display_name || '現有安排';
   const scenario = state.session.scenario;
-  const context = scenario === 'scenario2' ? (state.session.investmentTools || []).map(toolLabel).map(esc).join(' ＋ ') : scenario === 'scenario3' ? (state.session.scenarioGoals || []).map(key => SCENARIO_GOALS.find(item => item[0] === key)?.[1]).map(esc).join(' ＋ ') : esc(method);
+  const context = scenario === 'unified' ? (state.session.selectedTools || []).map(key => ({cash:'銀行存款',fixed_deposit:'定期存款',market:'股票／ETF',saving_plan:'儲蓄計劃'})[key] || '').map(esc).join(' ＋ ') : scenario === 'scenario2' ? (state.session.investmentTools || []).map(toolLabel).map(esc).join(' ＋ ') : scenario === 'scenario3' ? (state.session.scenarioGoals || []).map(key => SCENARIO_GOALS.find(item => item[0] === key)?.[1]).map(esc).join(' ＋ ') : esc(method);
   const contextLabel = scenario === 'scenario3' ? '你重視的特點' : '你而家嘅做法';
   const contextNote = scenario === 'scenario3' ? '只記錄你揀選的方向，不作產品評分。' : '保留現有選擇，不作未有資料的推算。';
-  const lead = scenario === 'scenario3' ? '未必需要一件工具負責晒所有角色；複利儲蓄安排可以係另一筆預先規劃的未來資源。' : scenario === 'scenario2' ? '現有工具可以繼續，同時看看另一筆複利儲蓄安排的官方已知價值。' : `原有 ${esc(method)} 可以繼續，同時多一筆可以預先規劃嘅未來資源。`;
+  const lead = scenario === 'unified' ? '現有安排可以繼續，同時探索另一筆預先規劃的儲蓄。' : scenario === 'scenario3' ? '未必需要一件工具負責晒所有角色；複利儲蓄安排可以係另一筆預先規劃的未來資源。' : scenario === 'scenario2' ? '現有工具可以繼續，同時看看另一筆複利儲蓄安排的官方已知價值。' : `原有 ${esc(method)} 可以繼續，同時多一筆可以預先規劃嘅未來資源。`;
   const generatedAt = new Date().toLocaleDateString('zh-HK', { year: 'numeric', month: 'long', day: 'numeric' });
   const contributions = phases.map(phase => { const amount = Number(phase.annualContribution); const total = Number.isFinite(amount) && amount > 0 ? amount * 5 : null; return `<div class="customer-phase-row" data-contribution-phase="${phase.id}"><b>${phase.label}</b><small>每年 ${money(amount)} · 供款 5 年<br>供款總額 ${money(total)}</small></div>`; }).join('');
   const arrangement = phases.map(phase => {
@@ -506,7 +552,7 @@ function customerView(state, official, meta) {
 function unavailable(message) { return `<div class="ava-status ava-status--warning">${esc(message)}</div>`; }
 function renderEditPanel(app, state, page, title, subtitle) {
   const current = state.pageId;
-  const cards = [...app.querySelectorAll(`[data-action="select-method"], [data-action="select-purpose"], [data-action="select-scenario"], [data-action="toggle-investment-tool"]`)].map((button, index) => ({ id: button.dataset.cardId, headline: button.querySelector('strong')?.textContent || '', subtext: button.querySelector('small')?.textContent || '', index }));
+  const cards = [...app.querySelectorAll(`[data-action="select-method"], [data-action="select-purpose"], [data-action="select-scenario"], [data-action="toggle-investment-tool"], [data-action="toggle-unified-tool"], [data-action="select-unified-purpose"]`)].map((button, index) => ({ id: button.dataset.cardId, headline: button.querySelector('strong')?.textContent || '', subtext: button.querySelector('small')?.textContent || '', index }));
   const isLocal = current.startsWith('LOCAL_');
   const localPage = isLocal ? page : {};
   const type = localPage.page_type || 'content';
