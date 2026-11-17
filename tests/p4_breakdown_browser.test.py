@@ -35,6 +35,16 @@ try:
                 page.locator('[data-value="scenario1"]').click()
                 page.locator(f'[data-action="select-method"][data-value="{method}"]').click()
                 page.locator('[data-action="select-purpose"]').click()
+                if method == 'cash':
+                    assert page.locator('.flow-body > .path-card').count() == 0
+                    assert page.locator('.input-card h3').all_inner_texts() == ['每年儲蓄', '目前銀行存款']
+                    assert page.locator('#customer-age').bounding_box()['y'] < page.locator('#annual-contribution').bounding_box()['y']
+                else:
+                    assert page.locator('.flow-body > .instrument-summary').count() == 0
+                    assert page.locator('.resource-summary-card').count() == 0
+                    assert page.locator('.input-card h3').all_inner_texts() == [('定期存款資料' if method == 'fixed_deposit' else '債券資料'), '每年儲蓄', '目前銀行存款']
+                    positions = [page.locator(selector).first.bounding_box()['y'] for selector in ['#customer-age', '[data-holding-field="principal"]', '#annual-contribution', '#existing-deposit']]
+                    assert positions == sorted(positions)
                 page.locator('#annual-contribution').fill('50000')
                 page.locator('#customer-age').fill('40')
                 page.locator('#existing-deposit').fill('200000')
@@ -53,6 +63,16 @@ try:
                     assert story.locator('.p4-colored-bar').count() == 2
                     assert story.locator('.p4-simple-outcome').count() == 2
                     assert story.locator('.p4-bar-title').count() == 2
+                    assert '目前銀行存款' in story.inner_text() and '複利儲蓄' in story.inner_text()
+                    helper = story.locator('.p4-help')
+                    assert not helper.evaluate('(e) => e.open')
+                    helper.locator('summary').click()
+                    assert helper.evaluate('(e) => e.open') and '每年儲蓄 × 所選年期' in helper.inner_text()
+                    helper.locator('summary').click()
+                    difference = story.locator('.p4-total-difference strong')
+                    assert difference.inner_text().startswith('+HK$ ')
+                    assert difference.evaluate('(e) => getComputedStyle(e).color') == 'rgb(198, 40, 40)'
+                    assert not story.locator('.p4-simple-outcome strong.p4-difference-positive').count()
                     assert 'HK$ 950,000' in story.inner_text()
                     assert 'HK$ 750,000' in story.inner_text()
                     assert 'HK$ 250,000' in story.inner_text()
@@ -61,8 +81,22 @@ try:
                     assert story.get_attribute('data-p4-design') == 'maturity'
                     assert story.locator('.p4-colored-bar').count() == 2
                     assert story.locator('.p4-known-maturity').count() == 2
-                    assert '到期後條件仍未知' in story.inner_text()
-                    assert '不會假設' in story.inner_text()
+                    assert story.locator('.p4-maturity-lane .p4-bar-title strong:first-child').all_inner_texts() == [('定期' if method == 'fixed_deposit' else '債券'), '複利儲蓄']
+                    assert '到期後息率及再投資條件未知' in story.inner_text()
+                    assert story.locator('.p4-total-difference strong').inner_text() == '—'
+                    bars = story.locator('.p4-colored-bar')
+                    assert bars.nth(0).locator('span').count() == 2  # 定期 / 債券 + 全部每年儲蓄
+                    assert bars.nth(1).locator('span').count() == 2  # 複利儲蓄 + 其後每年儲蓄
+                    assert story.locator('.p4-maturity-lane .p4-bar-key').count() == 0
+                    assert bars.nth(1).locator('.p4-color-instrument').count() == 0
+                    assert bars.nth(1).locator('.p4-color-saving').count() == 1
+                    assert bars.nth(1).locator('.p4-color-bank').count() == 1
+                    assert bars.nth(1).get_attribute('aria-label').find('不包含定期或債券本金') >= 0
+                    widths = [bars.nth(i).locator('span').evaluate_all('(es) => es.map(e => parseFloat(e.style.width))') for i in range(2)]
+                    assert all(abs(sum(parts) - 100) < 0.01 for parts in widths)
+                    assert abs(widths[0][0] - (400000 / (400000 + 750000) * 100)) < 0.01
+                    assert abs(widths[1][0] - (250000 / 750000 * 100)) < 0.01
+                    assert abs(widths[1][1] - (500000 / 750000 * 100)) < 0.01
                     assert '複利儲蓄' in story.inner_text()
                     assert not page.locator('.p4-simple-comparison').count()
                 for year in [8,13,14,15]:
@@ -78,6 +112,12 @@ try:
                 if method == 'cash':
                     assert 'HK$ 300,000' in story.inner_text()
                     assert 'HK$ 900,000' in story.inner_text()
+                    page.locator('[data-action="back"]').click()
+                    page.locator('#cash-rate').fill('99')
+                    page.locator('[data-action="next"]').click()
+                    difference = story.locator('.p4-total-difference strong')
+                    assert 'HK$ -' in difference.inner_text()
+                    assert not difference.evaluate('(e) => e.classList.contains("p4-difference-positive")')
                 else:
                     assert story.locator('.p4-known-maturity').count() == 2
                 assert not errors, errors

@@ -206,7 +206,7 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
 .p4-common-principal{display:grid;gap:5px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
 .p4-common-principal span,.p4-simple-outcome span{font-weight:700;color:var(--muted)}
 .p4-common-principal strong{font-size:clamp(25px,3vw,39px);line-height:1.2}
-.p4-common-principal small,.p4-small-caveat{color:var(--muted);line-height:1.6}
+.p4-common-principal small,.p4-principal-explanation,.p4-small-caveat{color:var(--muted);line-height:1.6}
 .p4-split-bars,.p4-maturity-lane,.p4-maturity-current{padding:20px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);min-width:0}
 .p4-bar-title{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0;color:var(--text)}
 .p4-colored-bar{display:flex;overflow:hidden;width:100%;height:24px;border-radius:8px;background:var(--selected)}
@@ -231,3 +231,9 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
 .p4-maturity-future{padding:16px;border-radius:var(--radius);background:var(--selected);line-height:1.6}
 .p4-maturity-future strong{display:block;font-size:clamp(21px,2.7vw,33px);overflow-wrap:anywhere}
 @media(max-width:650px){.p4-simple-outcomes{grid-template-columns:1fr}.p4-visual-story{gap:12px}.p4-split-bars,.p4-maturity-lane,.p4-maturity-current{padding:14px}.p4-bar-key{font-size:12px}}
+
+.p4-help{display:inline;position:relative}.p4-help summary{display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--control);border-radius:50%;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;list-style:none}.p4-help summary::-webkit-details-marker{display:none}.p4-help summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.p4-help p{margin:8px auto 0;max-width:480px;color:var(--muted);font-size:13px;line-height:1.6}.p4-total-difference .p4-difference-positive{color:#c62828}
+
+.input-card > .field-inline:first-child{border-top:0;padding-top:0}.p4-principal-explanation{font-size:13px}.p4-principal-explanation span{font-weight:400;color:inherit}
+
+.p4-color-instrument{background:#71839c;display:block;height:100%}.p4-key-instrument{background:#71839c}

@@ -278,29 +278,16 @@ function p3(state, official) {
   const method = official.current_methods?.find(item => item.method_key === state.session.currentMethod);
   const annualContribution = effectiveAnnualContribution(state.session);
   const path = currentPath({ method: state.session.currentMethod, amount: annualContribution, assumptions: state.session.assumptions, projectionYears: 8 });
-  return `<div class='path-card'><div class='card-kicker'>${esc(method?.display_name || '而家嘅做法')}</div><h2>${esc(method?.visual_title || '同一筆錢，時間耐咗會點？')}</h2><div class='metric-row'><div class='ava-metric'><span class='ava-label'>每年存款安排</span><strong id='p3-annual-contribution-value' class='ava-metric__value'>${money(annualContribution)}</strong><span class='ava-metric__unit'>之後每年再安排的金額</span></div><div class='ava-metric'><span class='ava-label'>8年後現有方法預計有幾多</span><strong id='p3-current-path-value' class='ava-metric__value'>${path.value == null ? '—' : money(path.value)}</strong><span id='p3-current-path-unit' class='ava-metric__unit'>${path.kind === 'known' ? '按現有資料展示' : '按你輸入的假設'}</span></div><div id='p3-current-path-status' class='path-status path-status--${path.kind}'>${esc(path.label)}</div></div></div><div class='ava-card input-card'><div class='input-section input-section--new'><h3>之後新增安排</h3><label class='ava-label' for='annual-contribution'>之後每年大概安排幾多？</label><div class='money-input'><span>HK$</span><input id='annual-contribution' data-field='annualContribution' data-money-input inputmode='numeric' type='text' value='${inputMoney(state.session.annualContribution)}' placeholder='例如 100000'></div></div><label class='ava-label field-inline' for='customer-age'>你而家幾多歲？<input id='customer-age' data-field='currentAge' inputmode='numeric' type='number' min='0' max='120' step='1' value='${state.session.currentAge ?? ''}' placeholder='例如 40' required></label><p class='ava-help'>只用於將時間點翻譯成歲數。</p>${state.session.ageError ? '<p class="ava-status ava-status--warning" role="alert">請先輸入目前歲數，時間軸才可以顯示正確歲數。</p>' : ''}${assumptionFields(state)}</div><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>加入時間後會係點 →</button></div>`;
+  const top = `<div class='path-card'><div class='card-kicker'>${esc(method?.display_name || '而家嘅做法')}</div><h2>${esc(method?.visual_title || '同一筆錢，時間耐咗會點？')}</h2><div class='metric-row'><div class='ava-metric'><span class='ava-label'>每年存款安排</span><strong id='p3-annual-contribution-value' class='ava-metric__value'>${money(annualContribution)}</strong><span class='ava-metric__unit'>之後每年再安排的金額</span></div><div class='ava-metric'><span class='ava-label'>8年後現有方法預計有幾多</span><strong id='p3-current-path-value' class='ava-metric__value'>${path.value == null ? '—' : money(path.value)}</strong><span id='p3-current-path-unit' class='ava-metric__unit'>${path.kind === 'known' ? '按現有資料展示' : '按你輸入的假設'}</span></div><div id='p3-current-path-status' class='path-status path-status--${path.kind}'>${esc(path.label)}</div></div></div>`;
+  const age = `<label class='ava-label field-inline' for='customer-age'>你而家幾多歲？<input id='customer-age' data-field='currentAge' inputmode='numeric' type='number' min='0' max='120' step='1' value='${state.session.currentAge ?? ''}' placeholder='例如 40' required></label><p class='ava-help'>由目前歲數開始，顯示日後各個時間點的歲數。</p>${state.session.ageError ? '<p class="ava-status ava-status--warning" role="alert">請先輸入目前歲數，時間軸才可以顯示正確歲數。</p>' : ''}`;
+  return `${state.session.currentMethod === 'cash' ? '' : top}<div class='ava-card input-card'>${state.session.currentMethod === 'cash' ? age : ''}<div class='input-section input-section--new'><h3>${state.session.currentMethod === 'cash' ? '每年儲蓄' : '之後新增安排'}</h3><label class='ava-label' for='annual-contribution'>之後每年大概安排幾多？</label><div class='money-input'><span>HK$</span><input id='annual-contribution' data-field='annualContribution' data-money-input inputmode='numeric' type='text' value='${inputMoney(state.session.annualContribution)}' placeholder='例如 100000'></div></div>${state.session.currentMethod === 'cash' ? '' : age}${assumptionFields(state)}</div><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>加入時間後會係點 →</button></div>`;
 }
-function p3Instrument(state, official) {
-  const method = state.session.currentMethod;
-  const isBond = method === 'bond';
+function p3Instrument(state) {
+  const isBond = state.session.currentMethod === 'bond';
   const label = isBond ? '債券' : '定期存款';
   const amountLabel = isBond ? '債券金額' : '定期金額';
   const termLabel = isBond ? '距離到期' : '年期';
-  const summary = currentInstrumentSummary({ method, assumptions: state.session.assumptions });
-  const annualContribution = effectiveAnnualContribution(state.session);
-  const existingResource = calculateExistingResourceProjection({
-    existingDeposit: state.session.assumptions?.existingDeposit,
-    cashRate: state.session.assumptions?.cashRate,
-    annualContribution,
-    projectionYears: 8
-  });
-  const term = summary.termYears == null ? (summary.details.length > 1 ? '各筆按輸入' : '—') : `${summary.termYears}年`;
-  const rate = summary.annualRate == null ? (summary.details.length > 1 ? '各筆按輸入' : '—') : `${(summary.annualRate * 100).toLocaleString('zh-HK')}%`;
-  const maturity = summary.available ? money(summary.value) : '—';
-  const top = `<div class='path-card instrument-summary'><div class='card-kicker'>${label}</div><h2>今期知道，下一期又會點？</h2><div class='metric-row instrument-summary-grid'><div class='ava-metric'><span class='ava-label'>${amountLabel}</span><strong id='p3-instrument-principal-value' class='ava-metric__value'>${summary.principal == null ? '—' : money(summary.principal)}</strong></div><div class='ava-metric'><span class='ava-label'>${termLabel}</span><strong id='p3-instrument-term-value' class='ava-metric__value'>${term}</strong></div><div class='ava-metric'><span class='ava-label'>年息</span><strong id='p3-instrument-rate-value' class='ava-metric__value'>${rate}</strong></div><div class='ava-metric'><span class='ava-label'>今期到期金額</span><strong id='p3-current-path-value' class='ava-metric__value'>${maturity}</strong><span id='p3-current-path-unit' class='ava-metric__unit'>今期到期金額；到期後條件要到時再知道。</span></div></div><div id='p3-current-path-status' class='path-status path-status--${summary.available ? 'known' : 'unknown'}'>${summary.available ? '今期到期金額按目前本金、年期及年息計算。' : '輸入定期／債券資料後，可以睇到今期到期金額。'}</div><p class='calculation-note'>今期到期金額可以計到；到期之後下一期息率同條件，就要到時先知道。</p></div>`;
-  const resource = `<section class='resource-summary-card' id='p3-existing-resource-summary'><h3>現有存款安排</h3><div class='resource-summary-grid'><div><span>現有存款</span><strong id='p3-existing-resource-principal-value'>${inputMoney(state.session.assumptions?.existingDeposit) ? money(state.session.assumptions.existingDeposit) : '—'}</strong></div><div><span>每年存放</span><strong id='p3-existing-resource-annual-value'>${money(annualContribution)}</strong></div><div><span>利息</span><strong id='p3-existing-resource-rate-value'>${state.session.assumptions?.cashRate == null || state.session.assumptions?.cashRate === '' ? '未輸入' : `${esc(state.session.assumptions.cashRate)}%`}</strong></div><div><span>累積結果</span><strong id='p3-existing-resource-value'>${existingResource.available ? money(existingResource.value) : '—'}</strong><small>以第${existingResource.projectionYears}年作資源示意</small></div></div></section>`;
-  const inputs = `<div class='ava-card input-card'><div class='input-section input-section--existing'><h3>現有存款</h3><label class='ava-label' for='existing-deposit'>現有存款金額<div class='money-input'><span>HK$</span><input id='existing-deposit' data-assumption='existing-deposit' data-money-input inputmode='numeric' type='text' value='${inputMoney(state.session.assumptions?.existingDeposit)}' placeholder='例如 200000'></div></label><label class='ava-label field-inline' for='cash-rate'>現有存款利息（可留空）<span><input id='cash-rate' data-assumption='cash-rate' type='number' min='0' step='0.1' value='${esc(state.session.assumptions?.cashRate ?? '')}'> %</span></label><p class='ava-help'>現有存款及每年存放按呢個利息假設計算，與${label}年息分開。</p></div><div class='input-section input-section--existing'><h3>${label}</h3>${holdingEditor(isBond ? 'bonds' : 'fixedDeposits', label, termLabel, state.session.assumptions?.[isBond ? 'bonds' : 'fixedDeposits'], amountLabel)}</div>${resource}<div class='input-section input-section--new'><h3>每年存放</h3><label class='ava-label' for='annual-contribution'>之後每年大概存放幾多？</label><div class='money-input'><span>HK$</span><input id='annual-contribution' data-field='annualContribution' data-money-input inputmode='numeric' type='text' value='${inputMoney(state.session.annualContribution)}' placeholder='例如 100000'></div></div><label class='ava-label field-inline' for='customer-age'>你而家幾多歲？<input id='customer-age' data-field='currentAge' inputmode='numeric' type='number' min='0' max='120' step='1' value='${state.session.currentAge ?? ''}' placeholder='例如 40' required></label><p class='ava-help'>每年存放是獨立的新增安排，不會自動加入今期${label}到期金額。</p></div>`;
-  return `${top}${inputs}<div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>加入時間後會係點 →</button></div>`;
+  return `<div class='ava-card input-card'><label class='ava-label field-inline' for='customer-age'>你而家幾多歲？<input id='customer-age' data-field='currentAge' inputmode='numeric' type='number' min='0' max='120' step='1' value='${state.session.currentAge ?? ''}' placeholder='例如 40' required></label><p class='ava-help'>由目前歲數開始，顯示日後各個時間點的歲數。</p>${state.session.ageError ? '<p class="ava-status ava-status--warning" role="alert">請先輸入目前歲數，時間軸才可以顯示正確歲數。</p>' : ''}<div class='input-section input-section--existing'><h3>${label}資料</h3>${holdingEditor(isBond ? 'bonds' : 'fixedDeposits', label, termLabel, state.session.assumptions?.[isBond ? 'bonds' : 'fixedDeposits'], amountLabel)}</div><div class='input-section input-section--new'><h3>每年儲蓄</h3><label class='ava-label' for='annual-contribution'>之後每年大概儲蓄幾多？</label><div class='money-input'><span>HK$</span><input id='annual-contribution' data-field='annualContribution' data-money-input inputmode='numeric' type='text' value='${inputMoney(state.session.annualContribution)}' placeholder='例如 100000'></div><p class='ava-help'>每年儲蓄是獨立的新增安排，不會自動加入今期${label}到期金額。</p></div><div class='input-section input-section--existing'><h3>目前銀行存款</h3><label class='ava-label' for='existing-deposit'>目前銀行存款金額<div class='money-input'><span>HK$</span><input id='existing-deposit' data-assumption='existing-deposit' data-money-input inputmode='numeric' type='text' value='${inputMoney(state.session.assumptions?.existingDeposit)}' placeholder='例如 200000'></div></label><label class='ava-label field-inline' for='cash-rate'>銀行年息（可留空）<span><input id='cash-rate' data-assumption='cash-rate' type='number' min='0' step='0.1' value='${esc(state.session.assumptions?.cashRate ?? '')}'> %</span></label><p class='ava-help'>目前銀行存款及每年儲蓄按呢個利息假設計算，與${label}年息分開。</p></div></div><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>加入時間後會係點 →</button></div>`;
 }
 
 function p3Scenario(state) {
@@ -310,7 +297,7 @@ function p3Scenario(state) {
 }
 function assumptionFields(state) {
   const assumptions = state.session.assumptions || {};
-  if (state.session.currentMethod === 'cash') return `<div class='assumption-group input-section input-section--existing'><h3>目前已有資源</h3><label class='ava-label' for='existing-deposit'>銀行存款<div class='money-input'><span>HK$</span><input id='existing-deposit' data-assumption='existing-deposit' data-money-input inputmode='numeric' type='text' value='${inputMoney(assumptions.existingDeposit)}' placeholder='例如 500000'></div></label><label class='ava-label field-inline' for='cash-rate'>銀行年息（可留空）<span><input id='cash-rate' data-assumption='cash-rate' type='number' min='0' step='0.1' value='${esc(assumptions.cashRate ?? '')}'> %</span></label><p class='ava-help'>呢筆係目前已經存落嘅金額，唔係之後每年再安排嘅金額。</p></div>`;
+  if (state.session.currentMethod === 'cash') return `<div class='assumption-group input-section input-section--existing'><h3>目前銀行存款</h3><label class='ava-label' for='existing-deposit'>銀行存款<div class='money-input'><span>HK$</span><input id='existing-deposit' data-assumption='existing-deposit' data-money-input inputmode='numeric' type='text' value='${inputMoney(assumptions.existingDeposit)}' placeholder='例如 500000'></div></label><label class='ava-label field-inline' for='cash-rate'>銀行年息（可留空）<span><input id='cash-rate' data-assumption='cash-rate' type='number' min='0' step='0.1' value='${esc(assumptions.cashRate ?? '')}'> %</span></label><p class='ava-help'>呢筆係目前已經存落嘅金額，唔係之後每年再安排嘅金額。</p></div>`;
   if (state.session.currentMethod === 'fixed_deposit') return `<div class='input-section input-section--existing'><h3>目前已有資源</h3>${holdingEditor('fixedDeposits', '定期存款', '年期', assumptions.fixedDeposits)}</div>`;
   if (state.session.currentMethod === 'bond') return `<div class='input-section input-section--existing'><h3>目前已有資源</h3>${holdingEditor('bonds', '債券', '距離到期', assumptions.bonds)}</div>`;
   if (state.session.currentMethod === 'investment') return field('customer-return-rate', '客戶假設年回報（可留空）', assumptions.returnRate ?? '', '%');
@@ -343,39 +330,45 @@ function p4BankAllocationView(fair, existingDeposit, selectedYear) {
   const savingTotal = fair?.savingTotal ?? null;
   const difference = bankTotal != null && savingTotal != null ? savingTotal - bankTotal : null;
   return '<section class="p4-visual-story" data-p4-design="bank">'
-    + '<div class="p4-common-principal"><span>同樣投入本金 · 第' + selectedYear + '年</span><strong>' + money(totalPrincipal) + '</strong><small>原有存款 ' + money(existingDeposit) + ' ＋ 持續存款 ' + money(annualPrincipal) + '</small></div>'
+    + '<div class="p4-common-principal"><span>同樣投入本金 · 第' + selectedYear + '年</span><strong>' + money(totalPrincipal) + '</strong><div class="p4-principal-explanation"><span>目前銀行存款 ' + money(existingDeposit) + ' ＋ 持續存款 ' + money(annualPrincipal) + '</span> <details class="p4-help"><summary aria-label="了解持續存款計算方法">?</summary><p>持續存款 = 每年儲蓄 × 所選年期；加上目前銀行存款，就是同樣投入本金。實際結果會因假設利率及時間而有所不同。</p></details></div></div>'
     + '<div class="p4-split-bars"><div class="p4-bar-title"><strong>維持銀行存款</strong><strong>' + money(annualPrincipal) + '</strong></div><div class="p4-colored-bar"><span class="p4-color-bank" style="width:100%"></span></div>'
-    + '<div class="p4-bar-title"><strong>加入多一種工具</strong><strong>' + money(annualPrincipal) + '</strong></div><div class="p4-colored-bar"><span class="p4-color-saving" style="width:' + pct + '%"></span><span class="p4-color-bank" style="width:' + (100-pct) + '%"></span></div>'
+    + '<div class="p4-bar-title"><strong>複利儲蓄</strong><strong>' + money(annualPrincipal) + '</strong></div><div class="p4-colored-bar"><span class="p4-color-saving" style="width:' + pct + '%"></span><span class="p4-color-bank" style="width:' + (100-pct) + '%"></span></div>'
     + '<p class="p4-bar-key"><span><i class="p4-key-saving"></i>首5年複利儲蓄 ' + money(firstFive) + '</span><span><i class="p4-key-bank"></i>其後銀行存款 ' + money(remaining) + '</span></p></div>'
-    + '<div class="p4-simple-outcomes"><div class="p4-simple-outcome"><span>維持現有安排</span><strong>' + money(bankTotal) + '</strong></div><div class="p4-simple-outcome p4-simple-outcome--saving"><span>加入多一種工具</span><strong>' + money(savingTotal) + '</strong></div></div>'
-    + '<div class="p4-total-difference"><span>第' + selectedYear + '年模擬差額</span><strong>' + money(difference) + '</strong></div>'
+    + '<div class="p4-simple-outcomes"><div class="p4-simple-outcome"><span>維持現有安排</span><strong>' + money(bankTotal) + '</strong></div><div class="p4-simple-outcome p4-simple-outcome--saving"><span>複利儲蓄</span><strong>' + money(savingTotal) + '</strong></div></div>'
+    + '<div class="p4-total-difference"><span>第' + selectedYear + '年模擬差額</span><strong' + (difference > 0 ? ' class="p4-difference-positive"' : '') + '>' + (difference > 0 ? '+' : '') + money(difference) + '</strong></div>'
     + (savingTotal == null ? '<p class="p4-small-caveat">呢個年份未有可用官方價值，未能計算儲蓄結果及差額。</p>' : '')
     + '<p class="p4-small-caveat">同一筆本金，不同安排，未來可能帶來不同效果。銀行部分按假設利率計算；複利儲蓄只採用該年已有官方價值，非保證回報不能視作確定。</p></section>';
 }
-function p4MaturityTimeView(method, current, fair, selectedYear) {
-  const isBond = method === 'bond';
-  const kind = isBond ? '債券' : '定期';
+function p4MaturityTimeView(method, current, fair, selectedYear, holdings) {
+  const kind = method === 'bond' ? '債券' : '定期';
   const details = current?.details || [];
-  const terms = details.map(item => Number(item.termYears)).filter(Number.isFinite);
-  const term = terms.length ? Math.max(0, Math.min(...terms)) : 0;
-  const confirmedPct = selectedYear > 0 ? Math.min(100, term / selectedYear * 100) : 0;
-  const plannedPct = selectedYear > 0 ? Math.min(100, Math.min(5, selectedYear) / selectedYear * 100) : 0;
   const maturityRows = details.length ? details.map((item, i) =>
     '<div class="p4-known-maturity"><span>' + (details.length > 1 ? '第' + (i + 1) + '筆' : '今期') + kind + ' · ' + esc(item.termYears) + '年 · ' + pct(item.annualRate) + '</span><strong>' + money(item.value) + '</strong></div>'
   ).join('') : '<p>尚未輸入今期' + kind + '資料。</p>';
+  const completeHoldings = Array.isArray(holdings) && holdings.length > 0 && holdings.every(item => ['principal', 'termYears', 'annualRate'].every(key => item[key] != null && item[key] !== '' && Number.isFinite(Number(item[key])) && Number(item[key]) >= 0));
+  const principal = completeHoldings ? current?.principal : null;
+  const annual = fair?.bankAnnualPrincipal;
+  const saving = fair?.savingContributionPrincipal;
+  const fixedTotal = principal != null && annual != null ? principal + annual : null;
+  const laterAnnual = annual == null || saving == null ? null : Math.max(0, annual - saving);
+  const fraction = (amount, denominator) => denominator > 0 ? Math.max(0, Math.min(100, amount / denominator * 100)) : 0;
+  // The bars have different principal bases: fixed-deposit + annual deposits versus
+  // annual deposits allocated to Saving / later bank only. Never add the FD to Saving.
+  const fixedBar = fixedTotal != null && fixedTotal > 0
+    ? '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>' + kind + '</strong><strong>' + money(fixedTotal) + '</strong></div><div class="p4-colored-bar" role="img" aria-label="' + kind + '本金加每年儲蓄本金"><span class="p4-color-instrument" style="width:' + fraction(principal, fixedTotal) + '%"></span><span class="p4-color-bank" style="width:' + fraction(annual, fixedTotal) + '%"></span></div></div>'
+    : '<p class="p4-small-caveat">輸入' + kind + '資料及每年儲蓄後，可查看' + kind + '本金安排。</p>';
+  const savingBar = annual != null && annual > 0 && saving != null && laterAnnual != null
+    ? '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>複利儲蓄</strong><strong>' + money(annual) + '</strong></div><div class="p4-colored-bar" role="img" aria-label="首5年複利儲蓄本金及其後每年銀行儲蓄本金；不包含定期或債券本金"><span class="p4-color-saving" style="width:' + fraction(saving, annual) + '%"></span><span class="p4-color-bank" style="width:' + fraction(laterAnnual, annual) + '%"></span></div></div>'
+    : '<p class="p4-small-caveat">輸入每年儲蓄後，可查看複利儲蓄及其後存款分配。</p>';
+  const bars = fixedBar + savingBar;
   return '<section class="p4-visual-story p4-maturity-story" data-p4-design="maturity">'
-    + '<h2>今期到期結果清楚，未來的安排可以更有自主權與確定性？</h2>'
-    + '<p>今期到期金額可以計到，咁下一期息率同安排，又會點？</p>'
+    + '<h2>同一筆資金，不同安排</h2><p>加入不同安排，未來可能帶來不同效果。</p>'
     + '<div class="p4-maturity-current"><span class="card-kicker">今期' + kind + ' · 現有條款</span>' + maturityRows + '</div>'
-    + '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>工具一：繼續' + kind + '</strong><span>探索至第' + selectedYear + '年</span></div>'
-    + '<div class="p4-colored-bar"><span class="p4-color-known" style="width:' + confirmedPct + '%"></span><span class="p4-color-unknown" style="width:' + (100-confirmedPct) + '%"></span></div>'
-    + '<p class="p4-bar-key"><span><i class="p4-key-known"></i>今期條款可計算</span><span><i class="p4-key-unknown"></i>到期後條件仍未知</span></p></div>'
-    + '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>工具二：' + kind + '＋複利儲蓄</strong><span>探索至第' + selectedYear + '年</span></div>'
-    + '<div class="p4-colored-bar"><span class="p4-color-saving" style="width:' + plannedPct + '%"></span><span class="p4-color-unknown" style="width:' + (100-plannedPct) + '%"></span></div>'
-    + '<p class="p4-bar-key"><span><i class="p4-key-saving"></i>首5年提早安排部分資金</span><span><i class="p4-key-unknown"></i>其餘資金保留選擇</span></p></div>'
-    + '<p class="p4-maturity-future">另一種安排 · 第' + selectedYear + '年按銀行利息假設及官方儲蓄數值計算 <strong>' + money(fair?.savingTotal) + '</strong></p>'
-    + '<p class="p4-small-caveat">' + kind + '到期後息率及再投資條件未知，因此不會假設' + kind + '持續相同回報或虛構兩者差額。時間 Bar 代表安排階段，不代表回報保證；資金流動性及保證／非保證項目以實際條款為準。</p>'
-    + '<p class="p4-small-caveat">同一筆資金，加多一種工具，未來可能帶來不同效果，亦可能令部分規劃更清晰。</p></section>';
+    + bars
+
+    + '<p class="p4-small-caveat">兩條分配圖的本金計算範圍不同，並非回報比較。</p>'
+    + '<div class="p4-total-difference"><span>第' + selectedYear + '年模擬差額</span><strong>—</strong></div>'
+    + '<p class="p4-small-caveat">' + kind + '到期後息率及再投資條件未知，未能計算未來差額。複利儲蓄只採用已有官方價值，實際條款及非保證項目可能影響結果。</p></section>';
 }
 
 function p4(state, official) {
@@ -411,7 +404,7 @@ function p4(state, official) {
   const savingCard = `<div class='resource-card resource-card--new p4-comparison-card'><span class='card-kicker'>複利儲蓄安排</span>${savingRows}${expandableBreakdown('saving', fair ? savingBreakdown(fair, existingDeposit, state.session.assumptions?.cashRate, selectedYear) : portfolioBreakdown(saving, selectedYear))}<small>${saving.available ? '按官方已有數值展示，沒有插值。' : esc(saving.message)}</small></div>`;
   if (state.session.currentMethod === 'cash' || maturityMethod) {
     const visual = maturityMethod
-      ? p4MaturityTimeView(state.session.currentMethod, currentInstrumentSummary({ method: state.session.currentMethod, assumptions: state.session.assumptions }), fair, selectedYear)
+      ? p4MaturityTimeView(state.session.currentMethod, currentInstrumentSummary({ method: state.session.currentMethod, assumptions: state.session.assumptions }), fair, selectedYear, state.session.assumptions?.[state.session.currentMethod === 'bond' ? 'bonds' : 'fixedDeposits'])
       : p4BankAllocationView(fair, existingDeposit, selectedYear);
     return `<div class='comparison-intro'><strong>以 ${horizon} 探索時間</strong></div><div class='time-bar-card timeline-rail-card'><div class='time-bar-heading'><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div>${visual}<div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>了解點樣運作 →</button></div>`;
   }

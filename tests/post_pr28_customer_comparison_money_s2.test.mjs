@@ -46,7 +46,7 @@ test('formatted money input updates canonical state before P3 render', () => {
   render(app, { pageId: 'P3', history: [], mode: 'use', customerView: false, session }, {
     flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: []
   });
-  assert.match(app.innerHTML, /HK\$ 100,000/);
+  assert.match(app.innerHTML, /id='annual-contribution'[^>]*value='100,000'/);
   assert.doesNotMatch(app.innerHTML, /NaN/);
 
   session.currentAge = 30;
@@ -54,7 +54,7 @@ test('formatted money input updates canonical state before P3 render', () => {
   render(app, { pageId: 'P3', history: [], mode: 'use', customerView: false, session }, {
     flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: []
   });
-  assert.match(app.innerHTML, /HK\$ 100,000/);
+  assert.match(app.innerHTML, /id='annual-contribution'[^>]*value='100,000'/);
 });
 
 test('new annual arrangement remains valid without an existing FD resource', () => {
@@ -70,7 +70,7 @@ test('new annual arrangement remains valid without an existing FD resource', () 
   normalizeMoneyState(state.session);
   const app = { innerHTML: '' };
   render(app, state, { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] });
-  assert.match(app.innerHTML, /HK\$ 100,000/);
+  assert.match(app.innerHTML, /id='annual-contribution'[^>]*value='100,000'/);
   assert.doesNotMatch(app.innerHTML, /每年存款安排[\s\S]{0,200}—/);
 });
 
@@ -89,7 +89,7 @@ test('clearing existing bank deposit immediately removes it from the comparison 
     flow: [{ page_id: 'P4', title: 'P4', subtitle: '' }], current_methods: [], return_tables: { none: [{ policy_year: 8, multiplier: 1 }] }
   });
   assert.doesNotMatch(app.innerHTML, /HK\$ 700,000/);
-  assert.match(app.innerHTML, /原有存款 —/);
+  assert.match(app.innerHTML, /目前銀行存款 —/);
 });
 
 test('money formatting and malformed state never produce NaN customer output', () => {
@@ -165,10 +165,10 @@ test('P3 renders inherited Phase 1 contribution and preserves it when age change
   const officialP3 = { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] };
   render(app, state, officialP3);
   assert.equal(effectiveAnnualContribution(state.session), 100000);
-  assert.ok(app.innerHTML.includes('HK$ 100,000'));
+  assert.ok(app.innerHTML.includes("value='100,000'"));
   state.session.currentAge = 31;
   render(app, state, officialP3);
-  assert.ok(app.innerHTML.includes('HK$ 100,000'));
+  assert.ok(app.innerHTML.includes("value='100,000'"));
 });
 
 test('exact-observation market simulator covers all series without interpolation', () => {
@@ -304,7 +304,7 @@ test('real P3 input-event path updates cash rate, deposit and annual contributio
   assert.ok(![...nodes.values()].some(node => String(node.textContent).includes('NaN')));
 });
 
-test('fixed deposit P3 shows only the known current maturity and updates through the live holding-input path', () => {
+test('fixed deposit P3 keeps input-first layout and updates the holding state', () => {
   const state = {
     pageId: 'P3', history: [], mode: 'use', customerView: false,
     session: {
@@ -317,13 +317,12 @@ test('fixed deposit P3 shows only the known current maturity and updates through
   };
   const app = { innerHTML: '' };
   render(app, state, { ...official, current_methods: [{ method_key: 'fixed_deposit', display_name: '定期存款' }] });
-  assert.match(app.innerHTML, /今期知道，下一期又會點？/);
+  assert.doesNotMatch(app.innerHTML, /instrument-summary|resource-summary-card/);
   assert.match(app.innerHTML, /定期金額/);
-  assert.match(app.innerHTML, /HK\$ 525,313/);
+  assert.match(app.innerHTML, /value='500,000'/);
   assert.doesNotMatch(app.innerHTML, /8年後現有方法預計有幾多/);
-  assert.match(app.innerHTML, /現有存款/);
-  assert.match(app.innerHTML, /每年存放/);
-  assert.doesNotMatch(app.innerHTML.split('ava-card input-card')[0], /每年存放/);
+  assert.match(app.innerHTML, /目前銀行存款/);
+  assert.match(app.innerHTML, /每年儲蓄/);
 
   const nodes = new Map(['#p3-current-path-value', '#p3-instrument-principal-value', '#p3-instrument-term-value', '#p3-instrument-rate-value', '#p3-annual-contribution-value', '#p3-current-path-unit', '#p3-current-path-status'].map(selector => [selector, { textContent: '', className: '' }]));
   const querySelector = selector => nodes.get(selector);
@@ -365,9 +364,9 @@ test('FD/Bond P3 keeps Resource A separate from the current instrument rate', ()
 
   const app = { innerHTML: '' };
   render(app, state, { ...official, current_methods: [{ method_key: 'fixed_deposit', display_name: '定期存款' }] });
-  assert.match(app.innerHTML, /現有存款安排/);
-  assert.match(app.innerHTML, /p3-existing-resource-value/);
-  assert.match(app.innerHTML, /現有存款利息/);
+  assert.match(app.innerHTML, /目前銀行存款/);
+  assert.doesNotMatch(app.innerHTML, /p3-existing-resource-value/);
+  assert.match(app.innerHTML, /銀行年息/);
   assert.doesNotMatch(app.innerHTML, /8年後現有方法預計有幾多/);
 });
 
@@ -399,7 +398,7 @@ test('FD/Bond P3 live input events update the corresponding resource and maturit
   assert.equal(nodes.get('#p3-current-path-value').textContent, 'HK$ 655,636');
 });
 
-test('bond P3 uses current known maturity data without an artificial long-term projection', () => {
+test('bond P3 keeps input-first layout and preserves current-term calculation', () => {
   const state = {
     pageId: 'P3', history: [], mode: 'use', customerView: false,
     session: {
@@ -411,12 +410,11 @@ test('bond P3 uses current known maturity data without an artificial long-term p
   const app = { innerHTML: '' };
   render(app, state, { ...official, current_methods: [{ method_key: 'bond', display_name: '債券' }] });
   assert.match(app.innerHTML, /債券金額/);
-  assert.match(app.innerHTML, /HK\$ 360,000/);
-  assert.match(app.innerHTML, /今期到期金額/);
+  assert.match(app.innerHTML, /value='300,000'/);
+  assert.doesNotMatch(app.innerHTML, /今期到期金額/);
   assert.doesNotMatch(app.innerHTML, /8年後現有方法預計有幾多/);
-  assert.match(app.innerHTML, /現有存款/);
-  assert.match(app.innerHTML, /每年存放/);
-  assert.doesNotMatch(app.innerHTML.split('ava-card input-card')[0], /每年存放/);
+  assert.match(app.innerHTML, /目前銀行存款/);
+  assert.match(app.innerHTML, /每年儲蓄/);
 
   const nodes = new Map(['#p3-current-path-value', '#p3-instrument-principal-value', '#p3-instrument-term-value', '#p3-instrument-rate-value', '#p3-annual-contribution-value', '#p3-existing-resource-value', '#p3-current-path-unit', '#p3-current-path-status'].map(selector => [selector, { textContent: '', className: '' }]));
   const querySelector = selector => nodes.get(selector);
@@ -449,9 +447,23 @@ test('FD/Bond P4 uses only current-term maturity and does not invent renewal ret
   render(app,state,official);
   assert.match(app.innerHTML,/data-p4-design="maturity"/);
   assert.match(app.innerHTML,/HK\$ 206,000/);
-  assert.match(app.innerHTML,/今期條款可計算/);
-  assert.match(app.innerHTML,/到期後條件仍未知/);
+  assert.match(app.innerHTML,/p4-color-instrument/);
+  assert.match(app.innerHTML,/p4-color-saving/);
+  const compoundBar = app.innerHTML.match(/<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>複利儲蓄<\/strong>[\s\S]*?<div class="p4-colored-bar"[^>]*>([\s\S]*?)<\/div>/);
+  assert.ok(compoundBar);
+  assert.doesNotMatch(compoundBar[1], /p4-color-instrument/);
+  assert.match(compoundBar[1], /p4-color-saving/);
+  assert.match(compoundBar[1], /p4-color-bank/);
+  assert.match(app.innerHTML, /複利儲蓄<\/strong><strong>HK\$ 1,200,000/);
+  assert.match(app.innerHTML, /模擬差額<\/span><strong>—<\/strong>/);
   assert.doesNotMatch(app.innerHTML,/HK\$ -194,000/);
+  state.session.assumptions.fixedDeposits.push({id:'incomplete', principal:null, termYears:null, annualRate:null});
+  render(app,state,official);
+  assert.equal((app.innerHTML.match(/class="p4-colored-bar"/g) || []).length, 1);
+  assert.match(app.innerHTML, /輸入定期資料及每年儲蓄後/);
+  assert.match(app.innerHTML, /p4-color-saving/);
+  assert.doesNotMatch(app.innerHTML, /<p class="p4-bar-key">首5年複利儲蓄/);
+  state.session.assumptions.fixedDeposits.pop();
   state.session.policyYear=13;
   render(app,state,official);
   assert.match(app.innerHTML,/第13年/);
@@ -478,7 +490,7 @@ test('FD P4 preserves equal fair principal across years 13 and 14 without showin
     assert.match(app.innerHTML,/HK\$ 102,000/);
     assert.match(app.innerHTML,new RegExp('第'+year+'年'));
     assert.doesNotMatch(app.innerHTML,/p4-simple-comparison/);
-    assert.match(app.innerHTML,/不會假設定期持續相同回報/);
+    assert.match(app.innerHTML,/定期到期後息率及再投資條件未知/);
   }
 });
 
@@ -494,7 +506,7 @@ test('Bond P4 retains current-term value and fair principal without projected bo
     const fair=calculateFairPrincipalComparison({existingDeposit:200000,cashRate:1,annualContribution:50000,projectionYears:year,official});
     assert.equal(fair.bankPrincipal,fair.savingPrincipal);
     assert.match(app.innerHTML,/HK\$ 104,000/);
-    assert.match(app.innerHTML,/不會假設債券持續相同回報/);
+    assert.match(app.innerHTML,/債券到期後息率及再投資條件未知/);
   }
 });
 
@@ -631,7 +643,7 @@ test('P4, P6 and Scenario 1 P7 use simplified result layouts without changing va
   assert.match(app.innerHTML, /data-p4-design="bank"/);
   assert.match(app.innerHTML, /同樣投入本金/);
   assert.match(app.innerHTML, /維持銀行存款/);
-  assert.match(app.innerHTML, /加入多一種工具/);
+  assert.match(app.innerHTML, /複利儲蓄/);
   assert.match(app.innerHTML, /模擬差額/);
   assert.doesNotMatch(app.innerHTML, /resource-summary|resource-section--overall/);
 
