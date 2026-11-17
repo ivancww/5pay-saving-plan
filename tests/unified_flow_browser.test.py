@@ -65,7 +65,17 @@ try:
   page.goto(f'http://127.0.0.1:{server.server_port}/'); assert page.locator('#page-title').inner_text()=='自訂標題'; assert page.locator('[data-value="cash"] strong').inner_text()=='自訂銀行'
   page.locator('[data-value="cash"]').click(); page.locator('[data-action="continue-unified-tools"]').click(); page.locator('[data-action="select-unified-purpose"]').first.click()
   assert not page.locator('details[data-optional="fixed_deposit"]').evaluate('(e)=>e.open'); assert not page.locator('details[data-optional="market"]').evaluate('(e)=>e.open')
-  page.locator('#customer-age').fill('40'); page.locator('#annual-contribution').fill('50000'); page.locator('[data-action="next"]').click(); assert page.locator('[data-p4-design="unified"] .resource-card').count()==0
+  page.locator('#customer-age').fill('40'); page.locator('#annual-contribution').fill('50000'); page.locator('#existing-deposit').fill('200000')
+  assert page.locator('details[data-optional="fixed_deposit"]').evaluate('(e)=>!e.open')
+  assert page.locator('details[data-optional="market"]').evaluate('(e)=>!e.open')
+  page.locator('[data-action="next"]').click()
+  story=page.locator('[data-p4-design="unified"]')
+  assert story.locator('.p4-colored-bar').count()==2
+  assert story.locator('.resource-card').count()==0
+  assert story.get_by_role('heading',name='你現有嘅工具，繼續各自發揮作用').count()==0
+  assert '今期定期到期後' not in story.inner_text()
+  assert '市場冇水晶球' not in story.inner_text()
+  assert page.locator('.p4-common-principal strong').inner_text()=='HK$ 200,000'
   ctx.close(); browser.close()
 finally: server.shutdown()
 print('Unified flow passed on six viewport sizes')
