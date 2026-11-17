@@ -332,6 +332,51 @@ function currentMethodBreakdown(current) {
   return `<div class='current-method-breakdown'>${current.details.map(item => `<div><span>${item.matured ? '已到期資金' : '現有本金'}</span><strong>${money(item.value)}</strong></div>`).join('')}</div>`;
 }
 
+
+function p4BankAllocationView(fair, existingDeposit, selectedYear) {
+  const annualPrincipal = fair?.bankAnnualPrincipal ?? null;
+  const firstFive = fair?.savingContributionPrincipal ?? null;
+  const remaining = annualPrincipal == null || firstFive == null ? null : Math.max(0, annualPrincipal - firstFive);
+  const totalPrincipal = fair?.bankPrincipal ?? null;
+  const pct = annualPrincipal > 0 && firstFive != null ? Math.max(0, Math.min(100, firstFive / annualPrincipal * 100)) : 0;
+  const bankTotal = fair?.bankTotal ?? null;
+  const savingTotal = fair?.savingTotal ?? null;
+  const difference = bankTotal != null && savingTotal != null ? savingTotal - bankTotal : null;
+  return '<section class="p4-visual-story" data-p4-design="bank">'
+    + '<div class="p4-common-principal"><span>同樣投入本金 · 第' + selectedYear + '年</span><strong>' + money(totalPrincipal) + '</strong><small>原有存款 ' + money(existingDeposit) + ' ＋ 持續存款 ' + money(annualPrincipal) + '</small></div>'
+    + '<div class="p4-split-bars"><div class="p4-bar-title"><strong>維持銀行存款</strong><strong>' + money(annualPrincipal) + '</strong></div><div class="p4-colored-bar"><span class="p4-color-bank" style="width:100%"></span></div>'
+    + '<div class="p4-bar-title"><strong>加入多一種工具</strong><strong>' + money(annualPrincipal) + '</strong></div><div class="p4-colored-bar"><span class="p4-color-saving" style="width:' + pct + '%"></span><span class="p4-color-bank" style="width:' + (100-pct) + '%"></span></div>'
+    + '<p class="p4-bar-key"><span><i class="p4-key-saving"></i>首5年複利儲蓄 ' + money(firstFive) + '</span><span><i class="p4-key-bank"></i>其後銀行存款 ' + money(remaining) + '</span></p></div>'
+    + '<div class="p4-simple-outcomes"><div class="p4-simple-outcome"><span>維持現有安排</span><strong>' + money(bankTotal) + '</strong></div><div class="p4-simple-outcome p4-simple-outcome--saving"><span>加入多一種工具</span><strong>' + money(savingTotal) + '</strong></div></div>'
+    + '<div class="p4-total-difference"><span>第' + selectedYear + '年模擬差額</span><strong>' + money(difference) + '</strong></div>'
+    + '<p class="p4-small-caveat">同一筆本金，不同安排，未來可能帶來不同效果。銀行部分按假設利率計算；複利儲蓄只採用該年已有官方價值，非保證回報不能視作確定。</p></section>';
+}
+function p4MaturityTimeView(method, current, fair, selectedYear) {
+  const isBond = method === 'bond';
+  const kind = isBond ? '債券' : '定期';
+  const details = current?.details || [];
+  const terms = details.map(item => Number(item.termYears)).filter(Number.isFinite);
+  const term = terms.length ? Math.max(0, Math.min(...terms)) : 0;
+  const confirmedPct = selectedYear > 0 ? Math.min(100, term / selectedYear * 100) : 0;
+  const plannedPct = selectedYear > 0 ? Math.min(100, Math.min(5, selectedYear) / selectedYear * 100) : 0;
+  const maturityRows = details.length ? details.map((item, i) =>
+    '<div class="p4-known-maturity"><span>' + (details.length > 1 ? '第' + (i + 1) + '筆' : '今期') + kind + ' · ' + esc(item.termYears) + '年 · ' + pct(item.annualRate) + '</span><strong>' + money(item.value) + '</strong></div>'
+  ).join('') : '<p>尚未輸入今期' + kind + '資料。</p>';
+  return '<section class="p4-visual-story p4-maturity-story" data-p4-design="maturity">'
+    + '<h2>今期到期結果清楚，未來的安排可以更有自主權與確定性？</h2>'
+    + '<p>今期到期金額可以計到，咁下一期息率同安排，又會點？</p>'
+    + '<div class="p4-maturity-current"><span class="card-kicker">今期' + kind + ' · 現有條款</span>' + maturityRows + '</div>'
+    + '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>工具一：繼續' + kind + '</strong><span>探索至第' + selectedYear + '年</span></div>'
+    + '<div class="p4-colored-bar"><span class="p4-color-known" style="width:' + confirmedPct + '%"></span><span class="p4-color-unknown" style="width:' + (100-confirmedPct) + '%"></span></div>'
+    + '<p class="p4-bar-key"><span><i class="p4-key-known"></i>今期條款可計算</span><span><i class="p4-key-unknown"></i>到期後條件仍未知</span></p></div>'
+    + '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>工具二：' + kind + '＋複利儲蓄</strong><span>探索至第' + selectedYear + '年</span></div>'
+    + '<div class="p4-colored-bar"><span class="p4-color-saving" style="width:' + plannedPct + '%"></span><span class="p4-color-unknown" style="width:' + (100-plannedPct) + '%"></span></div>'
+    + '<p class="p4-bar-key"><span><i class="p4-key-saving"></i>首5年提早安排部分資金</span><span><i class="p4-key-unknown"></i>其餘資金保留選擇</span></p></div>'
+    + '<p class="p4-maturity-future">另一種安排 · 第' + selectedYear + '年按銀行利息假設及官方儲蓄數值計算 <strong>' + money(fair?.savingTotal) + '</strong></p>'
+    + '<p class="p4-small-caveat">' + kind + '到期後息率及再投資條件未知，因此不會假設' + kind + '持續相同回報或虛構兩者差額。時間 Bar 代表安排階段，不代表回報保證；資金流動性及保證／非保證項目以實際條款為準。</p>'
+    + '<p class="p4-small-caveat">同一筆資金，加多一種工具，未來可能帶來不同效果，亦可能令部分規劃更清晰。</p></section>';
+}
+
 function p4(state, official) {
   const years = supportedYears(official, 'none');
   const selectedYear = years.includes(state.session.policyYear) ? state.session.policyYear : years[0];
@@ -363,6 +408,12 @@ function p4(state, official) {
     ? instrumentP4Card({ method: state.session.currentMethod, methodName, current: currentInstrumentSummary({ method: state.session.currentMethod, assumptions: state.session.assumptions }), resource, fair, selectedYear, existingDeposit, cashRate: state.session.assumptions?.cashRate })
     : `<div class='resource-card resource-card--current p4-comparison-card'><span class='card-kicker'>現有方法 · ${esc(methodName)}</span>${currentRows}${expandableBreakdown('current', fair ? bankBreakdown(fair, null, existingDeposit, state.session.assumptions?.cashRate, selectedYear) : `<p>${esc(current.label || '資料不足，未能計算。')}</p>${detailRow('顯示總額', current.value)}`)}<small>${esc(current.label || '按目前輸入資料展示。')}</small></div>`;
   const savingCard = `<div class='resource-card resource-card--new p4-comparison-card'><span class='card-kicker'>複利儲蓄安排</span>${savingRows}${expandableBreakdown('saving', fair ? savingBreakdown(fair, existingDeposit, state.session.assumptions?.cashRate, selectedYear) : portfolioBreakdown(saving, selectedYear))}<small>${saving.available ? '按官方已有數值展示，沒有插值。' : esc(saving.message)}</small></div>`;
+  if (state.session.currentMethod === 'cash' || maturityMethod) {
+    const visual = maturityMethod
+      ? p4MaturityTimeView(state.session.currentMethod, currentInstrumentSummary({ method: state.session.currentMethod, assumptions: state.session.assumptions }), fair, selectedYear)
+      : p4BankAllocationView(fair, existingDeposit, selectedYear);
+    return `<div class='comparison-intro'><strong>以 ${horizon} 探索時間</strong></div><div class='time-bar-card timeline-rail-card'><div class='time-bar-heading'><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div>${visual}<div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>了解點樣運作 →</button></div>`;
+  }
   return `<div class='comparison-intro'><strong>以 ${horizon} 作比較</strong></div><div class='time-bar-card timeline-rail-card'><div class='time-bar-heading'><span>向左右探索時間</span><span>左右滑動查看更多</span></div>${timeline}</div><div class='comparison-stack p4-simple-comparison'>${currentCard}<div class='plus'>對比</div>${savingCard}</div><p class='calculation-note'>現有資源及新增安排分開展示；複利儲蓄安排只使用官方已有數值。</p><div class='actions'><button class='ava-button ava-button--primary' data-action='next' type='button'>了解點樣運作 →</button></div>`;
 }
 function p4Scenario(state, official, selectedYear, timeline) {
