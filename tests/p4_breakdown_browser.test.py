@@ -81,7 +81,7 @@ try:
                     assert story.get_attribute('data-p4-design') == 'maturity'
                     assert story.locator('.p4-colored-bar').count() == 2
                     assert story.locator('.p4-known-maturity').count() == 2
-                    assert story.locator('.p4-maturity-lane .p4-bar-title strong').all_inner_texts() == [('定期' if method == 'fixed_deposit' else '債券'), '複利儲蓄']
+                    assert story.locator('.p4-maturity-lane .p4-bar-title strong:first-child').all_inner_texts() == [('定期' if method == 'fixed_deposit' else '債券'), '複利儲蓄']
                     assert '到期後息率及再投資條件未知' in story.inner_text()
                     assert story.locator('.p4-total-difference strong').inner_text() == '—'
                     assert '金額＋每年儲蓄' in story.inner_text()
