@@ -39,6 +39,12 @@ try:
                     assert page.locator('.flow-body > .path-card').count() == 0
                     assert page.locator('.input-card h3').all_inner_texts() == ['每年儲蓄', '目前銀行存款']
                     assert page.locator('#customer-age').bounding_box()['y'] < page.locator('#annual-contribution').bounding_box()['y']
+                else:
+                    assert page.locator('.flow-body > .instrument-summary').count() == 0
+                    assert page.locator('.resource-summary-card').count() == 0
+                    assert page.locator('.input-card h3').all_inner_texts() == [('定期存款資料' if method == 'fixed_deposit' else '債券資料'), '每年儲蓄', '目前銀行存款']
+                    positions = [page.locator(selector).first.bounding_box()['y'] for selector in ['#customer-age', '[data-holding-field="principal"]', '#annual-contribution', '#existing-deposit']]
+                    assert positions == sorted(positions)
                 page.locator('#annual-contribution').fill('50000')
                 page.locator('#customer-age').fill('40')
                 page.locator('#existing-deposit').fill('200000')
@@ -75,8 +81,16 @@ try:
                     assert story.get_attribute('data-p4-design') == 'maturity'
                     assert story.locator('.p4-colored-bar').count() == 2
                     assert story.locator('.p4-known-maturity').count() == 2
-                    assert '到期後條件仍未知' in story.inner_text()
-                    assert '不會假設' in story.inner_text()
+                    assert story.locator('.p4-maturity-lane .p4-bar-title strong').all_inner_texts() == [('定期' if method == 'fixed_deposit' else '債券'), '複利儲蓄']
+                    assert '到期後息率及再投資條件未知' in story.inner_text()
+                    assert story.locator('.p4-total-difference strong').inner_text() == '—'
+                    assert '金額＋每年儲蓄' in story.inner_text()
+                    assert '複利儲蓄金額＋其後每年儲蓄' in story.inner_text()
+                    bars = story.locator('.p4-colored-bar')
+                    widths = [bars.nth(i).locator('span').evaluate_all('(es) => es.map(e => parseFloat(e.style.width))') for i in range(2)]
+                    assert all(abs(sum(parts) - 100) < 0.01 for parts in widths)
+                    assert abs(widths[0][0] - widths[1][0]) < 0.01
+                    assert abs(widths[0][1] - sum(widths[1][1:])) < 0.01
                     assert '複利儲蓄' in story.inner_text()
                     assert not page.locator('.p4-simple-comparison').count()
                 for year in [8,13,14,15]:
