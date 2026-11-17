@@ -354,9 +354,10 @@ function p4MaturityTimeView(method, current, fair, selectedYear, holdings) {
   const instrumentPct = portion(principal);
   const savingPct = portion(saving);
   const bankPct = portion(annual == null || saving == null ? 0 : Math.max(0, annual - saving));
+  const laterAnnual = annual == null || saving == null ? null : Math.max(0, annual - saving);
   const bars = total != null && total > 0
     ? '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>' + kind + '</strong></div><p class="p4-bar-key">' + kind + '金額＋每年儲蓄</p><div class="p4-colored-bar"><span class="p4-color-instrument" style="width:' + instrumentPct + '%"></span><span class="p4-color-bank" style="width:' + portion(annual) + '%"></span></div></div>'
-      + '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>複利儲蓄</strong></div><p class="p4-bar-key">' + kind + '保留；複利儲蓄金額＋其後每年儲蓄</p><div class="p4-colored-bar"><span class="p4-color-instrument" style="width:' + instrumentPct + '%"></span><span class="p4-color-saving" style="width:' + savingPct + '%"></span><span class="p4-color-bank" style="width:' + bankPct + '%"></span></div></div>'
+      + '<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>複利儲蓄</strong><strong>' + money(total) + '</strong></div><p class="p4-bar-key">' + kind + '＋首5年複利儲蓄＋其後每年儲蓄</p><div class="p4-colored-bar" role="img" aria-label="' + kind + '本金、首5年複利儲蓄本金、其後每年銀行儲蓄本金"><span class="p4-color-instrument" style="width:' + instrumentPct + '%"></span><span class="p4-color-saving" style="width:' + savingPct + '%"></span><span class="p4-color-bank" style="width:' + bankPct + '%"></span></div><p class="p4-bar-key"><span><i class="p4-key-instrument"></i>' + kind + ' ' + money(principal) + '</span><span><i class="p4-key-saving"></i>首5年複利儲蓄 ' + money(saving) + '</span><span><i class="p4-key-bank"></i>其後每年儲蓄 ' + money(laterAnnual) + '</span></p></div>'
     : '<p class="p4-small-caveat">輸入' + kind + '資料及每年儲蓄後，可查看本金分配。</p>';
   return '<section class="p4-visual-story p4-maturity-story" data-p4-design="maturity">'
     + '<h2>同一筆資金，不同安排</h2><p>加入不同安排，未來可能帶來不同效果。</p>'
