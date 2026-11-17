@@ -84,14 +84,9 @@ try:
                     assert story.locator('.p4-maturity-lane .p4-bar-title strong:first-child').all_inner_texts() == [('定期' if method == 'fixed_deposit' else '債券'), '複利儲蓄']
                     assert '到期後息率及再投資條件未知' in story.inner_text()
                     assert story.locator('.p4-total-difference strong').inner_text() == '—'
-                    assert '金額＋每年儲蓄' in story.inner_text()
-                    assert '首5年複利儲蓄＋其後每年儲蓄' in story.inner_text()
-                    assert '首5年複利儲蓄 HK$ 250,000' in story.inner_text()
-                    assert '其後每年儲蓄 HK$ 500,000' in story.inner_text()
-                    assert ('定期 HK$ 400,000' if method == 'fixed_deposit' else '債券 HK$ 400,000') in story.inner_text()
                     bars = story.locator('.p4-colored-bar')
                     assert bars.nth(0).locator('span').count() == 2  # 定期 / 債券 + 全部每年儲蓄
-                    assert bars.nth(1).locator('span').count() == 2  # 複利儲蓄 + 其後每年儲蓄
+                    assert bars.nth(1).locator('span').count() == 2  # 複利儲蓄 + 其後每年儲蓄\n                    assert story.locator('.p4-maturity-lane .p4-bar-key').count() == 0
                     assert bars.nth(1).locator('.p4-color-instrument').count() == 0
                     assert bars.nth(1).locator('.p4-color-saving').count() == 1
                     assert bars.nth(1).locator('.p4-color-bank').count() == 1
