@@ -89,7 +89,7 @@ test('clearing existing bank deposit immediately removes it from the comparison 
     flow: [{ page_id: 'P4', title: 'P4', subtitle: '' }], current_methods: [], return_tables: { none: [{ policy_year: 8, multiplier: 1 }] }
   });
   assert.doesNotMatch(app.innerHTML, /HK\$ 700,000/);
-  assert.match(app.innerHTML, /現有存款[\s\S]*—/);
+  assert.match(app.innerHTML, /原有存款 —/);
 });
 
 test('money formatting and malformed state never produce NaN customer output', () => {
@@ -437,127 +437,85 @@ test('fair P4 values expose cumulative Bank principal and split post-saving Bank
   assert.equal(fair.bankPrincipal, fair.savingPrincipal);
 });
 
-test('FD/Bond P4 keeps Resource A at the selected year and never derives false instrument growth', () => {
+test('FD/Bond P4 uses only current-term maturity and does not invent renewal returns', () => {
   const state = {
-    pageId: 'P4', history: [], mode: 'use', customerView: false,
-    session: {
-      scenario: 'scenario1', currentMethod: 'fixed_deposit', annualContribution: 100000,
-      currentAge: 40, policyYear: 12,
-      assumptions: { existingDeposit: 300000, cashRate: 1, fixedDeposits: [{ id: 'fd-1', principal: 200000, termYears: 1, annualRate: 3 }] },
-      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
-    }
+    pageId:'P4', history:[], mode:'use', customerView:false,
+    session:{scenario:'scenario1', currentMethod:'fixed_deposit', annualContribution:100000,
+      currentAge:40, policyYear:12, assumptions:{existingDeposit:300000, cashRate:1,
+        fixedDeposits:[{id:'fd-1',principal:200000,termYears:1,annualRate:3}]},
+      savingPhases:[{id:1,strategyCode:null,withdrawalPolicyYear:null}]}
   };
-  const app = { innerHTML: '' };
-  const p4Official = { ...official, current_methods: [{ method_key: 'fixed_deposit', display_name: '定期存款' }] };
-  render(app, state, p4Official);
-  assert.match(app.innerHTML, /現有存款安排按第12年計算/);
-  assert.match(app.innerHTML, /定期金額<\/span><strong>HK\$ 200,000/);
-  assert.match(app.innerHTML, /今期累積增長<\/span><strong>HK\$ 6,000/);
-  assert.match(app.innerHTML, /今期到期金額<\/span><strong>HK\$ 206,000/);
-  assert.doesNotMatch(app.innerHTML, /HK\$ -194,000/);
-  assert.doesNotMatch(app.innerHTML, /累積增長<\/span><strong>HK\$ -/);
-  const resourceAt12 = calculateExistingResourceProjection({ existingDeposit: 300000, annualContribution: 100000, cashRate: 1, projectionYears: 12 });
-  assert.match(app.innerHTML, new RegExp(`總額<\/span><strong>HK\\$ ${Math.round(resourceAt12.value).toLocaleString('en-US')}`));
-  assert.match(app.innerHTML, new RegExp(`累積增長<\/span><strong>HK\\$ ${Math.round(resourceAt12.growth).toLocaleString('en-US')}`));
-
-  state.session.policyYear = 13;
-  render(app, state, p4Official);
-  const resourceAt13 = calculateExistingResourceProjection({ existingDeposit: 300000, annualContribution: 100000, cashRate: 1, projectionYears: 13 });
-  assert.match(app.innerHTML, /現有存款安排按第13年計算/);
-  assert.match(app.innerHTML, new RegExp(`總額<\/span><strong>HK\\$ ${Math.round(resourceAt13.value).toLocaleString('en-US')}`));
-  assert.match(app.innerHTML, new RegExp(`累積增長<\/span><strong>HK\\$ ${Math.round(resourceAt13.growth).toLocaleString('en-US')}`));
-  assert.match(app.innerHTML, /今期到期金額<\/span><strong>HK\$ 206,000/);
-
-  state.session.currentMethod = 'bond';
-  state.session.assumptions = { existingDeposit: 300000, cashRate: 1, bonds: [{ id: 'bond-1', principal: 300000, termYears: 5, annualRate: 4 }] };
-  render(app, state, { ...official, current_methods: [{ method_key: 'bond', display_name: '債券' }] });
-  assert.match(app.innerHTML, /債券金額<\/span><strong>HK\$ 300,000/);
-  assert.match(app.innerHTML, /今期累積增長<\/span><strong>HK\$ 60,000/);
-  assert.match(app.innerHTML, /今期到期金額<\/span><strong>HK\$ 360,000/);
-  assert.doesNotMatch(app.innerHTML, /HK\$ -/);
+  const app={innerHTML:''};
+  render(app,state,official);
+  assert.match(app.innerHTML,/data-p4-design="maturity"/);
+  assert.match(app.innerHTML,/HK\$ 206,000/);
+  assert.match(app.innerHTML,/今期條款可計算/);
+  assert.match(app.innerHTML,/到期後條件仍未知/);
+  assert.doesNotMatch(app.innerHTML,/HK\$ -194,000/);
+  state.session.policyYear=13;
+  render(app,state,official);
+  assert.match(app.innerHTML,/第13年/);
+  assert.match(app.innerHTML,/HK\$ 206,000/);
+  state.session.currentMethod='bond';
+  state.session.assumptions={existingDeposit:300000,cashRate:1,bonds:[{id:'bond-1',principal:300000,termYears:5,annualRate:4}]};
+  render(app,state,official);
+  assert.match(app.innerHTML,/HK\$ 360,000/);
+  assert.match(app.innerHTML,/債券到期後息率及再投資條件未知/);
 });
 
-test('FD P4 uses the Bank/Cash fair-principal split at years 13 and 14', () => {
-  const state = {
-    pageId: 'P4', history: [], mode: 'use', customerView: false,
-    session: {
-      scenario: 'scenario1', currentMethod: 'fixed_deposit', annualContribution: 50000,
-      currentAge: 40, policyYear: 13,
-      assumptions: { existingDeposit: 200000, cashRate: 1, fixedDeposits: [{ id: 'fd-1', principal: 100000, termYears: 1, annualRate: 2 }] },
-      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
-    }
-  };
-  const app = { innerHTML: '' };
-  const p4Official = { ...official, current_methods: [{ method_key: 'fixed_deposit', display_name: '定期存款' }] };
-  const assertYear = (year, leftAnnual, rightExisting, expectedPrincipal) => {
-    state.session.policyYear = year;
-    render(app, state, p4Official);
-    const fair = calculateFairPrincipalComparison({ existingDeposit: 200000, cashRate: 1, annualContribution: 50000, projectionYears: year, official });
-    const resource = calculateExistingResourceProjection({ existingDeposit: 200000, cashRate: 1, annualContribution: 50000, projectionYears: year });
-    assert.equal(fair.bankPrincipal, expectedPrincipal);
-    assert.equal(fair.savingPrincipal, expectedPrincipal);
-    assert.match(app.innerHTML, new RegExp(`現有存款</span><strong>HK\\$ 200,000`));
-    assert.match(app.innerHTML, new RegExp(`每年安排</span><strong>HK\\$ ${leftAnnual}`));
-    assert.match(app.innerHTML, new RegExp(`現有存款</span><strong>HK\\$ ${rightExisting}`));
-    assert.match(app.innerHTML, /5年安排<\/span><strong>HK\$ 250,000/);
-    assert.match(app.innerHTML, new RegExp(`累積增長</span><strong>HK\\$ ${Math.round(resource.growth).toLocaleString('en-US')}`));
-    assert.match(app.innerHTML, new RegExp(`總額</span><strong>HK\\$ ${Math.round(resource.value).toLocaleString('en-US')}`));
-    assert.match(app.innerHTML, /定期金額<\/span><strong>HK\$ 100,000/);
-    assert.match(app.innerHTML, /今期累積增長<\/span><strong>HK\$ 2,000/);
-    assert.match(app.innerHTML, /今期到期金額<\/span><strong>HK\$ 102,000/);
-    assert.doesNotMatch(app.innerHTML, /HK\$ -/);
-  };
-  assertYear(13, '650,000', '600,000', 850000);
-  assertYear(14, '700,000', '650,000', 900000);
-});
-
-test('Bond P4 uses the same fair-principal split without projecting the current bond rate', () => {
-  const state = {
-    pageId: 'P4', history: [], mode: 'use', customerView: false,
-    session: {
-      scenario: 'scenario1', currentMethod: 'bond', annualContribution: 50000,
-      currentAge: 40, policyYear: 13,
-      assumptions: { existingDeposit: 200000, cashRate: 1, bonds: [{ id: 'bond-1', principal: 100000, termYears: 1, annualRate: 4 }] },
-      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
-    }
-  };
-  const app = { innerHTML: '' };
-  const p4Official = { ...official, current_methods: [{ method_key: 'bond', display_name: '債券' }] };
-  for (const [year, leftAnnual, rightExisting] of [[13, '650,000', '600,000'], [14, '700,000', '650,000']]) {
-    state.session.policyYear = year;
-    render(app, state, p4Official);
-    const resource = calculateExistingResourceProjection({ existingDeposit: 200000, cashRate: 1, annualContribution: 50000, projectionYears: year });
-    assert.match(app.innerHTML, new RegExp(`每年安排</span><strong>HK\\$ ${leftAnnual}`));
-    assert.match(app.innerHTML, new RegExp(`現有存款</span><strong>HK\\$ ${rightExisting}`));
-    assert.match(app.innerHTML, /5年安排<\/span><strong>HK\$ 250,000/);
-    assert.match(app.innerHTML, new RegExp(`累積增長</span><strong>HK\\$ ${Math.round(resource.growth).toLocaleString('en-US')}`));
-    assert.match(app.innerHTML, new RegExp(`總額</span><strong>HK\\$ ${Math.round(resource.value).toLocaleString('en-US')}`));
-    assert.match(app.innerHTML, /債券金額<\/span><strong>HK\$ 100,000/);
-    assert.match(app.innerHTML, /今期累積增長<\/span><strong>HK\$ 4,000/);
-    assert.match(app.innerHTML, /今期到期金額<\/span><strong>HK\$ 104,000/);
-    assert.doesNotMatch(app.innerHTML, /HK\$ -/);
+test('FD P4 preserves equal fair principal across years 13 and 14 without showing a fictional FD projection', () => {
+  const state={pageId:'P4',history:[],mode:'use',customerView:false,
+    session:{scenario:'scenario1',currentMethod:'fixed_deposit',annualContribution:50000,currentAge:40,policyYear:13,
+      assumptions:{existingDeposit:200000,cashRate:1,fixedDeposits:[{id:'fd-1',principal:100000,termYears:1,annualRate:2}]},
+      savingPhases:[{id:1,strategyCode:null,withdrawalPolicyYear:null}]}};
+  const app={innerHTML:''};
+  for(const year of [13,14]){
+    state.session.policyYear=year;
+    render(app,state,official);
+    const fair=calculateFairPrincipalComparison({existingDeposit:200000,cashRate:1,annualContribution:50000,projectionYears:year,official});
+    assert.equal(fair.bankPrincipal,200000+50000*year);
+    assert.equal(fair.bankPrincipal,fair.savingPrincipal);
+    assert.match(app.innerHTML,/HK\$ 102,000/);
+    assert.match(app.innerHTML,new RegExp('第'+year+'年'));
+    assert.doesNotMatch(app.innerHTML,/p4-simple-comparison/);
+    assert.match(app.innerHTML,/不會假設定期持續相同回報/);
   }
-  const fair = calculateFairPrincipalComparison({ existingDeposit: 200000, cashRate: 1, annualContribution: 50000, projectionYears: 14, official });
-  assert.equal(fair.bankPrincipal, 900000);
-  assert.equal(fair.savingPrincipal, 900000);
 });
 
-test('P4 rendered cards switch fair principal rows with the selected year', () => {
-  const state = {
-    pageId: 'P4', history: [], mode: 'use', customerView: false,
-    session: {
-      scenario: 'scenario1', currentMethod: 'cash', annualContribution: 100000,
-      currentAge: 40, policyYear: 8, assumptions: { existingDeposit: 200000, cashRate: 2 },
-      savingPhases: [{ id: 1, strategyCode: null, withdrawalPolicyYear: null }]
-    }
-  };
-  const app = { innerHTML: '' };
-  for (const [year, bankAnnual, savingBank] of [[8, '800,000', '500,000'], [9, '900,000', '600,000'], [10, '1,000,000', '700,000'], [13, '1,300,000', '1,000,000']]) {
-    state.session.policyYear = year;
-    render(app, state, official);
-    assert.match(app.innerHTML, new RegExp(`每年安排</span><strong>HK\\$ ${bankAnnual}`));
-    assert.match(app.innerHTML, new RegExp(`現有存款</span><strong>HK\\$ ${savingBank}`));
-    assert.doesNotMatch(app.innerHTML, /NaN/);
+test('Bond P4 retains current-term value and fair principal without projected bond renewal rate', () => {
+  const state={pageId:'P4',history:[],mode:'use',customerView:false,
+    session:{scenario:'scenario1',currentMethod:'bond',annualContribution:50000,currentAge:40,policyYear:13,
+      assumptions:{existingDeposit:200000,cashRate:1,bonds:[{id:'bond-1',principal:100000,termYears:1,annualRate:4}]},
+      savingPhases:[{id:1,strategyCode:null,withdrawalPolicyYear:null}]}};
+  const app={innerHTML:''};
+  for(const year of [13,14]){
+    state.session.policyYear=year;
+    render(app,state,official);
+    const fair=calculateFairPrincipalComparison({existingDeposit:200000,cashRate:1,annualContribution:50000,projectionYears:year,official});
+    assert.equal(fair.bankPrincipal,fair.savingPrincipal);
+    assert.match(app.innerHTML,/HK\$ 104,000/);
+    assert.match(app.innerHTML,/不會假設債券持續相同回報/);
+  }
+});
+
+test('P4 bank contribution bars show equal annual principal at selected year with correct outcomes', () => {
+  const state={pageId:'P4',history:[],mode:'use',customerView:false,
+    session:{scenario:'scenario1',currentMethod:'cash',annualContribution:100000,currentAge:40,policyYear:8,
+      assumptions:{existingDeposit:200000,cashRate:2},savingPhases:[{id:1,strategyCode:null,withdrawalPolicyYear:null}]}};
+  const app={innerHTML:''};
+  for(const year of [8,9,10,13]){
+    state.session.policyYear=year;
+    render(app,state,official);
+    const fair=calculateFairPrincipalComparison({existingDeposit:200000,cashRate:2,annualContribution:100000,projectionYears:year,official});
+    const yearly=100000*year;
+    assert.equal(fair.bankPrincipal,fair.savingPrincipal);
+    assert.match(app.innerHTML,/data-p4-design="bank"/);
+    assert.match(app.innerHTML,new RegExp('同樣投入本金 · 第'+year+'年'));
+    assert.match(app.innerHTML,new RegExp('HK\\$ '+yearly.toLocaleString('en-US')));
+    assert.match(app.innerHTML,new RegExp('HK\\$ '+Math.round(fair.bankTotal).toLocaleString('en-US')));
+    assert.match(app.innerHTML,new RegExp('HK\\$ '+Math.round(fair.savingTotal).toLocaleString('en-US')));
+    assert.match(app.innerHTML,/首5年複利儲蓄/);
+    assert.doesNotMatch(app.innerHTML,/NaN/);
   }
 });
 
@@ -670,12 +628,11 @@ test('P4, P6 and Scenario 1 P7 use simplified result layouts without changing va
   };
   const app = { innerHTML: '' };
   render(app, state, officialForPages);
-  assert.equal((app.innerHTML.match(/resource-card--current/g) || []).length, 1);
-  assert.equal((app.innerHTML.match(/resource-card--new/g) || []).length, 1);
-  assert.match(app.innerHTML, /現有存款/);
-  assert.match(app.innerHTML, /每年安排/);
-  assert.match(app.innerHTML, /累積增長/);
-  assert.match(app.innerHTML, /總額/);
+  assert.match(app.innerHTML, /data-p4-design="bank"/);
+  assert.match(app.innerHTML, /同樣投入本金/);
+  assert.match(app.innerHTML, /維持銀行存款/);
+  assert.match(app.innerHTML, /加入多一種工具/);
+  assert.match(app.innerHTML, /模擬差額/);
   assert.doesNotMatch(app.innerHTML, /resource-summary|resource-section--overall/);
 
   state.pageId = 'P6';
