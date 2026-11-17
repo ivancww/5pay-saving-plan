@@ -200,3 +200,34 @@ html,body{max-width:100%}.timeline-rail-card{min-width:0;max-width:100%}.timelin
 .breakdown-content { min-width: 0; overflow-wrap: anywhere; padding: 0.5rem 0; }
 .breakdown-content p { margin: 0.5rem 0; }
 .breakdown-content .comparison-detail strong { text-align: right; overflow-wrap: anywhere; }
+
+/* P4 visual storytelling reuses the existing AVA surfaces, colours and timeline rail. */
+.p4-visual-story{margin-top:24px;display:grid;gap:18px;min-width:0}
+.p4-common-principal{display:grid;gap:5px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.p4-common-principal span,.p4-simple-outcome span{font-weight:700;color:var(--muted)}
+.p4-common-principal strong{font-size:clamp(25px,3vw,39px);line-height:1.2}
+.p4-common-principal small,.p4-small-caveat{color:var(--muted);line-height:1.6}
+.p4-split-bars,.p4-maturity-lane,.p4-maturity-current{padding:20px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);min-width:0}
+.p4-bar-title{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0;color:var(--text)}
+.p4-colored-bar{display:flex;overflow:hidden;width:100%;height:24px;border-radius:8px;background:var(--selected)}
+.p4-color-bank{background:#9cacc2;display:block;height:100%}
+.p4-color-saving{background:var(--primary);display:block;height:100%}
+.p4-color-known{background:var(--primary);display:block;height:100%}
+.p4-color-unknown{background:#e8edf3;display:block;height:100%;border:1px solid #d3deeb}
+.p4-bar-key{display:flex;justify-content:flex-start;align-items:center;gap:12px 24px;flex-wrap:wrap;color:var(--muted);font-size:14px;line-height:1.5}
+.p4-bar-key span{display:inline-flex;align-items:center;gap:7px}
+.p4-bar-key i{display:inline-block;width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+.p4-key-bank{background:#9cacc2}.p4-key-saving,.p4-key-known{background:var(--primary)}.p4-key-unknown{background:#e8edf3;border:1px solid #d3deeb}
+.p4-simple-outcomes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;min-width:0}
+.p4-simple-outcome{display:grid;gap:10px;min-width:0;padding:20px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.p4-simple-outcome--saving{background:var(--selected);border-color:var(--accent)}
+.p4-simple-outcome strong{font-size:clamp(22px,2.6vw,38px);line-height:1.2;overflow-wrap:anywhere}
+.p4-total-difference{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;padding:15px 20px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface)}
+.p4-total-difference strong{font-size:clamp(20px,2.4vw,30px)}
+.p4-maturity-story>h2{font-size:clamp(20px,2.5vw,30px);margin:0}
+.p4-maturity-story>p{margin:0}
+.p4-known-maturity{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:12px;margin-top:10px}
+.p4-known-maturity strong{font-size:clamp(18px,2.1vw,26px)}
+.p4-maturity-future{padding:16px;border-radius:var(--radius);background:var(--selected);line-height:1.6}
+.p4-maturity-future strong{display:block;font-size:clamp(21px,2.7vw,33px);overflow-wrap:anywhere}
+@media(max-width:650px){.p4-simple-outcomes{grid-template-columns:1fr}.p4-visual-story{gap:12px}.p4-split-bars,.p4-maturity-lane,.p4-maturity-current{padding:14px}.p4-bar-key{font-size:12px}}
