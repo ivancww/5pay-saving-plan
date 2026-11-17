@@ -46,7 +46,7 @@ test('formatted money input updates canonical state before P3 render', () => {
   render(app, { pageId: 'P3', history: [], mode: 'use', customerView: false, session }, {
     flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: []
   });
-  assert.match(app.innerHTML, /HK\$ 100,000/);
+  assert.match(app.innerHTML, /id='annual-contribution'[^>]*value='100,000'/);
   assert.doesNotMatch(app.innerHTML, /NaN/);
 
   session.currentAge = 30;
@@ -54,7 +54,7 @@ test('formatted money input updates canonical state before P3 render', () => {
   render(app, { pageId: 'P3', history: [], mode: 'use', customerView: false, session }, {
     flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: []
   });
-  assert.match(app.innerHTML, /HK\$ 100,000/);
+  assert.match(app.innerHTML, /id='annual-contribution'[^>]*value='100,000'/);
 });
 
 test('new annual arrangement remains valid without an existing FD resource', () => {
@@ -89,7 +89,7 @@ test('clearing existing bank deposit immediately removes it from the comparison 
     flow: [{ page_id: 'P4', title: 'P4', subtitle: '' }], current_methods: [], return_tables: { none: [{ policy_year: 8, multiplier: 1 }] }
   });
   assert.doesNotMatch(app.innerHTML, /HK\$ 700,000/);
-  assert.match(app.innerHTML, /原有存款 —/);
+  assert.match(app.innerHTML, /目前銀行存款 —/);
 });
 
 test('money formatting and malformed state never produce NaN customer output', () => {
@@ -165,10 +165,10 @@ test('P3 renders inherited Phase 1 contribution and preserves it when age change
   const officialP3 = { flow: [{ page_id: 'P3', title: 'P3', subtitle: '' }], current_methods: [], page_content: [] };
   render(app, state, officialP3);
   assert.equal(effectiveAnnualContribution(state.session), 100000);
-  assert.ok(app.innerHTML.includes('HK$ 100,000'));
+  assert.ok(app.innerHTML.includes("value='100,000'"));
   state.session.currentAge = 31;
   render(app, state, officialP3);
-  assert.ok(app.innerHTML.includes('HK$ 100,000'));
+  assert.ok(app.innerHTML.includes("value='100,000'"));
 });
 
 test('exact-observation market simulator covers all series without interpolation', () => {
@@ -631,7 +631,7 @@ test('P4, P6 and Scenario 1 P7 use simplified result layouts without changing va
   assert.match(app.innerHTML, /data-p4-design="bank"/);
   assert.match(app.innerHTML, /同樣投入本金/);
   assert.match(app.innerHTML, /維持銀行存款/);
-  assert.match(app.innerHTML, /加入多一種工具/);
+  assert.match(app.innerHTML, /複利儲蓄/);
   assert.match(app.innerHTML, /模擬差額/);
   assert.doesNotMatch(app.innerHTML, /resource-summary|resource-section--overall/);
 

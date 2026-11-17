@@ -35,6 +35,10 @@ try:
                 page.locator('[data-value="scenario1"]').click()
                 page.locator(f'[data-action="select-method"][data-value="{method}"]').click()
                 page.locator('[data-action="select-purpose"]').click()
+                if method == 'cash':
+                    assert page.locator('.flow-body > .path-card').count() == 0
+                    assert page.locator('.input-card h3').all_inner_texts() == ['每年儲蓄', '目前銀行存款']
+                    assert page.locator('#customer-age').bounding_box()['y'] < page.locator('#annual-contribution').bounding_box()['y']
                 page.locator('#annual-contribution').fill('50000')
                 page.locator('#customer-age').fill('40')
                 page.locator('#existing-deposit').fill('200000')
@@ -53,6 +57,16 @@ try:
                     assert story.locator('.p4-colored-bar').count() == 2
                     assert story.locator('.p4-simple-outcome').count() == 2
                     assert story.locator('.p4-bar-title').count() == 2
+                    assert '目前銀行存款' in story.inner_text() and '複利儲蓄' in story.inner_text()
+                    helper = story.locator('.p4-help')
+                    assert not helper.evaluate('(e) => e.open')
+                    helper.locator('summary').click()
+                    assert helper.evaluate('(e) => e.open') and '每年儲蓄 × 所選年期' in helper.inner_text()
+                    helper.locator('summary').click()
+                    difference = story.locator('.p4-total-difference strong')
+                    assert difference.inner_text().startswith('+HK$ ')
+                    assert difference.evaluate('(e) => getComputedStyle(e).color') == 'rgb(198, 40, 40)'
+                    assert not story.locator('.p4-simple-outcome strong.p4-difference-positive').count()
                     assert 'HK$ 950,000' in story.inner_text()
                     assert 'HK$ 750,000' in story.inner_text()
                     assert 'HK$ 250,000' in story.inner_text()
@@ -78,6 +92,12 @@ try:
                 if method == 'cash':
                     assert 'HK$ 300,000' in story.inner_text()
                     assert 'HK$ 900,000' in story.inner_text()
+                    page.locator('[data-action="back"]').click()
+                    page.locator('#cash-rate').fill('99')
+                    page.locator('[data-action="next"]').click()
+                    difference = story.locator('.p4-total-difference strong')
+                    assert 'HK$ -' in difference.inner_text()
+                    assert not difference.evaluate('(e) => e.classList.contains("p4-difference-positive")')
                 else:
                     assert story.locator('.p4-known-maturity').count() == 2
                 assert not errors, errors
