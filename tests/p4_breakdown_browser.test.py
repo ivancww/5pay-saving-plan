@@ -88,7 +88,7 @@ try:
                     assert '首5年複利儲蓄＋其後每年儲蓄' in story.inner_text()
                     assert '首5年複利儲蓄 HK$ 250,000' in story.inner_text()
                     assert '其後每年儲蓄 HK$ 500,000' in story.inner_text()
-                    assert ('定期 HK$ 200,000' if method == 'fixed_deposit' else '債券 HK$ 200,000') in story.inner_text()
+                    assert ('定期 HK$ 400,000' if method == 'fixed_deposit' else '債券 HK$ 400,000') in story.inner_text()
                     bars = story.locator('.p4-colored-bar')
                     assert bars.nth(0).locator('span').count() == 2  # 定期 / 債券 + 全部每年儲蓄
                     assert bars.nth(1).locator('span').count() == 2  # 複利儲蓄 + 其後每年儲蓄
@@ -98,7 +98,7 @@ try:
                     assert bars.nth(1).get_attribute('aria-label').find('不包含定期或債券本金') >= 0
                     widths = [bars.nth(i).locator('span').evaluate_all('(es) => es.map(e => parseFloat(e.style.width))') for i in range(2)]
                     assert all(abs(sum(parts) - 100) < 0.01 for parts in widths)
-                    assert abs(widths[0][0] - (200000 / (200000 + 750000) * 100)) < 0.01
+                    assert abs(widths[0][0] - (400000 / (400000 + 750000) * 100)) < 0.01
                     assert abs(widths[1][0] - (250000 / 750000 * 100)) < 0.01
                     assert abs(widths[1][1] - (500000 / 750000 * 100)) < 0.01
                     assert '複利儲蓄' in story.inner_text()
