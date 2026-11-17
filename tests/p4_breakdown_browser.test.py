@@ -46,38 +46,40 @@ try:
                     for field, value in [('principal','100000'),('termYears','1'),('annualRate','4')]:
                         page.locator(f'[data-holding-field="{field}"]').nth(1).fill(value)
                 page.locator('[data-action="next"]').click()
-                left=page.locator('[data-breakdown="current"]'); right=page.locator('[data-breakdown="saving"]')
-                assert not left.evaluate('(e)=>e.open') and not right.evaluate('(e)=>e.open')
-                left.locator('summary').click(); assert left.evaluate('(e)=>e.open') and not right.evaluate('(e)=>e.open')
-                right.locator('summary').click(); assert left.evaluate('(e)=>e.open') and right.evaluate('(e)=>e.open')
-                assert 'HK$ 750,000' in left.inner_text() and 'HK$ 950,000' in left.inner_text(), left.inner_text()
-                assert 'HK$ 250,000' in right.inner_text() and 'HK$ 700,000' in right.inner_text()
-                assert 'HK$ 337,500' in right.inner_text()
-                for detail in (left, right):
-                    card = detail.locator('xpath=..')
-                    summary_total = card.locator('.comparison-card-total strong').first.inner_text()
-                    detail_total = detail.locator('.comparison-detail strong').last.inner_text()
-                    assert summary_total == detail_total
-                if method != 'cash':
-                    assert page.locator('.instrument-p4-detail').count()==2
-                    assert '到期之後下一期息率' in page.locator('.p4-instrument-card').inner_text()
+                story = page.locator('[data-p4-design]')
+                assert story.count() == 1
+                if method == 'cash':
+                    assert story.get_attribute('data-p4-design') == 'bank'
+                    assert story.locator('.p4-colored-bar').count() == 2
+                    assert story.locator('.p4-simple-outcome').count() == 2
+                    assert story.locator('.p4-bar-title').count() == 2
+                    assert 'HK$ 950,000' in story.inner_text()
+                    assert 'HK$ 750,000' in story.inner_text()
+                    assert 'HK$ 250,000' in story.inner_text()
+                    assert 'HK$ 500,000' in story.inner_text()
+                else:
+                    assert story.get_attribute('data-p4-design') == 'maturity'
+                    assert story.locator('.p4-colored-bar').count() == 2
+                    assert story.locator('.p4-known-maturity').count() == 2
+                    assert '到期後條件仍未知' in story.inner_text()
+                    assert '不會假設' in story.inner_text()
+                    assert '複利儲蓄' in story.inner_text()
+                    assert not page.locator('.p4-simple-comparison').count()
                 for year in [8,13,14,15]:
                     page.locator(f'#comparison-time-rail [data-value="{year}"]').click()
-                    assert left.evaluate('(e)=>e.open') and right.evaluate('(e)=>e.open')
-                    assert f'第 {year} 年' in left.inner_text()
-                    assert f'HK$ {50000*year:,}' in left.inner_text()
-                left.locator('summary').click(); assert not left.evaluate('(e)=>e.open') and right.evaluate('(e)=>e.open')
-                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
-                assert left.locator('summary').evaluate('(e)=>e.getBoundingClientRect().height') >= 44
+                    assert f'第{year}年' in story.inner_text()
+                    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
                 page.locator('[data-action="back"]').click()
                 page.locator('#annual-contribution').fill('60000')
                 page.locator('#existing-deposit').fill('300000')
                 page.locator('#cash-rate').fill('3')
                 page.locator('[data-action="next"]').click()
-                assert not left.evaluate('(e)=>e.open') and not right.evaluate('(e)=>e.open')
-                left.locator('summary').click(); right.locator('summary').click()
-                assert 'HK$ 300,000' in left.inner_text() and 'HK$ 60,000' in left.inner_text()
-                assert '3%' in left.inner_text() and 'HK$ 300,000' in right.inner_text()
+                assert story.count() == 1
+                if method == 'cash':
+                    assert 'HK$ 300,000' in story.inner_text()
+                    assert 'HK$ 900,000' in story.inner_text()
+                else:
+                    assert story.locator('.p4-known-maturity').count() == 2
                 assert not errors, errors
                 context.close()
         context = browser.new_context(service_workers='block')
@@ -120,4 +122,4 @@ try:
         browser.close()
 finally:
     server.shutdown()
-print('P4 cash, fixed deposit and bond browser interactions passed at five viewport sizes')
+print('P4 bank contribution bars and fixed deposit/bond time bars passed at five viewport sizes')
