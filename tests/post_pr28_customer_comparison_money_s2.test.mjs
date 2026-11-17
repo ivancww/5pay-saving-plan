@@ -448,7 +448,7 @@ test('FD/Bond P4 uses only current-term maturity and does not invent renewal ret
   assert.match(app.innerHTML,/data-p4-design="maturity"/);
   assert.match(app.innerHTML,/HK\$ 206,000/);
   assert.match(app.innerHTML,/定期金額＋每年儲蓄/);
-  assert.match(app.innerHTML,/複利儲蓄金額＋其後每年儲蓄/);
+  assert.match(app.innerHTML,/定期＋首5年複利儲蓄＋其後每年儲蓄|債券＋首5年複利儲蓄＋其後每年儲蓄/);
   assert.match(app.innerHTML, /模擬差額<\/span><strong>—<\/strong>/);
   assert.doesNotMatch(app.innerHTML,/HK\$ -194,000/);
   state.session.assumptions.fixedDeposits.push({id:'incomplete', principal:null, termYears:null, annualRate:null});
