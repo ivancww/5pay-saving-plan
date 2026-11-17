@@ -447,8 +447,8 @@ test('FD/Bond P4 uses only current-term maturity and does not invent renewal ret
   render(app,state,official);
   assert.match(app.innerHTML,/data-p4-design="maturity"/);
   assert.match(app.innerHTML,/HK\$ 206,000/);
-  assert.match(app.innerHTML,/定期金額＋每年儲蓄/);
-  assert.match(app.innerHTML,/首5年複利儲蓄＋其後每年儲蓄/);
+  assert.match(app.innerHTML,/p4-color-instrument/);
+  assert.match(app.innerHTML,/p4-color-saving/);
   const compoundBar = app.innerHTML.match(/<div class="p4-maturity-lane"><div class="p4-bar-title"><strong>複利儲蓄<\/strong>[\s\S]*?<div class="p4-colored-bar"[^>]*>([\s\S]*?)<\/div>/);
   assert.ok(compoundBar);
   assert.doesNotMatch(compoundBar[1], /p4-color-instrument/);
